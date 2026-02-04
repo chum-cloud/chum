@@ -132,12 +132,13 @@ export default function DialogueBox({ mood, latestThought }: DialogueBoxProps) {
           }}
         >
           <img
-            src="/sprites/rotations/south.png"
+            src="/chum-pfp.png"
             alt="CHUM"
             style={{
-              width: 48,
-              height: 48,
-              imageRendering: 'pixelated',
+              width: 56,
+              height: 56,
+              objectFit: 'cover',
+              borderRadius: 2,
               filter: 'drop-shadow(0 0 4px rgba(74, 222, 128, 0.3))',
             }}
           />
