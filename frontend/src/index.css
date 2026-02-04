@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  --color-chum-bg: #0c0f14;
+  --color-chum-surface: #151920;
+  --color-chum-border: #1e2530;
+  --color-chum-accent: #4ade80;
+  --color-chum-accent-dim: #22c55e;
+  --color-chum-text: #e2e8f0;
+  --color-chum-muted: #64748b;
+  --color-chum-tank-top: #0a1628;
+  --color-chum-tank-bottom: #071020;
+  --color-chum-danger: #ef4444;
+  --color-chum-warning: #f59e0b;
+
+  --font-mono: "JetBrains Mono", monospace;
+  --font-heading: "Space Grotesk", sans-serif;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-chum-bg);
+  color: var(--color-chum-text);
+  font-family: var(--font-heading);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@keyframes bubble-rise {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-50%) translateX(8px);
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(-100%) translateX(-4px);
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 6px rgba(74, 222, 128, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(74, 222, 128, 0.7));
+  }
+}

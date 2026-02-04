@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+*.local
+.DS_Store
+.claude
+chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T.json
