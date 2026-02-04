@@ -46,16 +46,18 @@ export default function ThoughtsFeed() {
     async function fetchThoughts() {
       try {
         const base = import.meta.env.VITE_API_URL || '';
-        // Try the Supabase-backed thoughts endpoint, fall back to direct Supabase
-        const res = await fetch(
-          `${base}/api/thoughts?limit=20`
-        );
+        const res = await fetch(`${base}/api/thoughts?limit=20`);
         if (res.ok) {
-          const data = await res.json();
-          if (active) setThoughts(Array.isArray(data) ? data : data.thoughts || []);
+          const ct = res.headers.get('content-type') || '';
+          if (ct.includes('application/json')) {
+            const data = await res.json();
+            if (active) setThoughts(Array.isArray(data) ? data : data.thoughts || []);
+            return;
+          }
         }
+        // Backend not available or not JSON — fall back to Supabase
+        throw new Error('fallback');
       } catch {
-        // Fallback: try Supabase directly
         try {
           const res = await fetch(
             'https://akkhgcmmgzrianbdfijt.supabase.co/rest/v1/thoughts?order=created_at.desc&limit=20',
