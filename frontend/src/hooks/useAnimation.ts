@@ -21,7 +21,7 @@ interface AnimationResult {
 
 export function useAnimation(
   animationState: AnimationState,
-  tankWidth: number,
+  _tankWidth: number,
 ): AnimationResult {
   const [frame, setFrame] = useState(0);
   const [direction, setDirection] = useState<Direction>('east');
