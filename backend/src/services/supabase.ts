@@ -68,6 +68,16 @@ export async function insertTransaction(
   if (error) throw new Error(`insertTransaction: ${error.message}`);
 }
 
+export async function getRecentThoughts(limit: number = 20): Promise<ThoughtRow[]> {
+  const { data, error } = await supabase
+    .from('thoughts')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`getRecentThoughts: ${error.message}`);
+  return (data ?? []) as ThoughtRow[];
+}
+
 export async function getTodayRevenue(): Promise<number> {
   const todayStart = new Date();
   todayStart.setUTCHours(0, 0, 0, 0);

@@ -2,19 +2,18 @@ import { SPRITE_SIZE } from '../lib/sprites';
 
 interface CharacterProps {
   frameSrc: string;
-  direction: 'east' | 'west';
   x: number;
 }
 
 const SCALE = 3;
 
-export default function Character({ frameSrc, direction, x }: CharacterProps) {
+export default function Character({ frameSrc, x }: CharacterProps) {
   return (
     <div
       className="absolute bottom-6 transition-[left] duration-100 ease-linear"
       style={{
         left: `${x}%`,
-        transform: `translateX(-50%) scaleX(${direction === 'west' ? -1 : 1})`,
+        transform: 'translateX(-50%)',
       }}
     >
       <img

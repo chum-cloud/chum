@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import Tank from './components/Tank';
-
 import StatsGrid from './components/StatsGrid';
 import Services from './components/Services';
 import KeepAlive from './components/KeepAlive';
+import ThoughtsFeed from './components/ThoughtsFeed';
 import { useChum } from './hooks/useChum';
 import { preloadAllUsedAnimations } from './lib/sprites';
 
@@ -28,16 +28,10 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* Tank */}
-        <Tank animationState={chum.animationState} mood={chum.mood} />
-
-        {/* Stats */}
+        <Tank animationState={chum.animationState} mood={chum.mood} latestThought={chum.latestThought} />
         <StatsGrid chum={chum} />
-
-        {/* Keep Alive */}
+        <ThoughtsFeed />
         <KeepAlive onDonation={chum.triggerCelebration} />
-
-        {/* Services */}
         <Services />
       </main>
 

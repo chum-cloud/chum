@@ -4,6 +4,7 @@ import { config } from './config';
 import stateRouter from './routes/state';
 import thoughtRouter from './routes/thought';
 import tweetRouter from './routes/tweet';
+import thoughtsRouter from './routes/thoughts';
 import { startBalanceCheck } from './cron/balanceCheck';
 import { startThoughtLoop } from './cron/thoughtLoop';
 
@@ -22,6 +23,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api', stateRouter);
 app.use('/api', thoughtRouter);
 app.use('/api', tweetRouter);
+app.use('/api', thoughtsRouter);
 
 app.listen(config.port, () => {
   console.log(`[CHUM] Server running on port ${config.port}`);

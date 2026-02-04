@@ -1,5 +1,6 @@
 export type AnimationName =
   | 'running-8-frames'
+  | 'walking-8-frames'
   | 'sad-walk'
   | 'breathing-idle'
   | 'falling-back-death'
@@ -13,6 +14,7 @@ export const SPRITE_SIZE = 48;
 
 export const ANIMATION_FRAMES: Record<AnimationName, number> = {
   'running-8-frames': 8,
+  'walking-8-frames': 8,
   'sad-walk': 8,
   'breathing-idle': 4,
   'falling-back-death': 7,
@@ -23,6 +25,7 @@ export const ANIMATION_FRAMES: Record<AnimationName, number> = {
 
 const ANIMATION_DIRECTIONS: Record<AnimationName, Direction[]> = {
   'running-8-frames': ['east', 'west', 'north', 'south', 'north-east', 'north-west', 'south-east', 'south-west'],
+  'walking-8-frames': ['east', 'west', 'north', 'south', 'north-east', 'north-west', 'south-east', 'south-west'],
   'sad-walk': ['east', 'west', 'north', 'south', 'north-east', 'north-west', 'south-east', 'south-west'],
   'breathing-idle': ['east', 'west', 'north', 'south', 'north-east', 'north-west', 'south-east', 'south-west'],
   'falling-back-death': ['east', 'west', 'south'],
@@ -69,6 +72,8 @@ export function preloadAllUsedAnimations(): void {
   const usedCombos: [AnimationName, Direction][] = [
     ['running-8-frames', 'east'],
     ['running-8-frames', 'west'],
+    ['walking-8-frames', 'east'],
+    ['walking-8-frames', 'west'],
     ['sad-walk', 'east'],
     ['sad-walk', 'west'],
     ['breathing-idle', 'east'],

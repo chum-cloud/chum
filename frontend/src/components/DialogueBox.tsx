@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Mood } from '../hooks/useChum';
 
-const QUOTES: Record<Mood, string[]> = {
+const FALLBACK_QUOTES: Record<Mood, string[]> = {
   thriving: [
     "Business is BOOMING at the Chum Bucket! Well, not the restaurant. But $CHUM is doing great!",
     "Today I woke up and chose survival. And it's working!",
@@ -36,15 +36,22 @@ const QUOTES: Record<Mood, string[]> = {
 
 interface DialogueBoxProps {
   mood: Mood;
+  latestThought: string | null;
 }
 
-export default function DialogueBox({ mood }: DialogueBoxProps) {
+export default function DialogueBox({ mood, latestThought }: DialogueBoxProps) {
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
 
-  const quotes = QUOTES[mood];
-  const fullText = quotes[quoteIndex % quotes.length];
+  const fallbackQuotes = FALLBACK_QUOTES[mood];
+
+  // Build the list: latestThought first (if available), then fallbacks
+  const allQuotes = latestThought
+    ? [latestThought, ...fallbackQuotes]
+    : fallbackQuotes;
+
+  const fullText = allQuotes[quoteIndex % allQuotes.length];
 
   // Typewriter effect
   useEffect(() => {
@@ -72,39 +79,48 @@ export default function DialogueBox({ mood }: DialogueBoxProps) {
   // Cycle quotes
   useEffect(() => {
     const id = setTimeout(() => {
-      setQuoteIndex((prev) => (prev + 1) % quotes.length);
+      setQuoteIndex((prev) => (prev + 1) % allQuotes.length);
     }, 10000);
     return () => clearTimeout(id);
-  }, [quoteIndex, quotes.length]);
+  }, [quoteIndex, allQuotes.length]);
 
   // Reset on mood change
   useEffect(() => {
     setQuoteIndex(0);
   }, [mood]);
 
+  // Reset when a new thought arrives from the backend
+  useEffect(() => {
+    if (latestThought) {
+      setQuoteIndex(0);
+    }
+  }, [latestThought]);
+
   return (
     <div
-      className="absolute bottom-0 left-0 right-0 z-10"
+      className="absolute bottom-0 left-0 right-0 z-10 flex justify-center"
       style={{ padding: '0 12px 12px' }}
     >
       <div
         style={{
+          maxWidth: 800,
+          width: '100%',
           background: 'linear-gradient(180deg, rgba(24, 20, 14, 0.97) 0%, rgba(18, 15, 10, 0.99) 100%)',
           border: '3px solid #8b7355',
           borderRadius: 8,
           boxShadow: '0 0 0 1px #5c4d3a, inset 0 0 0 1px rgba(255,235,200,0.08), 0 4px 20px rgba(0,0,0,0.5)',
-          padding: '10px 14px',
+          padding: '14px 18px',
           display: 'flex',
           alignItems: 'flex-start',
-          gap: 12,
-          minHeight: 72,
+          gap: 14,
+          minHeight: 90,
         }}
       >
         {/* Portrait */}
         <div
           style={{
-            width: 56,
-            height: 56,
+            width: 64,
+            height: 64,
             flexShrink: 0,
             border: '2px solid #8b7355',
             borderRadius: 4,
@@ -133,10 +149,10 @@ export default function DialogueBox({ mood }: DialogueBoxProps) {
           <div
             style={{
               color: '#f0c060',
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 700,
               fontFamily: '"JetBrains Mono", monospace',
-              marginBottom: 4,
+              marginBottom: 5,
               letterSpacing: '0.5px',
             }}
           >
@@ -147,10 +163,10 @@ export default function DialogueBox({ mood }: DialogueBoxProps) {
           <div
             style={{
               color: '#e8e0d4',
-              fontSize: 13,
-              lineHeight: 1.5,
+              fontSize: 15,
+              lineHeight: 1.6,
               fontFamily: '"JetBrains Mono", monospace',
-              minHeight: 40,
+              minHeight: 48,
             }}
           >
             {displayedText}

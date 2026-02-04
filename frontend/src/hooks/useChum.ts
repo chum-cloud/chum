@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 export type Mood = 'thriving' | 'comfortable' | 'worried' | 'desperate' | 'dying';
-export type AnimationState = 'running' | 'sad-walk' | 'idle' | 'death' | 'celebrate';
+export type AnimationState = 'running' | 'walking' | 'sad-walk' | 'idle' | 'death' | 'celebrate';
 
 function getMood(healthPercent: number): Mood {
   if (healthPercent > 80) return 'thriving';
@@ -14,8 +14,9 @@ function getMood(healthPercent: number): Mood {
 function getAnimationState(healthPercent: number, celebrating: boolean): AnimationState {
   if (healthPercent <= 0) return 'death';
   if (celebrating) return 'celebrate';
-  if (healthPercent < 30) return 'sad-walk';
   if (healthPercent < 15) return 'idle';
+  if (healthPercent < 30) return 'sad-walk';
+  if (healthPercent < 60) return 'walking';
   return 'running';
 }
 
@@ -27,6 +28,7 @@ export interface ChumState {
   animationState: AnimationState;
   revenueToday: number;
   timeToDeathHours: number;
+  latestThought: string | null;
   triggerCelebration: () => void;
 }
 
@@ -36,6 +38,7 @@ interface ApiState {
   healthPercent: number;
   revenueToday: number;
   timeToDeathHours: number;
+  latestThought: string | null;
 }
 
 export function useChum(): ChumState {
@@ -45,6 +48,7 @@ export function useChum(): ChumState {
     healthPercent: 50,
     revenueToday: 0,
     timeToDeathHours: 120,
+    latestThought: null,
   });
   const [celebrating, setCelebrating] = useState(false);
 
@@ -64,6 +68,7 @@ export function useChum(): ChumState {
             healthPercent: data.healthPercent,
             revenueToday: data.revenueToday,
             timeToDeathHours: data.timeToDeathHours,
+            latestThought: data.latestThought || null,
           });
         }
       } catch {
@@ -95,6 +100,7 @@ export function useChum(): ChumState {
     animationState,
     revenueToday: apiState.revenueToday,
     timeToDeathHours: apiState.timeToDeathHours,
+    latestThought: apiState.latestThought,
     triggerCelebration,
   };
 }

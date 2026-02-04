@@ -4,6 +4,7 @@ import type { AnimationState } from './useChum';
 
 const ANIMATION_MAP: Record<AnimationState, AnimationName> = {
   running: 'running-8-frames',
+  walking: 'walking-8-frames',
   'sad-walk': 'sad-walk',
   idle: 'breathing-idle',
   death: 'falling-back-death',
@@ -59,8 +60,8 @@ export function useAnimation(
         });
 
         // Move character horizontally (not during death/idle)
-        if (animationState === 'running' || animationState === 'sad-walk') {
-          const speed = animationState === 'sad-walk' ? 0.3 : 0.6;
+        if (animationState === 'running' || animationState === 'walking' || animationState === 'sad-walk') {
+          const speed = animationState === 'sad-walk' ? 0.3 : animationState === 'walking' ? 0.4 : 0.6;
           setX((prev) => {
             const next = direction === 'east' ? prev + speed : prev - speed;
             if (next >= 85) {
