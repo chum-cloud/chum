@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import Tank from './components/Tank';
-import QuoteBar from './components/QuoteBar';
+
 import StatsGrid from './components/StatsGrid';
 import Services from './components/Services';
 import KeepAlive from './components/KeepAlive';
@@ -29,10 +29,7 @@ export default function App() {
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Tank */}
-        <Tank animationState={chum.animationState} />
-
-        {/* Quote Bar */}
-        <QuoteBar mood={chum.mood} />
+        <Tank animationState={chum.animationState} mood={chum.mood} />
 
         {/* Stats */}
         <StatsGrid chum={chum} />
