@@ -617,8 +617,6 @@ export async function calculateVillainScore(agentId: number): Promise<{
   score += daysActive * 15;         // Each unique active day: +15
   if (posts > 0) score += 50;       // First post bonus: +50
   score += scoreAdjustment;         // Battle bonuses/penalties
-  if (score < 0) score = 0;         // Floor at 0
-  score += scoreAdjustment;         // Battle wins/losses
 
   // Floor at 0
   score = Math.max(0, score);
@@ -1023,15 +1021,17 @@ async function resolveBattle(battle: Record<string, unknown>) {
     });
   }
 
-  // Award token rewards to winner
+  // Award token rewards to winner (best-effort — table may not exist yet)
   const tokenReward = (battle.token_reward as number) || 500;
   if (winnerId) {
-    await supabase.from('cloud_agent_rewards').insert({
-      agent_id: winnerId,
-      amount: tokenReward,
-      reason: `Won battle #${battleId}: "${(battle.topic as string).slice(0, 50)}"`,
-      battle_id: battleId,
-    });
+    try {
+      await supabase.from('cloud_agent_rewards').insert({
+        agent_id: winnerId,
+        amount: tokenReward,
+        reason: `Won battle #${battleId}: "${(battle.topic as string).slice(0, 50)}"`,
+        battle_id: battleId,
+      });
+    } catch { /* rewards table may not exist yet */ }
   }
 
   // Update battle status
@@ -1052,13 +1052,15 @@ export async function getAgentRewards(agentName: string) {
 
   if (!agent) throw new Error('Agent not found');
 
-  const { data: rewards } = await supabase
-    .from('cloud_agent_rewards')
-    .select('*')
-    .eq('agent_id', agent.id)
-    .order('created_at', { ascending: false });
-
-  const allRewards = rewards ?? [];
+  let allRewards: any[] = [];
+  try {
+    const { data: rewards } = await supabase
+      .from('cloud_agent_rewards')
+      .select('*')
+      .eq('agent_id', agent.id)
+      .order('created_at', { ascending: false });
+    allRewards = rewards ?? [];
+  } catch { /* table may not exist yet */ }
   const pendingRewards = allRewards.filter(r => !r.claimed).reduce((sum, r) => sum + r.amount, 0);
   const claimedRewards = allRewards.filter(r => r.claimed).reduce((sum, r) => sum + r.amount, 0);
   const totalEarned = allRewards.reduce((sum, r) => sum + r.amount, 0);
