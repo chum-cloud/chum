@@ -224,7 +224,7 @@ export default function VisualNovelScene({
     const raw = recentThoughts && recentThoughts.length > 0
       ? recentThoughts
       : latestThought
-        ? [latestThought, ...fallbackQuotes]
+        ? [latestThought]
         : fallbackQuotes;
     // Dedupe similar content
     const unique = [...new Set(raw)];
