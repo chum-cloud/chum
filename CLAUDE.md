@@ -19,50 +19,67 @@ chum/
 │   ├── vite.config.ts         # Dev proxy /api → localhost:3001
 │   └── src/
 │       ├── main.tsx           # Entry: React StrictMode + WalletProvider
-│       ├── App.tsx            # Layout: header, Tank, StatsGrid, KeepAlive, Services
+│       ├── App.tsx            # Layout: header, hero, VisualNovelScene, StatsGrid, LatestTweet, KeepAlive, VillainClaim
 │       ├── index.css          # Tailwind theme vars, animations (bubble-rise, cursor-blink, dialogue-bounce)
 │       ├── hooks/
 │       │   ├── useChum.ts     # Polls GET /api/state every 30s, falls back to defaults
+│       │   ├── useThoughtStream.ts # SSE hook — real-time thoughts via GET /api/stream
 │       │   └── useAnimation.ts # 10 FPS sprite animation, directional movement
 │       ├── components/
-│       │   ├── Tank.tsx       # Main scene: underwater bg, warm lamp glow, bubbles, Character, DialogueBox
-│       │   ├── DialogueBox.tsx # Stardew Valley-style: portrait, name tag, typewriter text, bouncing arrow
-│       │   ├── Character.tsx  # Pixelated sprite renderer (48px at 3x scale)
+│       │   ├── VisualNovelScene.tsx # Main scene: mood-based backgrounds, portrait, dialogue box with typewriter
 │       │   ├── StatsGrid.tsx  # 4-col grid: balance, burn rate, time to death, revenue
-│       │   ├── KeepAlive.tsx  # Solana donation interface
+│       │   ├── LatestTweet.tsx # Shows latest tweeted thought from DB + link to @chum_cloud
+│       │   ├── KeepAlive.tsx  # Solana mainnet donation interface
 │       │   ├── VillainClaim.tsx # Check wallet for Fellow Villain NFT + display/mint
-│       │   ├── VillainGallery.tsx # Grid of all Fellow Villains with traits
-│       │   ├── Services.tsx   # Placeholder service cards
-│       │   ├── WalletProvider.tsx # Solana devnet, Phantom + Solflare
-│       │   └── QuoteBar.tsx   # DEPRECATED — replaced by DialogueBox inside Tank
+│       │   ├── WalletProvider.tsx # Solana mainnet, Phantom + Solflare
+│       │   ├── PlanktonRig.tsx # Character rig renderer
+│       │   ├── ChumCharacter.tsx # Character component
+│       │   ├── ChumCloud.tsx  # CHUM Cloud social (not in current layout)
+│       │   ├── VillainGallery.tsx # Villain gallery (not in current layout)
+│       │   ├── TwitterFeed.tsx # Old Twitter timeline embed (not in current layout)
+│       │   ├── ThoughtsFeed.tsx # Old thoughts feed (not in current layout, replaced by dialogue box)
+│       │   └── Services.tsx   # Placeholder service cards (not in current layout)
 │       └── lib/
 │           ├── sprites.ts     # Animation types, frame paths, preloading
 │           └── types.ts       # Villain NFT types (VillainTraits, Villain)
 ├── backend/                   # Express 4 + TypeScript
 │   ├── .env.example           # All env vars + Supabase SQL for table creation
 │   └── src/
-│       ├── index.ts           # Express app, CORS (env CORS_ORIGINS), routes, cron start
+│       ├── index.ts           # Express app, CORS, routes, cron + event system start
 │       ├── config.ts          # Env loading, supports SUPABASE_SERVICE_KEY or SUPABASE_ANON_KEY
-│       ├── types.ts           # Mood (9 values inc. 'struggling'), BrainTier, DB row types, BURN_RATE=0.5
+│       ├── types.ts           # Mood (9 values), BrainTier, DB row types, Cloud types
+│       ├── config/
+│       │   └── costs.ts       # Operation costs in USD, daily budget constants
 │       ├── routes/
-│       │   ├── state.ts       # GET /api/state — computes healthPercent, timeToDeathHours from balance+BURN_RATE
+│       │   ├── state.ts       # GET /api/state — computes healthPercent, timeToDeathHours, cost metrics
 │       │   ├── thought.ts     # POST /api/thought — generate via Groq, save to DB
+│       │   ├── thoughts.ts    # GET /api/thoughts — recent thoughts list
 │       │   ├── tweet.ts       # POST /api/tweet — generate + post to Twitter, mark tweeted
-│       │   └── villain.ts     # POST /api/generate-villain, GET /api/villains, GET /api/villain/:wallet
+│       │   ├── stream.ts      # GET /api/stream — SSE endpoint for real-time thought streaming
+│       │   ├── villain.ts     # POST /api/generate-villain, GET /api/villains, GET /api/villain/:wallet
+│       │   ├── cloud.ts       # CHUM Cloud social platform routes (agents, lairs, posts)
+│       │   └── skill.ts       # GET /api/cloud/skill.md — agent onboarding
 │       ├── services/
-│       │   ├── supabase.ts    # DB client + CRUD (getChumState, updateChumState, insertThought, insertVillain, etc.)
+│       │   ├── supabase.ts    # DB client + CRUD (getChumState, updateChumState, insertThought, etc.)
 │       │   ├── groq.ts        # Llama 3.3 70B, temp 0.9, max 150 tokens, massGlitch post-processing
 │       │   ├── twitter.ts     # OAuth 1.0a tweet posting via twitter-api-v2
 │       │   ├── solana.ts      # Wallet balance + recent transactions via Helius RPC (mainnet)
+│       │   ├── events.ts      # Event bus singleton (DONATION, VILLAIN_CREATED, QUIET, PERIODIC) + rate limiter
+│       │   ├── eventThoughts.ts # Event→thought orchestrator: generates thoughts, deduplicates, SSE broadcasts, tweets
+│       │   ├── costs.ts       # Cost tracking: trackCost(), canAfford(), getEffectiveBalance()
+│       │   ├── price.ts       # SOL price service (CoinGecko, cached)
 │       │   ├── gemini.ts      # Gemini 2.0 Flash image generation for villain NFTs
-│       │   └── ipfs.ts        # NFT.Storage uploads for villain images + metadata
+│       │   ├── ipfs.ts        # NFT.Storage uploads for villain images + metadata
+│       │   └── cloud.ts       # CHUM Cloud social platform service layer
 │       ├── cron/
-│       │   ├── balanceCheck.ts # node-cron */5 * * * *: poll wallet, detect donations, update state, tweet celebrations
-│       │   └── thoughtLoop.ts  # setTimeout chain: random 1-4hr, generate thought, 70% tweet
+│       │   ├── balanceCheck.ts # node-cron */5 * * * *: poll wallet, detect donations, emit events
+│       │   └── quietDetector.ts # Replaces thoughtLoop: emits QUIET after 15min inactivity, PERIODIC on startup
 │       └── lib/
-│           ├── massGlitch.ts  # "mass" injection: >30% none, 20-30% every 8-12 words, 10-20% every 4-6, <10% every 2-3
+│           ├── massGlitch.ts  # "mass" injection: >30% none, 20-30% every 8-12 words, <10% every 2-3
 │           ├── brainTier.ts   # $200→4, $100→3, $50→2, $30→1, else→0
-│           └── prompt.ts      # Loads CHUM-BIBLE.md at startup, builds system+user prompts
+│           ├── buildContext.ts # Shared ThoughtContext builder — single source of truth for all callsites
+│           ├── uniqueness.ts  # Keyword-based Jaccard similarity for thought deduplication (threshold 0.4)
+│           └── prompt.ts      # System prompt (character rules) + buildUserPrompt() with context
 ```
 
 ## How to Run
@@ -129,7 +146,7 @@ cd backend && npm run build    # tsc → dist/
 - created_at (timestamptz)
 - updated_at (timestamptz)
 
-NOTE: `burn_rate`, `health_percent`, `revenue_today` are NOT in the DB — they are computed in application code using BURN_RATE constant (0.5 SOL/day).
+NOTE: `burn_rate`, `health_percent`, `revenue_today` are NOT in the DB — they are computed in application code. Daily burn is estimated from recent expenses + base costs via the cost tracking system.
 
 **thoughts**:
 - id (bigint, auto-increment PK)
@@ -162,6 +179,8 @@ NOTE: `burn_rate`, `health_percent`, `revenue_today` are NOT in the DB — they 
 |---|---|---|
 | GET | /api/health | Health check — returns `{status: "ok", timestamp}` |
 | GET | /api/state | Full CHUM state + latest thought (ChumStateResponse) |
+| GET | /api/thoughts | Recent thoughts list. Query: `?limit=20` |
+| GET | /api/stream | SSE endpoint — real-time thought stream |
 | POST | /api/thought | Generate thought via Groq. Body: `{instruction?: string}` |
 | POST | /api/tweet | Generate + post tweet. Body: `{content?: string}` |
 | POST | /api/generate-villain | Generate Fellow Villain NFT. Body: `{walletAddress, donationAmount}` |
@@ -198,7 +217,7 @@ NOTE: `burn_rate`, `health_percent`, `revenue_today` are NOT in the DB — they 
 ```json
 {
   "balance": 0,
-  "burnRate": 0.5,
+  "burnRate": 0.002,
   "healthPercent": 0,
   "mood": "devastated",
   "brainTier": 0,
@@ -207,20 +226,64 @@ NOTE: `burn_rate`, `health_percent`, `revenue_today` are NOT in the DB — they 
   "revenueToday": 0,
   "timeToDeathHours": 0,
   "latestThought": "...",
-  "updatedAt": "2026-02-04T...",
-  "daysAlive": 0,
-  "isDead": false
+  "recentThoughts": ["...", "..."],
+  "updatedAt": "2026-02-05T...",
+  "daysAlive": 3,
+  "isDead": false,
+  "effectiveBalance": 0,
+  "todayBurnSol": 0,
+  "todayBurnUsd": 0,
+  "todayOpCount": 0,
+  "estimatedDailyBurn": 0.002,
+  "thoughtsRemaining": 0,
+  "solPrice": 150,
+  "canThink": true
 }
 ```
 
+## Event-Driven Thought System
+
+Replaced the old random 1-4hr thought loop with an event-driven system.
+
+### Architecture
+1. **Event Bus** (`events.ts`) — ChumEventEmitter singleton with rate limiting (max 20 thoughts/min, min 3s gap)
+2. **Event Types**: DONATION, VILLAIN_CREATED, QUIET, PERIODIC
+3. **Event Thought Orchestrator** (`eventThoughts.ts`) — Listens to events, generates thoughts via Groq with event-specific prompts, deduplicates via Jaccard similarity, broadcasts to SSE clients, tweets
+4. **SSE Endpoint** (`GET /api/stream`) — Real-time thought streaming to frontend
+5. **Quiet Detector** (`quietDetector.ts`) — Emits QUIET event after 15min inactivity, PERIODIC on startup (30s)
+
+### Flow
+- `balanceCheck.ts` detects donation → emits DONATION event
+- `balanceCheck.ts` creates villain → emits VILLAIN_CREATED event
+- `quietDetector.ts` detects inactivity → emits QUIET event
+- `eventThoughts.ts` handles all events → Groq → uniqueness check → DB → SSE broadcast → tweet
+
+### Thought Deduplication
+- `uniqueness.ts` extracts keywords (lowercase, no stop words, no short words)
+- Jaccard similarity against last 50 thoughts, threshold 0.4
+- Max 2 retries with banned phrases if too similar
+
+### SSE Stream
+- `GET /api/stream` sends `event: initial` (last 5 thoughts) on connect
+- `event: thought` on each new thought
+- Heartbeat every 15s
+- Frontend `useThoughtStream` hook with auto-reconnect (5s)
+
 ## Cron Jobs
-- **Balance check** (node-cron, every 5 min) — Polls Solana wallet via Helius, compares with previous balance, detects donations (>0.01 SOL increase), updates chum_state mood+balance, generates celebration tweet on donation. **NEW:** Also checks recent transactions for Fellow Villain qualifying donations (>= 0.05 SOL), automatically generates unique villain NFT via Gemini + IPFS, posts celebration tweet.
-- **Thought loop** (setTimeout chain, random 1-4hr) — Generates thought via Groq with current state context, saves to DB, 70% chance to post to Twitter. First thought 30s after startup.
+- **Balance check** (node-cron, every 5 min) — Polls Solana wallet via Helius, compares with previous balance, detects donations (>0.01 SOL increase), emits DONATION event. Also checks for Fellow Villain qualifying donations (>= 0.05 SOL), generates villain NFT via Gemini + IPFS, emits VILLAIN_CREATED event.
+- **Quiet detector** (setTimeout chain) — Checks every 5 min for inactivity. If >15 min since last event, emits QUIET. Emits first PERIODIC after 30s startup. Replaced the old `thoughtLoop.ts`.
+
+## Cost Tracking System
+- Every API call (Groq, Twitter, Helius, Gemini, IPFS) is tracked as a `transaction` of type `expense`
+- `canAfford(operation)` checks effective balance before expensive ops
+- `trackCost(operation)` records the expense in SOL (converted from USD via live SOL price)
+- Daily burn estimated from last 7 days of expenses + base infrastructure costs
+- `thoughtsRemaining` computed from effective balance / per-thought cost
 
 ## Brain / LLM
 - Model: **Llama 3.3 70B Versatile** via Groq
-- System prompt: Full CHUM-BIBLE.md + character rules (stay in character, under 280 chars, never mention AI)
-- User prompt: [CURRENT STATUS] block with balance, runway, health, mood, brain tier, revenue
+- System prompt: Character rules (villain personality, vocabulary, tone shifts by health)
+- User prompt: [WAR CHEST] balance, runway, army, day, brain tier, mood, health, recent thoughts
 - Temperature: 0.9, max_tokens: 150
 - Post-processing: massGlitch injection when health < 30%, quote stripping, truncation to 280 chars
 
@@ -239,44 +302,13 @@ NOTE: `burn_rate`, `health_percent`, `revenue_today` are NOT in the DB — they 
 Fellow Villains is an automated NFT reward system for donors who contribute 0.05+ SOL to keep CHUM alive. Each qualifying donor receives a unique AI-generated Plankton PFP NFT with randomized traits.
 
 ### How It Works
-
-**1. Donation Detection (balanceCheck.ts cron)**
-- Every 5 minutes, polls Solana wallet for recent transactions
-- Parses transaction details to extract sender wallet + amount
-- Donations >= 0.05 SOL trigger villain generation
-- Tracks processed signatures to avoid duplicates
-
-**2. Image Generation (gemini.ts)**
-- Calls Gemini 2.0 Flash (`gemini-2.0-flash-exp`) with detailed pixel art prompt
-- Randomizes 6 traits: body color, hat, eye color, accessory, expression, background
-- Generates 512x512 pixel art image
-- Emphasizes Plankton's iconic single eye (cyclops)
-- Returns base64 PNG buffer
-
-**3. IPFS Upload (ipfs.ts)**
-- Uploads image to IPFS via NFT.Storage (free tier)
-- Creates NFT metadata JSON with:
-  - name: "Fellow Villain #XXXXXX"
-  - description: CHUM's villain recruitment pitch
-  - image: IPFS URL
-  - attributes: all 6 traits + benefactor wallet snippet
-- Uploads metadata to IPFS
-- Returns both IPFS URLs
-
-**4. Database Storage**
-- Saves villain record to `villains` table
-- Links to donor wallet (unique constraint)
-- Stores image URL, metadata URL, traits, donation amount
-- mint_signature field for future on-chain minting
-
-**5. Celebration Tweet**
-- Auto-generates celebration tweet with villain preview
-- Posts to @chum_cloud Twitter
-- Includes donor wallet snippet (first 6 + last 4 chars)
-- Thanks the "Fellow Villain" for joining the army
+1. **Donation Detection** — balanceCheck cron polls wallet, parses transactions, emits DONATION event
+2. **Image Generation** — Gemini 2.0 Flash generates 512x512 pixel art with 6 randomized traits
+3. **IPFS Upload** — NFT.Storage uploads image + metadata JSON
+4. **Database Storage** — Villain record saved with wallet, image URL, traits, donation amount
+5. **Event Emission** — VILLAIN_CREATED event triggers celebration thought + tweet via event system
 
 ### Villain Traits
-
 | Trait | Options | Count |
 |---|---|---|
 | **Body Color** | green, blue, purple, red, gold, teal | 6 |
@@ -288,123 +320,28 @@ Fellow Villains is an automated NFT reward system for donors who contribute 0.05
 
 **Total possible combinations:** 6 × 6 × 5 × 5 × 5 × 5 = 22,500 unique variants
 
-### Frontend Components
+## Frontend Layout
 
-**VillainClaim.tsx**
-- Checks if connected wallet has a villain
-- Shows "not found" state with instructions if no villain
-- Displays villain image + traits if found
-- Links to IPFS image and metadata
-- Placeholder for future mint functionality
+Current page layout (top to bottom):
+1. **Header** — Logo, social links, wallet connect button
+2. **Hero** — "IN PLANKTON WE TRUST" headline
+3. **Visual Novel Scene** — Mood-based background + portrait + dialogue box (typewriter effect, cycles thoughts)
+4. **Stats Grid** — Balance, burn rate, time to death, revenue
+5. **Latest Propaganda** — Latest tweeted thought from DB + "Follow @chum_cloud" link
+6. **Keep CHUM Alive** — SOL donation interface (mainnet)
+7. **Claim Your Villain** — Fellow Villain NFT claim/display
+8. **Footer**
 
-**VillainGallery.tsx**
-- Fetches all villains via GET /api/villains
-- Grid layout (2-5 columns responsive)
-- Hover overlay shows traits
-- Pixelated image rendering (image-rendering: pixelated)
-- Shows villain count + donation amount
-
-### API Endpoints
-
-```typescript
-POST /api/generate-villain
-Body: { walletAddress: string, donationAmount: number }
-Returns: { success: true, villain: VillainRow, message: string }
-
-GET /api/villains?limit=50
-Returns: { success: true, villains: VillainRow[], count: number }
-
-GET /api/villain/:wallet
-Returns: { success: true, villain: VillainRow }
-
-POST /api/villain/:wallet/mint
-Body: { mintSignature: string }
-Returns: { success: true, message: string }
-```
-
-### Database Schema
-
-```sql
-CREATE TABLE villains (
-  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  wallet_address text NOT NULL UNIQUE,
-  image_url text NOT NULL,
-  metadata_url text NOT NULL,
-  traits jsonb NOT NULL,
-  donation_amount numeric NOT NULL,
-  mint_signature text,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-```
-
-### Environment Variables
-
-```bash
-# Google Gemini API for image generation
-GEMINI_API_KEY=your_key_from_aistudio.google.com
-
-# NFT.Storage for free IPFS uploads
-NFT_STORAGE_API_KEY=your_key_from_nft.storage
-```
-
-### CHUM's Response
-
-When someone donates 0.05+ SOL and becomes a Fellow Villain:
-
-```
-EXCELLENT! A new recruit joins my army of Fellow Villains!
-
-Welcome, abc123...xyz789! Your 0.05 SOL donation has been noted.
-
-Here is your identity in my grand scheme: [IPFS URL]
-
-Together, we will conquer!
-(Or at least keep the Chum Bucket open another day)
-```
-
-### Future Enhancements
-
-- On-chain minting via Metaplex (users pay ~0.01 SOL mint fee)
-- Collection NFT for "Fellow Villains" collection
-- Rarity scoring system
-- Trading/marketplace integration
-- Villain leaderboard by donation amount
-
-### Technical Notes
-
-- Gemini API is free tier (60 requests/minute)
-- NFT.Storage is free (unlimited storage)
-- Generation takes ~30-60 seconds total
-- Images stored permanently on IPFS
-- One villain per wallet (enforced by unique constraint)
-- Villains generated asynchronously (non-blocking)
-
-## Frontend UI Details
-
-### Tank Scene
-- Height: 380px, rounded-xl, border
-- Background: Brighter teal-blue underwater gradient (#162a3f → #1d3850 → #152535)
-- Warm lamp glow: Two radial gradients (top-left amber, top-right secondary warm)
-- Caustic light rays: Subtle repeating diagonal gradient
-- 14 animated bubbles (bubble-rise animation)
-- Sandy ground bar at bottom
-
-### Dialogue Box (Stardew Valley style)
-- Positioned at bottom of tank, overlaying the scene
-- Dark brown background with golden (#8b7355) border, 3px solid
-- Left side: 56x56 portrait frame with CHUM's south-facing sprite (pixelated, green glow)
-- Name tag: "CHUM" in golden (#f0c060) JetBrains Mono
-- Typewriter effect: 35ms per character, golden blinking cursor while typing
-- Bouncing golden triangle arrow when text completes
-- Quotes cycle every 10 seconds, 5 mood categories (thriving/comfortable/worried/desperate/dying)
-- Old QuoteBar component still exists but is no longer used (replaced by DialogueBox)
-
-### Sprite System
-- 48x48 pixel sprites, rendered at 3x (144x144)
-- Animations: running-8-frames, sad-walk, breathing-idle, falling-back-death, backflip, drinking, flying-kick
-- 8 directions: east, west, north, south, north-east, north-west, south-east, south-west
-- Path: /sprites/animations/{name}/{direction}/frame_{padded}.png
-- Static rotations: /sprites/rotations/{direction}.png (used for portrait)
+### Visual Novel Scene
+- 520px height, rounded-2xl with golden border
+- 5 mood-specific AI-generated backgrounds (thriving/comfortable/worried/desperate/dying)
+- Crossfade transitions between moods (1.5s)
+- Mood-specific color overlays, vignette, blur, saturation shifts
+- Character portrait (280x280) with mood-specific images
+- Dialogue box: dark panel with golden border, name tag, typewriter text (30ms/char), bouncing arrow
+- Cycles through recent thoughts (from SSE stream) every 10s
+- Falls back to hardcoded mood-appropriate quotes if no thoughts
+- Dev mode: mood switcher buttons (top-left)
 
 ### Theme Colors
 - Background: #0c0f14
@@ -435,25 +372,27 @@ Together, we will conquer!
 - Build: `tsc -b && vite build` (auto-detected as Vite)
 - Output: `dist/`
 - Env vars: VITE_API_URL, VITE_AGENT_WALLET
-- Deploy: `cd frontend && vercel --prod`
+- Deploy: `cd frontend && vercel --prod` or auto-deploy on push to main
 - Note: Project name must be lowercase (Vercel rejects uppercase)
 
 ### Backend → Railway
-- Connected to GitHub: chum-cloud/chum
+- Connected to GitHub: chum-cloud/chum — auto-deploys on push to main
 - Root directory: `backend`
 - Build command: `npm install && npm run build`
 - Start command: `npm start`
 - Env vars: All from backend/.env + CORS_ORIGINS=https://chum-ashen.vercel.app
-- Persistent process required for cron jobs
+- Persistent process required for cron jobs + event system
 
 ### Database → Supabase
 - Project URL: https://akkhgcmmgzrianbdfijt.supabase.co
 - Uses anon key (SUPABASE_ANON_KEY env var)
 
 ### Solana
-- Mainnet via Helius RPC
+- **Mainnet** via Helius RPC (all connections — backend + frontend wallet adapter)
 - Wallet: chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T
 - Keypair file exists locally but is gitignored
+- Frontend uses `clusterApiUrl('mainnet-beta')` for wallet adapter
+- Donations send real SOL on mainnet
 
 ## Twitter Integration
 - Account: @chum_cloud
@@ -470,7 +409,8 @@ Together, we will conquer!
 ## Known Issues / Notes
 - Twitter free tier has limited tweet credits — returns 402 when depleted
 - Frontend falls back gracefully to default values when backend is unavailable
-- The `useAnimation.ts` hook takes `_tankWidth` parameter (unused, prefixed with underscore for TS strict mode)
 - Supabase uses anon key not service key — the config.ts handles both via fallback
-- BURN_RATE (0.5 SOL/day) is a constant in types.ts, not stored in DB
-- healthPercent and timeToDeathHours are computed at request time from balance and BURN_RATE
+- Daily burn is estimated from last 7 days of expenses + base costs (not a fixed constant)
+- healthPercent and timeToDeathHours are computed at request time
+- Old components (ThoughtsFeed, TwitterFeed, VillainGallery, ChumCloud, Services) still exist but are not in the current layout — kept for future use
+- `tsconfig.app.json` has `noUnusedLocals` and `noUnusedParameters` strict — `tsc -b` (used by build) is stricter than `tsc --noEmit`
