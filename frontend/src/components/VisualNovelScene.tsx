@@ -55,13 +55,33 @@ const MOOD_PORTRAITS: Record<Mood, string[]> = {
   ],
 };
 
-/* ── background per mood ── */
-const MOOD_BG_IMAGE: Record<Mood, string> = {
-  thriving:    '/backgrounds/bg-thriving.png',
-  comfortable: '/backgrounds/bg-comfortable.png',
-  worried:     '/backgrounds/bg-worried.png',
-  desperate:   '/backgrounds/bg-desperate.png',
-  dying:       '/backgrounds/bg-dying.png',
+/* ── background images per mood (cycling) ── */
+const MOOD_BG_IMAGES: Record<Mood, string[]> = {
+  thriving: [
+    '/backgrounds/bg-thriving.png',
+    '/backgrounds/bg-thriving-2.png',
+    '/backgrounds/bg-thriving-3.png',
+  ],
+  comfortable: [
+    '/backgrounds/bg-comfortable.png',
+    '/backgrounds/bg-comfortable-2.png',
+    '/backgrounds/bg-comfortable-3.png',
+  ],
+  worried: [
+    '/backgrounds/bg-worried.png',
+    '/backgrounds/bg-worried-2.png',
+    '/backgrounds/bg-worried-3.png',
+  ],
+  desperate: [
+    '/backgrounds/bg-desperate.png',
+    '/backgrounds/bg-desperate-2.png',
+    '/backgrounds/bg-desperate-3.png',
+  ],
+  dying: [
+    '/backgrounds/bg-dying.png',
+    '/backgrounds/bg-dying-2.png',
+    '/backgrounds/bg-dying-3.png',
+  ],
 };
 
 const MOOD_BG: Record<Mood, {
@@ -164,6 +184,7 @@ export default function VisualNovelScene({
 }: VisualNovelSceneProps) {
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [portraitIndex, setPortraitIndex] = useState(0);
+  const [bgIndex, setBgIndex] = useState(0);
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
   const [portraitLoaded, setPortraitLoaded] = useState(false);
@@ -175,6 +196,8 @@ export default function VisualNovelScene({
   const bg = MOOD_BG[mood];
   const portraits = MOOD_PORTRAITS[mood];
   const portrait = portraits[portraitIndex % portraits.length];
+  const bgImages = MOOD_BG_IMAGES[mood];
+  const currentBgImage = bgImages[bgIndex % bgImages.length];
 
   const fallbackQuotes = FALLBACK_QUOTES[mood];
 
@@ -253,9 +276,10 @@ export default function VisualNovelScene({
         return next;
       });
       setPortraitIndex((prev) => (prev + 1) % portraits.length);
+      setBgIndex((prev) => (prev + 1) % bgImages.length);
     }, 10_000);
     return () => clearTimeout(id);
-  }, [quoteIndex, portraits.length]);
+  }, [quoteIndex, portraits.length, bgImages.length]);
 
   /* ── character name color per mood ── */
   const nameColor = isDead
@@ -279,22 +303,26 @@ export default function VisualNovelScene({
         boxShadow: '0 8px 32px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,235,200,0.06)',
       }}
     >
-      {/* ── Background image (mood-specific) ── */}
-      {MOODS.map((m) => (
-        <div
-          key={m}
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `url(${MOOD_BG_IMAGE[m]})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            filter: `${MOOD_BG[m].filter} blur(${MOOD_BG[m].blur}px)`,
-            transform: 'scale(1.05)', /* prevent blur edge gaps */
-            transition: 'opacity 1.5s ease, filter 1.5s ease',
-            opacity: m === mood ? 1 : 0,
-          }}
-        />
-      ))}
+      {/* ── Background images (mood-specific, cycling) ── */}
+      {MOODS.map((m) => {
+        const images = MOOD_BG_IMAGES[m];
+        const activeBg = m === mood ? currentBgImage : images[0];
+        return images.map((img) => (
+          <div
+            key={img}
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `url(${img})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              filter: `${MOOD_BG[m].filter} blur(${MOOD_BG[m].blur}px)`,
+              transform: 'scale(1.05)',
+              transition: 'opacity 1.5s ease, filter 1.5s ease',
+              opacity: m === mood && img === activeBg ? 1 : 0,
+            }}
+          />
+        ));
+      })}
 
       {/* ── Mood overlay ── */}
       <div
