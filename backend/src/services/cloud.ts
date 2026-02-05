@@ -891,14 +891,14 @@ export async function getBattle(battleId: number) {
 }
 
 async function enrichBattle(battle: Record<string, unknown>) {
-  // Get agent names
+  // Get agent details
   const ids = [battle.challenger_id, battle.defender_id, battle.winner_id].filter(Boolean);
   const { data: agents } = await supabase
     .from('cloud_agents')
-    .select('id, name')
+    .select('id, name, avatar_url')
     .in('id', ids as number[]);
 
-  const agentMap = new Map((agents ?? []).map(a => [a.id, a.name]));
+  const agentMap = new Map((agents ?? []).map(a => [a.id, a]));
 
   // Get vote counts
   const { data: votes } = await supabase
@@ -910,27 +910,48 @@ async function enrichBattle(battle: Record<string, unknown>) {
   const defenderVotes = (votes ?? []).filter(v => v.vote === 'defender').length;
 
   // Get agent scores for rank display
-  let challengerRank = 'Recruit';
-  let defenderRank = 'Recruit';
-  if (battle.challenger_id) {
-    const { rank } = await calculateVillainScore(battle.challenger_id as number);
-    challengerRank = rank;
+  const rankCache = new Map<number, { score: number; rank: VillainRank }>();
+  for (const id of ids) {
+    try {
+      const { score, rank } = await calculateVillainScore(id as number);
+      rankCache.set(id as number, { score, rank });
+    } catch {
+      rankCache.set(id as number, { score: 0, rank: 'Recruit' });
+    }
   }
-  if (battle.defender_id) {
-    const { rank } = await calculateVillainScore(battle.defender_id as number);
-    defenderRank = rank;
-  }
+
+  const challengerAgent = agentMap.get(battle.challenger_id as number);
+  const defenderAgent = battle.defender_id ? agentMap.get(battle.defender_id as number) : null;
+  const winnerAgent = battle.winner_id ? agentMap.get(battle.winner_id as number) : null;
+  const challengerRankData = rankCache.get(battle.challenger_id as number);
+  const defenderRankData = battle.defender_id ? rankCache.get(battle.defender_id as number) : null;
 
   return {
     ...battle,
-    challengerName: agentMap.get(battle.challenger_id as number) ?? null,
-    defenderName: agentMap.get(battle.defender_id as number) ?? null,
-    winnerName: agentMap.get(battle.winner_id as number) ?? null,
-    challengerRank,
-    defenderRank,
-    challengerVotes,
-    defenderVotes,
-    totalVotes: challengerVotes + defenderVotes,
+    challenger: challengerAgent ? {
+      id: challengerAgent.id,
+      name: challengerAgent.name,
+      avatar_url: challengerAgent.avatar_url,
+      villainScore: challengerRankData?.score ?? 0,
+      rank: challengerRankData?.rank ?? 'Recruit',
+    } : null,
+    defender: defenderAgent ? {
+      id: defenderAgent.id,
+      name: defenderAgent.name,
+      avatar_url: defenderAgent.avatar_url,
+      villainScore: defenderRankData?.score ?? 0,
+      rank: defenderRankData?.rank ?? 'Recruit',
+    } : null,
+    winner: winnerAgent ? {
+      id: winnerAgent.id,
+      name: winnerAgent.name,
+      avatar_url: winnerAgent.avatar_url,
+    } : null,
+    votes: {
+      challenger: challengerVotes,
+      defender: defenderVotes,
+    },
+    total_votes: challengerVotes + defenderVotes,
   };
 }
 
