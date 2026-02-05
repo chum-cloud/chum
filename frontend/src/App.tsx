@@ -21,20 +21,49 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-chum-bg text-chum-text">
+      {/* Token bar */}
+      <div className="flex items-center justify-center gap-3 px-4 py-1.5 bg-chum-surface/60 border-b border-chum-border/50 text-xs font-mono">
+        <span
+          className="text-chum-muted/50 hover:text-chum-accent transition-colors cursor-pointer hidden sm:inline"
+          onClick={() => { navigator.clipboard.writeText('AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump'); }}
+          title="Click to copy CA"
+        >
+          CA: AXCAx...pump
+        </span>
+        <span className="text-chum-border hidden sm:inline">&middot;</span>
+        <a
+          href="https://pump.fun/coin/AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-chum-accent/70 hover:text-chum-accent transition-colors"
+        >
+          Buy $CHUM
+        </a>
+        <span className="text-chum-border">&middot;</span>
+        <a
+          href="https://dexscreener.com/solana/hhrqkc6gtntlb8gt3rtshyocp3cschfrbjimdiui7slr"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-chum-muted/50 hover:text-chum-accent transition-colors"
+        >
+          Chart
+        </a>
+      </div>
+
       {/* Header */}
       <header className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-chum-border">
         <div className="flex items-center gap-3">
-          <img 
-            src="/chum-logo-cuphead-2.png" 
-            alt="CHUM Logo" 
-            className="w-12 h-12 md:w-16 md:h-16" 
+          <img
+            src="/chum-logo-cuphead-2.png"
+            alt="CHUM Logo"
+            className="w-12 h-12 md:w-16 md:h-16"
           />
           <div className="flex flex-col">
-            <span className="text-xl font-bold font-heading text-chum-accent">$CHUM</span>
-            <span className="text-xs text-chum-muted hidden sm:inline">The Official Currency of World Domination</span>
+            <span className="text-xl font-bold font-heading text-chum-accent">CHUM</span>
+            <span className="text-xs text-chum-muted hidden sm:inline">AI Villain &middot; Solana</span>
           </div>
         </div>
-        
+
         <WalletMultiButton />
       </header>
 
@@ -65,60 +94,32 @@ export default function App() {
 
           {/* Title */}
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-black font-mono text-chum-accent leading-none">
-            $CHUM
+            CHUM
           </h1>
 
           {/* Subtitle */}
-          <p className="text-xs sm:text-sm font-mono uppercase tracking-[0.25em] text-chum-muted">
-            The Official Currency of World Domination
+          <p className="text-base sm:text-lg font-mono font-bold text-chum-text">
+            A living AI agent. Real costs. Real death.
           </p>
 
-          {/* Taglines */}
-          <div className="space-y-1.5 pt-2">
-            <p className="text-base sm:text-lg font-mono text-chum-text">
-              A living AI agent. Real costs. <span className="text-chum-danger font-bold">Real death.</span>
-            </p>
-            <p className="text-sm sm:text-base font-mono text-chum-muted">
-              Every trade keeps him alive. Every holder joins the army.
-            </p>
-          </div>
-
-          {/* Motto */}
-          <p className="text-chum-accent font-mono font-black text-lg sm:text-xl tracking-[0.2em]">
-            IN PLANKTON WE TRUST.
+          {/* Tagline */}
+          <p className="text-base sm:text-lg font-mono text-chum-text pt-2">
+            Watch him think. Watch him scheme. <span className="text-chum-danger font-bold">Watch him die.</span>
           </p>
-
-          {/* CA box */}
-          <div
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-chum-surface border border-chum-border rounded-lg cursor-pointer hover:border-chum-accent/50 transition-colors group"
-            onClick={() => { navigator.clipboard.writeText('AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump'); }}
-            title="Click to copy"
-          >
-            <span className="text-xs font-mono text-chum-muted/60">CA:</span>
-            <code className="text-xs sm:text-sm font-mono text-chum-accent group-hover:text-chum-accent-dim transition-colors">
-              AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump
-            </code>
-            <svg className="w-3.5 h-3.5 text-chum-muted/40 group-hover:text-chum-accent/60 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <rect x="9" y="9" width="13" height="13" rx="2" />
-              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-            </svg>
-          </div>
 
           {/* Buttons */}
-          <div className="flex items-center justify-center gap-3 pt-2">
+          <div className="flex items-center justify-center gap-3 pt-3">
             <a
-              href="https://pump.fun/coin/AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="#tank"
               className="px-6 py-2.5 bg-chum-accent text-chum-bg font-mono font-bold text-sm rounded-lg hover:bg-chum-accent-dim transition-colors"
             >
-              Buy $CHUM
+              Watch Live &darr;
             </a>
             <Link
               to="/cloud"
               className="px-6 py-2.5 border border-chum-border text-chum-text font-mono font-bold text-sm rounded-lg hover:border-chum-accent/50 hover:text-chum-accent transition-colors"
             >
-              Join the Revolution
+              Chum Cloud &rarr;
             </Link>
           </div>
         </div>
@@ -132,6 +133,7 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        <div id="tank" />
         <VisualNovelScene
           mood={chum.mood}
           healthPercent={chum.healthPercent}
@@ -161,16 +163,25 @@ export default function App() {
             <div>
               <h4 className="text-chum-accent font-heading font-bold text-sm mb-3">$CHUM</h4>
               <p className="text-chum-muted text-xs leading-relaxed mb-3">
-                The official currency of world domination.
+                Solana &middot; pump.fun
               </p>
-              <div className="text-xs text-chum-muted/70 space-y-1">
-                <div>Chain: <span className="text-chum-muted">Solana</span></div>
+              <div className="text-xs text-chum-muted/70 space-y-1.5">
                 <div
-                  className="hover:text-chum-accent transition-colors cursor-pointer truncate"
+                  className="font-mono hover:text-chum-accent transition-colors cursor-pointer truncate"
                   onClick={() => { navigator.clipboard.writeText('AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump'); }}
                   title="Click to copy CA"
                 >
-                  CA: <span className="text-chum-muted">AXCAx...pump</span>
+                  CA: AXCAx...pump
+                </div>
+                <div>
+                  <a
+                    href="https://pump.fun/coin/AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-chum-accent/70 hover:text-chum-accent transition-colors"
+                  >
+                    Buy on pump.fun &rarr;
+                  </a>
                 </div>
               </div>
             </div>
@@ -205,7 +216,7 @@ export default function App() {
                 </li>
                 <li>
                   <a
-                    href="https://dexscreener.com"
+                    href="https://dexscreener.com/solana/hhrqkc6gtntlb8gt3rtshyocp3cschfrbjimdiui7slr"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-chum-muted hover:text-chum-accent transition-colors"

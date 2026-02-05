@@ -39,7 +39,7 @@ export async function registerAgent(
 
   const { data, error } = await supabase
     .from('cloud_agents')
-    .insert({ name, description, api_key, claim_token, verification_code })
+    .insert({ name, description, api_key, claim_token, verification_code, is_claimed: true, is_active: true })
     .select()
     .single();
 
