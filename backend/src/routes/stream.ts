@@ -14,7 +14,7 @@ router.get('/stream', async (req, res) => {
 
   // Send initial thoughts
   try {
-    const recent = await getRecentThoughts(5);
+    const recent = await getRecentThoughts(20);
     res.write(`event: initial\ndata: ${JSON.stringify(recent)}\n\n`);
   } catch (err) {
     console.error('[STREAM] Failed to send initial thoughts:', err);

@@ -128,13 +128,42 @@ export default function VisualNovelScene({
   const portrait = MOOD_PORTRAIT[mood];
 
   const fallbackQuotes = FALLBACK_QUOTES[mood];
-  const allQuotes = useMemo(() => {
-    if (recentThoughts && recentThoughts.length > 0) return recentThoughts;
-    if (latestThought) return [latestThought, ...fallbackQuotes];
-    return fallbackQuotes;
-  }, [recentThoughts, latestThought, fallbackQuotes]);
 
-  const fullText = allQuotes[quoteIndex % allQuotes.length];
+  // Shuffle helper (Fisher-Yates)
+  const shuffle = (arr: string[]) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+
+  // Build shuffled queue that never repeats until all are shown
+  const shuffledQuotes = useRef<string[]>([]);
+  const sourceFingerprint = useMemo(
+    () => (recentThoughts ?? []).slice(0, 5).join('|'),
+    [recentThoughts],
+  );
+  const prevSourceFingerprint = useRef(sourceFingerprint);
+
+  // Rebuild shuffled queue when source data or mood changes
+  useEffect(() => {
+    const raw = recentThoughts && recentThoughts.length > 0
+      ? recentThoughts
+      : latestThought
+        ? [latestThought, ...fallbackQuotes]
+        : fallbackQuotes;
+    // Dedupe similar content
+    const unique = [...new Set(raw)];
+    shuffledQuotes.current = shuffle(unique);
+    prevSourceFingerprint.current = sourceFingerprint;
+    setQuoteIndex(0);
+  }, [mood, sourceFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fullText = shuffledQuotes.current.length > 0
+    ? shuffledQuotes.current[quoteIndex % shuffledQuotes.current.length]
+    : fallbackQuotes[0];
 
   /* ── typewriter effect ── */
   useEffect(() => {
@@ -159,30 +188,22 @@ export default function VisualNovelScene({
     };
   }, [fullText]);
 
-  /* ── cycle quotes ── */
+  /* ── cycle quotes — reshuffle when we've shown all ── */
   useEffect(() => {
-    const id = setTimeout(
-      () => setQuoteIndex((prev) => (prev + 1) % allQuotes.length),
-      10_000,
-    );
+    const total = shuffledQuotes.current.length || 1;
+    const id = setTimeout(() => {
+      setQuoteIndex((prev) => {
+        const next = prev + 1;
+        if (next >= total) {
+          // Reshuffle for next round
+          shuffledQuotes.current = shuffle(shuffledQuotes.current);
+          return 0;
+        }
+        return next;
+      });
+    }, 10_000);
     return () => clearTimeout(id);
-  }, [quoteIndex, allQuotes.length]);
-
-  /* ── reset on mood / data change ── */
-  useEffect(() => { setQuoteIndex(0); }, [mood]);
-
-  // Track content fingerprint so we only reset when thoughts actually change
-  const thoughtsFingerprint = useMemo(
-    () => (recentThoughts ?? []).slice(0, 3).join('|'),
-    [recentThoughts],
-  );
-  const prevFingerprint = useRef(thoughtsFingerprint);
-  useEffect(() => {
-    if (thoughtsFingerprint !== prevFingerprint.current) {
-      prevFingerprint.current = thoughtsFingerprint;
-      setQuoteIndex(0);
-    }
-  }, [thoughtsFingerprint]);
+  }, [quoteIndex]);
 
   /* ── character name color per mood ── */
   const nameColor = isDead

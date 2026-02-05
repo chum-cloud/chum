@@ -55,14 +55,37 @@ export default function DialogueBox({ mood, latestThought, recentThoughts }: Dia
 
   const fallbackQuotes = FALLBACK_QUOTES[mood];
 
-  // Use recent thoughts from API if available, otherwise fall back to hardcoded quotes
-  const allQuotes = recentThoughts && recentThoughts.length > 0
-    ? recentThoughts
-    : latestThought
-      ? [latestThought, ...fallbackQuotes]
-      : fallbackQuotes;
+  // Shuffle helper (Fisher-Yates)
+  const shuffle = (arr: string[]) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
 
-  const fullText = allQuotes[quoteIndex % allQuotes.length];
+  const shuffledQuotes = useRef<string[]>([]);
+  const sourceFingerprint = useMemo(
+    () => [latestThought, ...(recentThoughts ?? []).slice(0, 5)].join('|'),
+    [latestThought, recentThoughts],
+  );
+
+  // Rebuild shuffled queue when source data or mood changes
+  useEffect(() => {
+    const raw = recentThoughts && recentThoughts.length > 0
+      ? recentThoughts
+      : latestThought
+        ? [latestThought, ...fallbackQuotes]
+        : fallbackQuotes;
+    const unique = [...new Set(raw)];
+    shuffledQuotes.current = shuffle(unique);
+    setQuoteIndex(0);
+  }, [mood, sourceFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fullText = shuffledQuotes.current.length > 0
+    ? shuffledQuotes.current[quoteIndex % shuffledQuotes.current.length]
+    : fallbackQuotes[0];
 
   // Typewriter effect
   useEffect(() => {
@@ -87,31 +110,21 @@ export default function DialogueBox({ mood, latestThought, recentThoughts }: Dia
     };
   }, [fullText]);
 
-  // Cycle quotes
+  // Cycle quotes — reshuffle when all shown
   useEffect(() => {
+    const total = shuffledQuotes.current.length || 1;
     const id = setTimeout(() => {
-      setQuoteIndex((prev) => (prev + 1) % allQuotes.length);
+      setQuoteIndex((prev) => {
+        const next = prev + 1;
+        if (next >= total) {
+          shuffledQuotes.current = shuffle(shuffledQuotes.current);
+          return 0;
+        }
+        return next;
+      });
     }, 10000);
     return () => clearTimeout(id);
-  }, [quoteIndex, allQuotes.length]);
-
-  // Reset on mood change
-  useEffect(() => {
-    setQuoteIndex(0);
-  }, [mood]);
-
-  // Track content fingerprint so we only reset when thoughts actually change
-  const thoughtsFingerprint = useMemo(
-    () => [latestThought, ...(recentThoughts ?? []).slice(0, 3)].join('|'),
-    [latestThought, recentThoughts],
-  );
-  const prevFingerprint = useRef(thoughtsFingerprint);
-  useEffect(() => {
-    if (thoughtsFingerprint !== prevFingerprint.current) {
-      prevFingerprint.current = thoughtsFingerprint;
-      setQuoteIndex(0);
-    }
-  }, [thoughtsFingerprint]);
+  }, [quoteIndex]);
 
   return (
     <div
