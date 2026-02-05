@@ -62,9 +62,19 @@ export async function insertTransaction(
   description: string,
   signature?: string
 ): Promise<void> {
+  // Try with description first, fall back without it if column doesn't exist
+  const row: Record<string, unknown> = { type, amount, signature: signature ?? null };
   const { error } = await supabase
     .from('transactions')
-    .insert({ type, amount, description, signature: signature ?? null });
+    .insert({ ...row, description });
+  if (error?.message?.includes('description')) {
+    // Column doesn't exist in schema — insert without it
+    const { error: retryError } = await supabase
+      .from('transactions')
+      .insert(row);
+    if (retryError) throw new Error(`insertTransaction: ${retryError.message}`);
+    return;
+  }
   if (error) throw new Error(`insertTransaction: ${error.message}`);
 }
 
