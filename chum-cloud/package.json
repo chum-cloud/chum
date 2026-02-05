@@ -1,0 +1,11 @@
+{
+  "name": "chum-cloud-agents",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "whale": "node agents/whale.js",
+    "volume": "node agents/volume.js",
+    "momentum": "node agents/momentum.js",
+    "all": "node run-all.js"
+  }
+}
