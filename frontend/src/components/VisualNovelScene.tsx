@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Mood } from '../hooks/useChum';
 
 /* ── portrait map ── */
@@ -170,9 +170,19 @@ export default function VisualNovelScene({
 
   /* ── reset on mood / data change ── */
   useEffect(() => { setQuoteIndex(0); }, [mood]);
+
+  // Track content fingerprint so we only reset when thoughts actually change
+  const thoughtsFingerprint = useMemo(
+    () => (recentThoughts ?? []).slice(0, 3).join('|'),
+    [recentThoughts],
+  );
+  const prevFingerprint = useRef(thoughtsFingerprint);
   useEffect(() => {
-    if (latestThought || (recentThoughts && recentThoughts.length > 0)) setQuoteIndex(0);
-  }, [latestThought, recentThoughts]);
+    if (thoughtsFingerprint !== prevFingerprint.current) {
+      prevFingerprint.current = thoughtsFingerprint;
+      setQuoteIndex(0);
+    }
+  }, [thoughtsFingerprint]);
 
   /* ── character name color per mood ── */
   const nameColor = isDead

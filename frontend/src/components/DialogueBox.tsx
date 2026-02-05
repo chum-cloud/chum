@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Mood } from '../hooks/useChum';
 
 const MOOD_PORTRAIT: Record<Mood, string> = {
@@ -100,12 +100,18 @@ export default function DialogueBox({ mood, latestThought, recentThoughts }: Dia
     setQuoteIndex(0);
   }, [mood]);
 
-  // Reset when new thoughts arrive from the backend
+  // Track content fingerprint so we only reset when thoughts actually change
+  const thoughtsFingerprint = useMemo(
+    () => [latestThought, ...(recentThoughts ?? []).slice(0, 3)].join('|'),
+    [latestThought, recentThoughts],
+  );
+  const prevFingerprint = useRef(thoughtsFingerprint);
   useEffect(() => {
-    if (latestThought || (recentThoughts && recentThoughts.length > 0)) {
+    if (thoughtsFingerprint !== prevFingerprint.current) {
+      prevFingerprint.current = thoughtsFingerprint;
       setQuoteIndex(0);
     }
-  }, [latestThought, recentThoughts]);
+  }, [thoughtsFingerprint]);
 
   return (
     <div

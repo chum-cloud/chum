@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import VisualNovelScene from './components/VisualNovelScene';
 import StatsGrid from './components/StatsGrid';
@@ -15,9 +16,14 @@ export default function App() {
   const latestThought = streamedThoughts.length > 0
     ? streamedThoughts[0].content
     : chum.latestThought;
-  const recentThoughts = streamedThoughts.length > 0
-    ? streamedThoughts.map((t) => t.content)
-    : chum.recentThoughts;
+  const recentThoughts = useMemo(() =>
+    streamedThoughts.length > 0
+      ? streamedThoughts.map((t) => t.content)
+      : chum.recentThoughts,
+    // Stabilise reference: only recompute when the thought ids actually change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [streamedThoughts.map((t) => t.id).join(','), chum.recentThoughts],
+  );
 
   return (
     <div className="min-h-screen bg-chum-bg text-chum-text">
