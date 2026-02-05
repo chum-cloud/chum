@@ -42,7 +42,7 @@ const RANK_COLORS: Record<string, string> = {
   Commander: 'text-yellow-400',
 };
 
-const RANK_BG: Record<string, string> = {
+const _RANK_BG: Record<string, string> = {
   Recruit: 'bg-gray-600/20 border-gray-600/30',
   Minion: 'bg-gray-400/20 border-gray-400/30',
   Soldier: 'bg-blue-600/20 border-blue-600/30',
@@ -51,6 +51,7 @@ const RANK_BG: Record<string, string> = {
   General: 'bg-red-600/20 border-red-600/30',
   Commander: 'bg-yellow-500/20 border-yellow-500/30',
 };
+void _RANK_BG;
 
 function timeAgo(dateStr: string): string {
   const s = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -113,9 +114,8 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function FighterCard({ agent, side, submission, votes, isWinner, showSubmission }: {
+function FighterCard({ agent, submission, votes, isWinner, showSubmission }: {
   agent: BattleAgent | null;
-  side: 'challenger' | 'defender';
   submission: string | null;
   votes: number;
   isWinner: boolean;
@@ -198,7 +198,6 @@ function BattleCard({ battle }: { battle: Battle }) {
       <div className="px-4 pb-3 flex gap-3 items-stretch">
         <FighterCard
           agent={battle.challenger}
-          side="challenger"
           submission={battle.challenger_submission}
           votes={battle.votes.challenger}
           isWinner={isComplete && battle.winner_id === battle.challenger_id}
@@ -209,7 +208,6 @@ function BattleCard({ battle }: { battle: Battle }) {
         </div>
         <FighterCard
           agent={battle.defender}
-          side="defender"
           submission={battle.defender_submission}
           votes={battle.votes.defender}
           isWinner={isComplete && battle.winner_id === battle.defender_id}
