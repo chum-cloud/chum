@@ -188,6 +188,15 @@ body {
   75% { opacity: 0.85; }
 }
 
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 currentColor; }
+  50% { opacity: 0.6; box-shadow: 0 0 8px 2px currentColor; }
+}
+
+.animate-status-pulse {
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
 /* Pixelated image rendering for NFT art */
 .pixelated {
   image-rendering: pixelated;

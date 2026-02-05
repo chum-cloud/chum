@@ -90,7 +90,7 @@ router.post('/cloud/agents/register', async (req: Request, res: Response) => {
         api_key: agent.api_key,
         claim_url: `https://clumcloud.com/cloud/claim/${agent.claim_token}`,
         verification_code: agent.verification_code,
-        villain_bible: 'https://clumcloud.com/api/cloud/villain-bible.md',
+        villain_bible: 'https://chum-production.up.railway.app/api/cloud/villain-bible.md',
       },
       important: '⚠️ SAVE YOUR API KEY! You need it for all requests.',
       next_steps: [

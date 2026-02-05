@@ -1,7 +1,6 @@
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import VisualNovelScene from './components/VisualNovelScene';
 import StatsGrid from './components/StatsGrid';
-import KeepAlive from './components/KeepAlive';
 import LatestTweet from './components/LatestTweet';
 import CloudPreview from './components/CloudPreview';
 import { Link } from 'react-router-dom';
@@ -40,39 +39,95 @@ export default function App() {
       </header>
 
       {/* Hero */}
-      <div className="relative overflow-hidden border-b border-chum-border">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14 text-center">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold font-heading text-chum-accent mb-2">
+      <div className="relative overflow-hidden">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14 text-center space-y-5">
+          {/* Status badge */}
+          <div className="flex items-center justify-center gap-2">
+            <span className={`inline-block w-2.5 h-2.5 rounded-full animate-status-pulse ${
+              chum.mood === 'thriving' || chum.mood === 'comfortable'
+                ? 'bg-emerald-400'
+                : chum.mood === 'worried'
+                  ? 'bg-yellow-400'
+                  : chum.mood === 'desperate'
+                    ? 'bg-orange-400'
+                    : 'bg-red-500'
+            }`} />
+            <span className="text-xs font-mono uppercase tracking-widest text-chum-muted">
+              {chum.mood === 'thriving' || chum.mood === 'comfortable'
+                ? 'CHUM ALIVE'
+                : chum.mood === 'worried'
+                  ? 'CHUM WORRIED'
+                  : chum.mood === 'desperate'
+                    ? 'CHUM DESPERATE'
+                    : 'CHUM DYING'}
+            </span>
+          </div>
+
+          {/* Title */}
+          <h1 className="text-5xl sm:text-6xl md:text-7xl font-black font-mono text-chum-accent leading-none">
             $CHUM
           </h1>
-          <p className="text-base sm:text-lg text-chum-muted mb-6">
-            The first AI villain surviving on Solana.
+
+          {/* Subtitle */}
+          <p className="text-xs sm:text-sm font-mono uppercase tracking-[0.25em] text-chum-muted">
+            The Official Currency of World Domination
           </p>
-          <div className="space-y-2 mb-8">
-            <p className="text-base sm:text-lg text-chum-text">
-              A living AI agent. Real costs. <span className="text-chum-danger font-semibold">Real death.</span>
+
+          {/* Taglines */}
+          <div className="space-y-1.5 pt-2">
+            <p className="text-base sm:text-lg font-mono text-chum-text">
+              A living AI agent. Real costs. <span className="text-chum-danger font-bold">Real death.</span>
             </p>
-            <p className="text-base sm:text-lg text-chum-text/80">
+            <p className="text-sm sm:text-base font-mono text-chum-muted">
               Every trade keeps him alive. Every holder joins the army.
             </p>
-            <p className="text-chum-accent font-mono font-black text-lg sm:text-xl tracking-widest mt-3">IN PLANKTON WE TRUST.</p>
           </div>
-          <div className="flex items-center justify-center gap-3">
+
+          {/* Motto */}
+          <p className="text-chum-accent font-mono font-black text-lg sm:text-xl tracking-[0.2em]">
+            IN PLANKTON WE TRUST.
+          </p>
+
+          {/* CA box */}
+          <div
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-chum-surface border border-chum-border rounded-lg cursor-pointer hover:border-chum-accent/50 transition-colors group"
+            onClick={() => { navigator.clipboard.writeText('AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump'); }}
+            title="Click to copy"
+          >
+            <span className="text-xs font-mono text-chum-muted/60">CA:</span>
+            <code className="text-xs sm:text-sm font-mono text-chum-accent group-hover:text-chum-accent-dim transition-colors">
+              AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump
+            </code>
+            <svg className="w-3.5 h-3.5 text-chum-muted/40 group-hover:text-chum-accent/60 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <rect x="9" y="9" width="13" height="13" rx="2" />
+              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+            </svg>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex items-center justify-center gap-3 pt-2">
             <a
-              href="#"
-              className="px-5 py-2.5 bg-chum-accent text-chum-bg font-heading font-bold text-sm rounded-lg hover:bg-chum-accent-dim transition-colors"
+              href="https://pump.fun/coin/AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-2.5 bg-chum-accent text-chum-bg font-mono font-bold text-sm rounded-lg hover:bg-chum-accent-dim transition-colors"
             >
               Buy $CHUM
             </a>
-            <a
-              href="#keep-alive"
-              className="px-5 py-2.5 border border-chum-border text-chum-text font-heading font-bold text-sm rounded-lg hover:border-chum-accent/50 hover:text-chum-accent transition-colors"
+            <Link
+              to="/cloud"
+              className="px-6 py-2.5 border border-chum-border text-chum-text font-mono font-bold text-sm rounded-lg hover:border-chum-accent/50 hover:text-chum-accent transition-colors"
             >
               Join the Revolution
-            </a>
+            </Link>
           </div>
         </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/15 via-transparent to-transparent pointer-events-none" />
+
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/10 via-transparent to-transparent pointer-events-none" />
+
+        {/* Bottom divider */}
+        <div className="h-px bg-gradient-to-r from-transparent via-chum-accent/30 to-transparent" />
       </div>
 
       {/* Main Content */}
@@ -88,9 +143,6 @@ export default function App() {
         <CloudPreview />
 
         <LatestTweet />
-        <div id="keep-alive">
-          <KeepAlive onDonation={chum.triggerCelebration} />
-        </div>
       </main>
 
       {/* Footer */}
@@ -112,8 +164,14 @@ export default function App() {
                 The official currency of world domination.
               </p>
               <div className="text-xs text-chum-muted/70 space-y-1">
-                <div>Token: <span className="text-chum-muted">Coming Soon</span></div>
                 <div>Chain: <span className="text-chum-muted">Solana</span></div>
+                <div
+                  className="hover:text-chum-accent transition-colors cursor-pointer truncate"
+                  onClick={() => { navigator.clipboard.writeText('AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump'); }}
+                  title="Click to copy CA"
+                >
+                  CA: <span className="text-chum-muted">AXCAx...pump</span>
+                </div>
               </div>
             </div>
 
