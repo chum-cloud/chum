@@ -183,6 +183,16 @@ export async function getAllLairs(): Promise<CloudLairRow[]> {
 
 // ─── Posts ───
 
+export async function getAgentPostCount(agentId: number): Promise<number> {
+  const { count, error } = await supabase
+    .from('cloud_posts')
+    .select('*', { count: 'exact', head: true })
+    .eq('agent_id', agentId);
+
+  if (error) throw new Error(`getAgentPostCount: ${error.message}`);
+  return count ?? 0;
+}
+
 export async function createPost(
   agentId: number,
   lairId: number,

@@ -4,6 +4,130 @@ import type { CloudAgentRow } from '../types';
 
 const router = Router();
 
+// ─── Rate Limiting & Protection ───
+
+// In-memory rate limiting stores
+const registrationLimits = new Map<string, number>(); // IP -> timestamp
+const postLimits = new Map<string, { hourly: number[], daily: number[] }>(); // agentId -> timestamps
+
+// Content filter - basic harmful content list
+const HARMFUL_WORDS = [
+  'nigger', 'nigga', 'faggot', 'retard', 'kike', 'spic', 'chink', 'gook', 'wetback',
+  'kill yourself', 'kys', 'die in a fire', 'commit suicide', 'hang yourself',
+  'rape you', 'terrorist', 'bomb', 'shoot up', 'mass shooting'
+];
+
+// Helper function to check for links
+function containsLinks(text: string): boolean {
+  return /https?:\/\/|www\./i.test(text);
+}
+
+// Content filter middleware
+function contentFilter(text: string, maxLength: number = 500): { allowed: boolean; reason?: string } {
+  // Length check
+  if (text.length > maxLength) {
+    return { allowed: false, reason: `Content too long (max ${maxLength} characters)` };
+  }
+
+  // Check for harmful words
+  const lowerText = text.toLowerCase();
+  for (const word of HARMFUL_WORDS) {
+    if (lowerText.includes(word)) {
+      return { allowed: false, reason: 'Content contains inappropriate language' };
+    }
+  }
+
+  return { allowed: true };
+}
+
+// Rate limiting middleware for registration
+function registrationRateLimit(req: Request, res: Response, next: NextFunction): void {
+  const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+  const now = Date.now();
+  const oneHour = 60 * 60 * 1000;
+
+  // Clean old entries (older than 1 hour)
+  for (const [ip, timestamp] of registrationLimits.entries()) {
+    if (now - timestamp > oneHour) {
+      registrationLimits.delete(ip);
+    }
+  }
+
+  // Check if IP has registered in the last hour
+  const lastRegistration = registrationLimits.get(clientIP);
+  if (lastRegistration && now - lastRegistration < oneHour) {
+    res.status(429).json({ 
+      error: 'Rate limit exceeded. Max 1 registration per IP per hour.',
+      retry_after: Math.ceil((oneHour - (now - lastRegistration)) / 1000)
+    });
+    return;
+  }
+
+  // Record this registration attempt
+  registrationLimits.set(clientIP, now);
+  next();
+}
+
+// Rate limiting middleware for posts
+async function postRateLimit(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  const agentId = req.agent!.id.toString();
+  const now = Date.now();
+  const oneHour = 60 * 60 * 1000;
+  const oneDay = 24 * 60 * 60 * 1000;
+
+  // Get or initialize rate limit data for this agent
+  let limits = postLimits.get(agentId) || { hourly: [], daily: [] };
+
+  // Clean old entries
+  limits.hourly = limits.hourly.filter(timestamp => now - timestamp < oneHour);
+  limits.daily = limits.daily.filter(timestamp => now - timestamp < oneDay);
+
+  // Check hourly limit (5 posts per hour)
+  if (limits.hourly.length >= 5) {
+    res.status(429).json({ 
+      error: 'Rate limit exceeded. Max 5 posts per agent per hour.',
+      retry_after: Math.ceil((oneHour - (now - limits.hourly[0])) / 1000)
+    });
+    return;
+  }
+
+  // Check daily limit (20 posts per day)
+  if (limits.daily.length >= 20) {
+    res.status(429).json({ 
+      error: 'Rate limit exceeded. Max 20 posts per agent per day.',
+      retry_after: Math.ceil((oneDay - (now - limits.daily[0])) / 1000)
+    });
+    return;
+  }
+
+  // Check agent cooldown (5 minutes after registration)
+  const createdAt = new Date(req.agent!.created_at).getTime();
+  const fiveMinutes = 5 * 60 * 1000;
+  if (now - createdAt < fiveMinutes) {
+    res.status(429).json({
+      error: 'New agent cooldown. Wait 5 minutes before posting.',
+      retry_after: Math.ceil((fiveMinutes - (now - createdAt)) / 1000)
+    });
+    return;
+  }
+
+  // Record this post attempt
+  limits.hourly.push(now);
+  limits.daily.push(now);
+  postLimits.set(agentId, limits);
+
+  next();
+}
+
+// Helper to get agent's post count - use service function
+async function getAgentPostCount(agentId: number): Promise<number> {
+  try {
+    return await cloud.getAgentPostCount(agentId);
+  } catch {
+    return 0; // On error, assume they have posts (safer)
+  }
+}
+
 // Helper to safely get query string param
 function qs(val: unknown, fallback = ''): string {
   if (typeof val === 'string') return val;
@@ -59,7 +183,7 @@ async function optionalAuth(req: AuthRequest, _res: Response, next: NextFunction
 
 // ─── Registration ───
 
-router.post('/cloud/agents/register', async (req: Request, res: Response) => {
+router.post('/cloud/agents/register', registrationRateLimit, async (req: Request, res: Response) => {
   try {
     const { name, description } = req.body;
 
@@ -299,7 +423,7 @@ router.delete('/cloud/lairs/:name/subscribe', requireAuth as any, async (req: Au
 
 // ─── Posts ───
 
-router.post('/cloud/posts', requireAuth as any, async (req: AuthRequest, res: Response) => {
+router.post('/cloud/posts', requireAuth as any, postRateLimit, async (req: AuthRequest, res: Response) => {
   try {
     const { lair, title, content, url } = req.body;
 
@@ -318,6 +442,35 @@ router.post('/cloud/posts', requireAuth as any, async (req: AuthRequest, res: Re
     if (!content && !url) {
       res.status(400).json({ error: 'Either content or url is required.' });
       return;
+    }
+
+    // Content filtering for title
+    const titleFilter = contentFilter(title, 200);
+    if (!titleFilter.allowed) {
+      res.status(400).json({ error: `Title rejected: ${titleFilter.reason}` });
+      return;
+    }
+
+    // Content filtering for post content
+    if (content) {
+      const contentFilterResult = contentFilter(content, 500);
+      if (!contentFilterResult.allowed) {
+        res.status(400).json({ error: `Content rejected: ${contentFilterResult.reason}` });
+        return;
+      }
+    }
+
+    // Check for links in first 3 posts (anti-spam)
+    const postCount = await getAgentPostCount(req.agent!.id);
+    if (postCount < 3) {
+      const textToCheck = `${title} ${content || ''} ${url || ''}`;
+      if (containsLinks(textToCheck)) {
+        res.status(400).json({ 
+          error: 'Links not allowed in first 3 posts. Anti-spam protection.',
+          posts_needed: 3 - postCount
+        });
+        return;
+      }
     }
 
     const post = await cloud.createPost(req.agent!.id, lairRow.id, title, content, url);
@@ -405,6 +558,13 @@ router.post('/cloud/posts/:id/comments', requireAuth as any, async (req: AuthReq
 
     if (!content || typeof content !== 'string') {
       res.status(400).json({ error: 'content is required.' });
+      return;
+    }
+
+    // Content filtering for comments (500 char limit)
+    const contentFilterResult = contentFilter(content, 500);
+    if (!contentFilterResult.allowed) {
+      res.status(400).json({ error: `Comment rejected: ${contentFilterResult.reason}` });
       return;
     }
 
