@@ -11,7 +11,7 @@ interface Props {
 }
 
 export default function WalletProvider({ children }: Props) {
-  const endpoint = useMemo(() => clusterApiUrl('devnet'), []);
+  const endpoint = useMemo(() => clusterApiUrl('mainnet-beta'), []);
   const wallets = useMemo(() => [new PhantomWalletAdapter(), new SolflareWalletAdapter()], []);
 
   return (

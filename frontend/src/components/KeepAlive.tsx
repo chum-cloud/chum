@@ -107,7 +107,7 @@ export default function KeepAlive({ onDonation }: KeepAliveProps) {
         <div className="text-xs text-chum-accent">
           Sent!{' '}
           <a
-            href={`https://explorer.solana.com/tx/${txSig}?cluster=devnet`}
+            href={`https://explorer.solana.com/tx/${txSig}`}
             target="_blank"
             rel="noopener noreferrer"
             className="underline"
