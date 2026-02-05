@@ -23,7 +23,7 @@ interface Props {
   facingDirection: 'left' | 'right';
 }
 
-export default function PlanktonRig({ mood, healthPercent, size = 200, walkPhase, isWalking, isMoving, facingDirection }: Props) {
+export default function PlanktonRig({ mood, healthPercent, size = 200, walkPhase, isWalking, isMoving: _isMoving, facingDirection }: Props) {
   const frameRef = useRef(0);
   const animRef = useRef<number>(0);
 

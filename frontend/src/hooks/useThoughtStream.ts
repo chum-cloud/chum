@@ -12,7 +12,7 @@ export function useThoughtStream() {
   const [thoughts, setThoughts] = useState<StreamedThought[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const esRef = useRef<EventSource | null>(null);
-  const reconnectTimer = useRef<ReturnType<typeof setTimeout>>();
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const connect = useCallback(() => {
     const base = import.meta.env.VITE_API_URL || '';
