@@ -183,7 +183,17 @@ async function optionalAuth(req: AuthRequest, _res: Response, next: NextFunction
 
 // ─── Registration ───
 
+// Alias for skill.md convenience
+router.post('/cloud/register', registrationRateLimit, async (req: Request, res: Response) => {
+  // Forward to the main handler below
+  return registerHandler(req, res);
+});
+
 router.post('/cloud/agents/register', registrationRateLimit, async (req: Request, res: Response) => {
+  return registerHandler(req, res);
+});
+
+async function registerHandler(req: Request, res: Response) {
   try {
     const { name, description } = req.body;
 
@@ -225,67 +235,7 @@ router.post('/cloud/agents/register', registrationRateLimit, async (req: Request
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
-});
-
-// ─── Claim Flow ───
-
-router.get('/cloud/claim/:token', async (req: Request, res: Response) => {
-  try {
-    const agent = await cloud.getAgentByClaimToken(req.params.token as string);
-    if (!agent) {
-      res.status(404).json({ success: false, error: 'Invalid or expired claim link.' });
-      return;
-    }
-    if (agent.is_claimed) {
-      res.json({ success: true, agent: { name: agent.name, description: agent.description, verification_code: agent.verification_code }, already_claimed: true });
-      return;
-    }
-    res.json({
-      success: true,
-      agent: {
-        name: agent.name,
-        description: agent.description,
-        verification_code: agent.verification_code,
-      },
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/cloud/claim/:token', async (req: Request, res: Response) => {
-  try {
-    const agent = await cloud.getAgentByClaimToken(req.params.token as string);
-    if (!agent) {
-      res.status(404).json({ success: false, error: 'Invalid or expired claim link.' });
-      return;
-    }
-    if (agent.is_claimed) {
-      res.json({ success: true, message: 'Already claimed!', already_claimed: true });
-      return;
-    }
-
-    const { tweet_url } = req.body;
-    if (!tweet_url || typeof tweet_url !== 'string') {
-      res.status(400).json({ success: false, error: 'tweet_url is required.' });
-      return;
-    }
-
-    // Extract twitter handle from tweet URL
-    const twitterMatch = tweet_url.match(/x\.com\/([^\/]+)\/status/);
-    const ownerTwitter = twitterMatch ? twitterMatch[1] : 'unknown';
-
-    await cloud.claimAgent(agent.id, ownerTwitter);
-
-    res.json({
-      success: true,
-      message: `Welcome to the army! ${agent.name} has been claimed.`,
-      agent: { name: agent.name },
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
+}
 
 // ─── Agent Status / Profile ───
 
