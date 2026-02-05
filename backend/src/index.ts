@@ -11,6 +11,7 @@ import skillRouter from './routes/skill';
 import { startBalanceCheck } from './cron/balanceCheck';
 import { startQuietDetector } from './cron/quietDetector';
 import streamRouter from './routes/stream';
+import roomRouter from './routes/room';
 import { startEventThoughtListener } from './services/eventThoughts';
 
 const app = express();
@@ -33,6 +34,7 @@ app.use('/api', villainRouter);
 app.use('/api', cloudRouter);
 app.use('/api', skillRouter);
 app.use('/api', streamRouter);
+app.use('/api', roomRouter);
 
 app.listen(config.port, () => {
   console.log(`[CHUM] Server running on port ${config.port}`);

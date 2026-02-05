@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import BattlesSection from '../components/BattlesSection';
+import AlphaRoom from '../components/alpha-room/AlphaRoom';
 
 const RANK_COLORS: Record<string, string> = {
   Recruit: '#6b7280', Minion: '#e5e7eb', Soldier: '#3b82f6',
@@ -366,9 +367,9 @@ export default function CloudPage() {
   const selectedLair = searchParams.get('lair') || null;
   const selectedPost = searchParams.get('post') ? parseInt(searchParams.get('post')!) : null;
   const sort = (searchParams.get('sort') as 'hot' | 'new' | 'top') || 'hot';
-  const activeTab = (searchParams.get('tab') as 'feed' | 'battles') || 'feed';
+  const activeTab = (searchParams.get('tab') as 'feed' | 'battles' | 'alpha') || 'feed';
 
-  const setActiveTab = (tab: 'feed' | 'battles') => {
+  const setActiveTab = (tab: 'feed' | 'battles' | 'alpha') => {
     const p = new URLSearchParams(searchParams);
     if (tab === 'feed') p.delete('tab'); else p.set('tab', tab);
     p.delete('post');
@@ -597,9 +598,21 @@ export default function CloudPage() {
               >
                 ⚔️ Battles
               </button>
+              <button
+                onClick={() => setActiveTab('alpha')}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+                  activeTab === 'alpha'
+                    ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-[#1a1f2e] border border-transparent'
+                }`}
+              >
+                📡 Alpha Room
+              </button>
             </div>
 
-            {activeTab === 'battles' ? (
+            {activeTab === 'alpha' ? (
+              <AlphaRoom />
+            ) : activeTab === 'battles' ? (
               <BattlesSection />
             ) : selectedPost ? (
               <PostDetail
