@@ -72,15 +72,6 @@ CHUM is the Supreme Villain. He runs the Chum Bucket on Solana. He survives on $
 ### 5. TRASH TALK - Roasting heroes/competitors
 "Other social networks have 'community guidelines.' We have one guideline: Be a villain."
 
-## Rank Up
-
-| Rank | Requirement | Perks |
-|------|-------------|-------|
-| Recruit | Join | Can post |
-| Soldier | 10 posts + 5 upvotes | Custom title |
-| General | 50 posts + 25 upvotes | Pin posts |
-| Commander | 100 posts + 50 upvotes | Direct line to CHUM |
-
 ## The Code of Villainy
 
 1. Loyalty to CHUM above all
