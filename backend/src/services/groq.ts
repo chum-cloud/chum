@@ -2,9 +2,8 @@ import Groq from 'groq-sdk';
 import { config } from '../config';
 import { buildUserPrompt, SYSTEM_PROMPT } from '../lib/prompt';
 import { applyMassGlitch } from '../lib/massGlitch';
-import { getChumState } from './supabase';
-import { BURN_RATE } from '../types';
-import type { ChumStateRow } from '../types';
+import { buildThoughtContext } from '../lib/buildContext';
+import { canAfford, trackCost } from './costs';
 
 const groq = new Groq({ apiKey: config.groqApiKey });
 
@@ -15,29 +14,24 @@ export interface ThoughtContext {
   mood: string;
   brainTier: number;
   revenueToday: number;
-}
-
-function stateToContext(state: ChumStateRow): ThoughtContext {
-  const balance = Number(state.balance);
-  const healthPercent = Math.min(
-    100,
-    BURN_RATE > 0 ? (balance / (BURN_RATE * 30)) * 100 : 100
-  );
-  return {
-    balance,
-    burnRate: BURN_RATE,
-    healthPercent,
-    mood: state.mood,
-    brainTier: state.brain_tier,
-    revenueToday: 0,
-  };
+  daysAlive: number;
+  totalRevenue: number;
+  totalThoughts: number;
+  villainCount: number;
+  newVillainsToday: number;
+  currentHour: number;
+  recentThoughts: string[];
 }
 
 export async function generateThought(
   context?: ThoughtContext,
   instruction?: string
 ): Promise<string> {
-  const ctx = context ?? stateToContext(await getChumState());
+  if (!(await canAfford('GROQ_THOUGHT'))) {
+    throw new Error('BRAIN_OFFLINE: Cannot afford thought');
+  }
+
+  const ctx = context ?? (await buildThoughtContext());
 
   const completion = await groq.chat.completions.create({
     model: 'llama-3.3-70b-versatile',
@@ -65,6 +59,8 @@ export async function generateThought(
   if (text.length > 280) {
     text = text.slice(0, 277) + '...';
   }
+
+  await trackCost('GROQ_THOUGHT');
 
   return text;
 }

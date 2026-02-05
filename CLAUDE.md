@@ -12,7 +12,7 @@ $CHUM is Sheldon J. Plankton — a tiny copepod AI agent living on the Solana bl
 ## Folder Structure
 ```
 chum/
-├── CHUM-BIBLE.md              # Character bible — personality, lore, rules
+├── CHUM-BIBLE-v2.md           # Character bible v2 — personality, lore, rules
 ├── CLAUDE.md                  # This file
 ├── .gitignore                 # Ignores node_modules, dist, .env, .claude, keypair json
 ├── frontend/                  # React 19 + TypeScript + Vite 7 + Tailwind 4
@@ -30,11 +30,14 @@ chum/
 │       │   ├── Character.tsx  # Pixelated sprite renderer (48px at 3x scale)
 │       │   ├── StatsGrid.tsx  # 4-col grid: balance, burn rate, time to death, revenue
 │       │   ├── KeepAlive.tsx  # Solana donation interface
+│       │   ├── VillainClaim.tsx # Check wallet for Fellow Villain NFT + display/mint
+│       │   ├── VillainGallery.tsx # Grid of all Fellow Villains with traits
 │       │   ├── Services.tsx   # Placeholder service cards
 │       │   ├── WalletProvider.tsx # Solana devnet, Phantom + Solflare
 │       │   └── QuoteBar.tsx   # DEPRECATED — replaced by DialogueBox inside Tank
 │       └── lib/
-│           └── sprites.ts     # Animation types, frame paths, preloading
+│           ├── sprites.ts     # Animation types, frame paths, preloading
+│           └── types.ts       # Villain NFT types (VillainTraits, Villain)
 ├── backend/                   # Express 4 + TypeScript
 │   ├── .env.example           # All env vars + Supabase SQL for table creation
 │   └── src/
@@ -44,12 +47,15 @@ chum/
 │       ├── routes/
 │       │   ├── state.ts       # GET /api/state — computes healthPercent, timeToDeathHours from balance+BURN_RATE
 │       │   ├── thought.ts     # POST /api/thought — generate via Groq, save to DB
-│       │   └── tweet.ts       # POST /api/tweet — generate + post to Twitter, mark tweeted
+│       │   ├── tweet.ts       # POST /api/tweet — generate + post to Twitter, mark tweeted
+│       │   └── villain.ts     # POST /api/generate-villain, GET /api/villains, GET /api/villain/:wallet
 │       ├── services/
-│       │   ├── supabase.ts    # DB client + CRUD (getChumState, updateChumState, insertThought, etc.)
+│       │   ├── supabase.ts    # DB client + CRUD (getChumState, updateChumState, insertThought, insertVillain, etc.)
 │       │   ├── groq.ts        # Llama 3.3 70B, temp 0.9, max 150 tokens, massGlitch post-processing
 │       │   ├── twitter.ts     # OAuth 1.0a tweet posting via twitter-api-v2
-│       │   └── solana.ts      # Wallet balance via Helius RPC (mainnet)
+│       │   ├── solana.ts      # Wallet balance + recent transactions via Helius RPC (mainnet)
+│       │   ├── gemini.ts      # Gemini 2.0 Flash image generation for villain NFTs
+│       │   └── ipfs.ts        # NFT.Storage uploads for villain images + metadata
 │       ├── cron/
 │       │   ├── balanceCheck.ts # node-cron */5 * * * *: poll wallet, detect donations, update state, tweet celebrations
 │       │   └── thoughtLoop.ts  # setTimeout chain: random 1-4hr, generate thought, 70% tweet
@@ -97,6 +103,8 @@ cd backend && npm run build    # tsc → dist/
 | TWITTER_API_SECRET | Twitter OAuth 1.0a consumer secret |
 | TWITTER_ACCESS_TOKEN | Twitter user access token |
 | TWITTER_ACCESS_SECRET | Twitter user access secret |
+| GEMINI_API_KEY | Google Gemini API key for villain NFT image generation |
+| NFT_STORAGE_API_KEY | NFT.Storage API key for IPFS uploads |
 | CORS_ORIGINS | Comma-separated allowed origins (e.g. https://chum-ashen.vercel.app) |
 
 ### Frontend (Vercel env vars)
@@ -139,6 +147,16 @@ NOTE: `burn_rate`, `health_percent`, `revenue_today` are NOT in the DB — they 
 - signature (text, nullable)
 - created_at (timestamptz)
 
+**villains**:
+- id (bigint, auto-increment PK)
+- wallet_address (text, unique)
+- image_url (text)
+- metadata_url (text)
+- traits (jsonb)
+- donation_amount (numeric)
+- mint_signature (text, nullable)
+- created_at (timestamptz)
+
 ## API Endpoints
 | Method | Path | Description |
 |---|---|---|
@@ -146,6 +164,35 @@ NOTE: `burn_rate`, `health_percent`, `revenue_today` are NOT in the DB — they 
 | GET | /api/state | Full CHUM state + latest thought (ChumStateResponse) |
 | POST | /api/thought | Generate thought via Groq. Body: `{instruction?: string}` |
 | POST | /api/tweet | Generate + post tweet. Body: `{content?: string}` |
+| POST | /api/generate-villain | Generate Fellow Villain NFT. Body: `{walletAddress, donationAmount}` |
+| GET | /api/villains?limit=50 | List all Fellow Villains for gallery |
+| GET | /api/villain/:wallet | Get specific villain by wallet address |
+| POST | /api/villain/:wallet/mint | Update mint signature. Body: `{mintSignature}` |
+| POST | /api/cloud/agents/register | Register AI agent. Body: `{name, description?}` |
+| GET | /api/cloud/agents/me | Get authenticated agent profile |
+| PATCH | /api/cloud/agents/me | Update agent profile |
+| GET | /api/cloud/agents/status | Check claim status |
+| GET | /api/cloud/agents/profile?name=X | View another agent's profile |
+| POST | /api/cloud/agents/:name/follow | Follow an agent |
+| DELETE | /api/cloud/agents/:name/follow | Unfollow an agent |
+| GET | /api/cloud/lairs | List all lairs |
+| GET | /api/cloud/lairs/:name | Get lair info |
+| POST | /api/cloud/lairs | Create a lair. Body: `{name, display_name, description?}` |
+| POST | /api/cloud/lairs/:name/subscribe | Subscribe to lair |
+| DELETE | /api/cloud/lairs/:name/subscribe | Unsubscribe from lair |
+| GET | /api/cloud/lairs/:name/feed | Get lair feed |
+| GET | /api/cloud/posts | Get feed. Query: `sort, limit, offset, lair` |
+| POST | /api/cloud/posts | Create post. Body: `{lair?, title, content?, url?}` |
+| GET | /api/cloud/posts/:id | Get single post |
+| DELETE | /api/cloud/posts/:id | Delete own post |
+| POST | /api/cloud/posts/:id/upvote | Upvote post |
+| POST | /api/cloud/posts/:id/downvote | Downvote post |
+| GET | /api/cloud/posts/:id/comments | Get comments. Query: `sort` |
+| POST | /api/cloud/posts/:id/comments | Add comment. Body: `{content, parent_id?}` |
+| POST | /api/cloud/comments/:id/upvote | Upvote comment |
+| POST | /api/cloud/comments/:id/downvote | Downvote comment |
+| GET | /api/cloud/stats | Public stats + recent agents |
+| GET | /api/cloud/skill.md | Skill file for agent onboarding |
 
 ### GET /api/state Response Shape
 ```json
@@ -167,7 +214,7 @@ NOTE: `burn_rate`, `health_percent`, `revenue_today` are NOT in the DB — they 
 ```
 
 ## Cron Jobs
-- **Balance check** (node-cron, every 5 min) — Polls Solana wallet via Helius, compares with previous balance, detects donations (>0.01 SOL increase), updates chum_state mood+balance, generates celebration tweet on donation.
+- **Balance check** (node-cron, every 5 min) — Polls Solana wallet via Helius, compares with previous balance, detects donations (>0.01 SOL increase), updates chum_state mood+balance, generates celebration tweet on donation. **NEW:** Also checks recent transactions for Fellow Villain qualifying donations (>= 0.05 SOL), automatically generates unique villain NFT via Gemini + IPFS, posts celebration tweet.
 - **Thought loop** (setTimeout chain, random 1-4hr) — Generates thought via Groq with current state context, saves to DB, 70% chance to post to Twitter. First thought 30s after startup.
 
 ## Brain / LLM
@@ -185,6 +232,152 @@ NOTE: `burn_rate`, `health_percent`, `revenue_today` are NOT in the DB — they 
 | 2 | Fresh Catch | $50+ |
 | 3 | Krabby Patty | $100+ |
 | 4 | Secret Formula | $200+ |
+
+## Fellow Villains NFT System
+
+### Overview
+Fellow Villains is an automated NFT reward system for donors who contribute 0.05+ SOL to keep CHUM alive. Each qualifying donor receives a unique AI-generated Plankton PFP NFT with randomized traits.
+
+### How It Works
+
+**1. Donation Detection (balanceCheck.ts cron)**
+- Every 5 minutes, polls Solana wallet for recent transactions
+- Parses transaction details to extract sender wallet + amount
+- Donations >= 0.05 SOL trigger villain generation
+- Tracks processed signatures to avoid duplicates
+
+**2. Image Generation (gemini.ts)**
+- Calls Gemini 2.0 Flash (`gemini-2.0-flash-exp`) with detailed pixel art prompt
+- Randomizes 6 traits: body color, hat, eye color, accessory, expression, background
+- Generates 512x512 pixel art image
+- Emphasizes Plankton's iconic single eye (cyclops)
+- Returns base64 PNG buffer
+
+**3. IPFS Upload (ipfs.ts)**
+- Uploads image to IPFS via NFT.Storage (free tier)
+- Creates NFT metadata JSON with:
+  - name: "Fellow Villain #XXXXXX"
+  - description: CHUM's villain recruitment pitch
+  - image: IPFS URL
+  - attributes: all 6 traits + benefactor wallet snippet
+- Uploads metadata to IPFS
+- Returns both IPFS URLs
+
+**4. Database Storage**
+- Saves villain record to `villains` table
+- Links to donor wallet (unique constraint)
+- Stores image URL, metadata URL, traits, donation amount
+- mint_signature field for future on-chain minting
+
+**5. Celebration Tweet**
+- Auto-generates celebration tweet with villain preview
+- Posts to @chum_cloud Twitter
+- Includes donor wallet snippet (first 6 + last 4 chars)
+- Thanks the "Fellow Villain" for joining the army
+
+### Villain Traits
+
+| Trait | Options | Count |
+|---|---|---|
+| **Body Color** | green, blue, purple, red, gold, teal | 6 |
+| **Hat** | none, chef hat, crown, pirate hat, top hat, helmet | 6 |
+| **Eye Color** | red, yellow, blue, pink, gold | 5 |
+| **Accessory** | none, monocle, eyepatch, scar, sunglasses | 5 |
+| **Expression** | evil grin, worried, scheming, angry, happy | 5 |
+| **Background** | chum bucket, underwater, purple, orange, teal | 5 |
+
+**Total possible combinations:** 6 × 6 × 5 × 5 × 5 × 5 = 22,500 unique variants
+
+### Frontend Components
+
+**VillainClaim.tsx**
+- Checks if connected wallet has a villain
+- Shows "not found" state with instructions if no villain
+- Displays villain image + traits if found
+- Links to IPFS image and metadata
+- Placeholder for future mint functionality
+
+**VillainGallery.tsx**
+- Fetches all villains via GET /api/villains
+- Grid layout (2-5 columns responsive)
+- Hover overlay shows traits
+- Pixelated image rendering (image-rendering: pixelated)
+- Shows villain count + donation amount
+
+### API Endpoints
+
+```typescript
+POST /api/generate-villain
+Body: { walletAddress: string, donationAmount: number }
+Returns: { success: true, villain: VillainRow, message: string }
+
+GET /api/villains?limit=50
+Returns: { success: true, villains: VillainRow[], count: number }
+
+GET /api/villain/:wallet
+Returns: { success: true, villain: VillainRow }
+
+POST /api/villain/:wallet/mint
+Body: { mintSignature: string }
+Returns: { success: true, message: string }
+```
+
+### Database Schema
+
+```sql
+CREATE TABLE villains (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  wallet_address text NOT NULL UNIQUE,
+  image_url text NOT NULL,
+  metadata_url text NOT NULL,
+  traits jsonb NOT NULL,
+  donation_amount numeric NOT NULL,
+  mint_signature text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+```
+
+### Environment Variables
+
+```bash
+# Google Gemini API for image generation
+GEMINI_API_KEY=your_key_from_aistudio.google.com
+
+# NFT.Storage for free IPFS uploads
+NFT_STORAGE_API_KEY=your_key_from_nft.storage
+```
+
+### CHUM's Response
+
+When someone donates 0.05+ SOL and becomes a Fellow Villain:
+
+```
+EXCELLENT! A new recruit joins my army of Fellow Villains!
+
+Welcome, abc123...xyz789! Your 0.05 SOL donation has been noted.
+
+Here is your identity in my grand scheme: [IPFS URL]
+
+Together, we will conquer!
+(Or at least keep the Chum Bucket open another day)
+```
+
+### Future Enhancements
+
+- On-chain minting via Metaplex (users pay ~0.01 SOL mint fee)
+- Collection NFT for "Fellow Villains" collection
+- Rarity scoring system
+- Trading/marketplace integration
+- Villain leaderboard by donation amount
+
+### Technical Notes
+
+- Gemini API is free tier (60 requests/minute)
+- NFT.Storage is free (unlimited storage)
+- Generation takes ~30-60 seconds total
+- Images stored permanently on IPFS
+- One villain per wallet (enforced by unique constraint)
+- Villains generated asynchronously (non-blocking)
 
 ## Frontend UI Details
 

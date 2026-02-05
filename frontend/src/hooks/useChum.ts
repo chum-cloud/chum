@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
 export type Mood = 'thriving' | 'comfortable' | 'worried' | 'desperate' | 'dying';
-export type AnimationState = 'running' | 'walking' | 'sad-walk' | 'idle' | 'death' | 'celebrate';
 
 function getMood(healthPercent: number): Mood {
   if (healthPercent > 80) return 'thriving';
@@ -11,25 +10,24 @@ function getMood(healthPercent: number): Mood {
   return 'dying';
 }
 
-function getAnimationState(healthPercent: number, celebrating: boolean): AnimationState {
-  if (healthPercent <= 0) return 'death';
-  if (celebrating) return 'celebrate';
-  if (healthPercent < 15) return 'idle';
-  if (healthPercent < 30) return 'sad-walk';
-  if (healthPercent < 60) return 'walking';
-  return 'running';
-}
-
 export interface ChumState {
   balance: number;
   burnRate: number;
   healthPercent: number;
   mood: Mood;
-  animationState: AnimationState;
   revenueToday: number;
   timeToDeathHours: number;
   latestThought: string | null;
+  recentThoughts: string[];
   triggerCelebration: () => void;
+  effectiveBalance: number;
+  todayBurnSol: number;
+  todayBurnUsd: number;
+  todayOpCount: number;
+  estimatedDailyBurn: number;
+  thoughtsRemaining: number;
+  solPrice: number;
+  canThink: boolean;
 }
 
 interface ApiState {
@@ -39,6 +37,15 @@ interface ApiState {
   revenueToday: number;
   timeToDeathHours: number;
   latestThought: string | null;
+  recentThoughts: string[];
+  effectiveBalance: number;
+  todayBurnSol: number;
+  todayBurnUsd: number;
+  todayOpCount: number;
+  estimatedDailyBurn: number;
+  thoughtsRemaining: number;
+  solPrice: number;
+  canThink: boolean;
 }
 
 export function useChum(): ChumState {
@@ -49,8 +56,16 @@ export function useChum(): ChumState {
     revenueToday: 0,
     timeToDeathHours: 120,
     latestThought: null,
+    recentThoughts: [],
+    effectiveBalance: 0,
+    todayBurnSol: 0,
+    todayBurnUsd: 0,
+    todayOpCount: 0,
+    estimatedDailyBurn: 0,
+    thoughtsRemaining: 0,
+    solPrice: 150,
+    canThink: true,
   });
-  const [celebrating, setCelebrating] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -69,6 +84,15 @@ export function useChum(): ChumState {
             revenueToday: data.revenueToday,
             timeToDeathHours: data.timeToDeathHours,
             latestThought: data.latestThought || null,
+            recentThoughts: data.recentThoughts || [],
+            effectiveBalance: data.effectiveBalance ?? 0,
+            todayBurnSol: data.todayBurnSol ?? 0,
+            todayBurnUsd: data.todayBurnUsd ?? 0,
+            todayOpCount: data.todayOpCount ?? 0,
+            estimatedDailyBurn: data.estimatedDailyBurn ?? 0,
+            thoughtsRemaining: data.thoughtsRemaining ?? 0,
+            solPrice: data.solPrice ?? 150,
+            canThink: data.canThink ?? true,
           });
         }
       } catch {
@@ -85,22 +109,28 @@ export function useChum(): ChumState {
   }, []);
 
   const triggerCelebration = useCallback(() => {
-    setCelebrating(true);
-    setTimeout(() => setCelebrating(false), 2000);
+    // Kept for KeepAlive; could drive future visual effects
   }, []);
 
   const mood = getMood(apiState.healthPercent);
-  const animationState = getAnimationState(apiState.healthPercent, celebrating);
 
   return {
     balance: apiState.balance,
     burnRate: apiState.burnRate,
     healthPercent: apiState.healthPercent,
     mood,
-    animationState,
     revenueToday: apiState.revenueToday,
     timeToDeathHours: apiState.timeToDeathHours,
     latestThought: apiState.latestThought,
+    recentThoughts: apiState.recentThoughts,
     triggerCelebration,
+    effectiveBalance: apiState.effectiveBalance,
+    todayBurnSol: apiState.todayBurnSol,
+    todayBurnUsd: apiState.todayBurnUsd,
+    todayOpCount: apiState.todayOpCount,
+    estimatedDailyBurn: apiState.estimatedDailyBurn,
+    thoughtsRemaining: apiState.thoughtsRemaining,
+    solPrice: apiState.solPrice,
+    canThink: apiState.canThink,
   };
 }

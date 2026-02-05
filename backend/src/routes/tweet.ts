@@ -6,26 +6,9 @@ import {
 } from '../services/supabase';
 import { generateThought } from '../services/groq';
 import { postTweet } from '../services/twitter';
-import { BURN_RATE } from '../types';
-import type { ChumStateRow } from '../types';
+import { buildThoughtContext } from '../lib/buildContext';
 
 const router = Router();
-
-function stateToContext(state: ChumStateRow) {
-  const balance = Number(state.balance);
-  const healthPercent = Math.min(
-    100,
-    BURN_RATE > 0 ? (balance / (BURN_RATE * 30)) * 100 : 100
-  );
-  return {
-    balance,
-    burnRate: BURN_RATE,
-    healthPercent,
-    mood: state.mood,
-    brainTier: state.brain_tier,
-    revenueToday: 0,
-  };
-}
 
 router.post('/tweet', async (req, res) => {
   try {
@@ -36,7 +19,7 @@ router.post('/tweet', async (req, res) => {
     if (providedContent) {
       content = providedContent.slice(0, 280);
     } else {
-      const context = stateToContext(state);
+      const context = await buildThoughtContext();
       content = await generateThought(context);
     }
 

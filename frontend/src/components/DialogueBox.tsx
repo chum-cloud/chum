@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
 import type { Mood } from '../hooks/useChum';
 
+const MOOD_PORTRAIT: Record<Mood, string> = {
+  thriving:    '/portraits/chum-excited.png',
+  comfortable: '/portraits/chum-happy.png',
+  worried:     '/portraits/chum-worried.png',
+  desperate:   '/portraits/chum-sad.png',
+  dying:       '/portraits/chum-dying.png',
+};
+
 const FALLBACK_QUOTES: Record<Mood, string[]> = {
   thriving: [
     "Business is BOOMING at the Chum Bucket! Well, not the restaurant. But $CHUM is doing great!",
@@ -37,19 +45,22 @@ const FALLBACK_QUOTES: Record<Mood, string[]> = {
 interface DialogueBoxProps {
   mood: Mood;
   latestThought: string | null;
+  recentThoughts?: string[];
 }
 
-export default function DialogueBox({ mood, latestThought }: DialogueBoxProps) {
+export default function DialogueBox({ mood, latestThought, recentThoughts }: DialogueBoxProps) {
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
 
   const fallbackQuotes = FALLBACK_QUOTES[mood];
 
-  // Build the list: latestThought first (if available), then fallbacks
-  const allQuotes = latestThought
-    ? [latestThought, ...fallbackQuotes]
-    : fallbackQuotes;
+  // Use recent thoughts from API if available, otherwise fall back to hardcoded quotes
+  const allQuotes = recentThoughts && recentThoughts.length > 0
+    ? recentThoughts
+    : latestThought
+      ? [latestThought, ...fallbackQuotes]
+      : fallbackQuotes;
 
   const fullText = allQuotes[quoteIndex % allQuotes.length];
 
@@ -89,17 +100,17 @@ export default function DialogueBox({ mood, latestThought }: DialogueBoxProps) {
     setQuoteIndex(0);
   }, [mood]);
 
-  // Reset when a new thought arrives from the backend
+  // Reset when new thoughts arrive from the backend
   useEffect(() => {
-    if (latestThought) {
+    if (latestThought || (recentThoughts && recentThoughts.length > 0)) {
       setQuoteIndex(0);
     }
-  }, [latestThought]);
+  }, [latestThought, recentThoughts]);
 
   return (
     <div
-      className="absolute bottom-0 left-0 right-0 z-10 flex justify-center"
-      style={{ padding: '0 12px 12px' }}
+      className="flex justify-center"
+      style={{ padding: '12px' }}
     >
       <div
         style={{
@@ -119,8 +130,8 @@ export default function DialogueBox({ mood, latestThought }: DialogueBoxProps) {
         {/* Portrait */}
         <div
           style={{
-            width: 64,
-            height: 64,
+            width: 128,
+            height: 128,
             flexShrink: 0,
             border: '2px solid #8b7355',
             borderRadius: 4,
@@ -132,12 +143,12 @@ export default function DialogueBox({ mood, latestThought }: DialogueBoxProps) {
           }}
         >
           <img
-            src="/chum-pfp.png"
+            src={MOOD_PORTRAIT[mood]}
             alt="CHUM"
             style={{
-              width: 56,
-              height: 56,
-              objectFit: 'cover',
+              width: 120,
+              height: 120,
+              objectFit: 'contain',
               borderRadius: 2,
               filter: 'drop-shadow(0 0 4px rgba(74, 222, 128, 0.3))',
             }}

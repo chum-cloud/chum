@@ -29,14 +29,30 @@ function formatTime(hours: number): string {
   return `${h}h`;
 }
 
+function formatThoughtsRemaining(n: number): string {
+  if (n < 0) return '--';
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
 export default function StatsGrid({ chum }: StatsGridProps) {
   const balanceColor =
     chum.healthPercent > 50 ? 'text-chum-accent' : chum.healthPercent > 20 ? 'text-chum-warning' : 'text-chum-danger';
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <StatCard label="Balance" value={`${chum.balance.toFixed(4)} SOL`} color={balanceColor} sub={`${chum.healthPercent.toFixed(0)}% health`} />
-      <StatCard label="Burn Rate" value={`${chum.burnRate} SOL/day`} sub="Server + AI costs" />
+      <StatCard
+        label="Balance"
+        value={`${chum.effectiveBalance.toFixed(4)} SOL`}
+        color={balanceColor}
+        sub={`${formatThoughtsRemaining(chum.thoughtsRemaining)} thoughts left`}
+      />
+      <StatCard
+        label="Burn Rate"
+        value={`${chum.estimatedDailyBurn.toFixed(6)} SOL/day`}
+        sub={`${chum.todayOpCount} ops today`}
+      />
       <StatCard
         label="Time to Death"
         value={formatTime(chum.timeToDeathHours)}

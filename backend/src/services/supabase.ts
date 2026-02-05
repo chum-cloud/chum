@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from '../config';
-import type { ChumStateRow, ThoughtRow, Mood } from '../types';
+import type { ChumStateRow, ThoughtRow, Mood, VillainRow, VillainTraits } from '../types';
 
 const supabase = createClient(config.supabaseUrl, config.supabaseServiceKey);
 
@@ -90,4 +90,138 @@ export async function getTodayRevenue(): Promise<number> {
 
   if (error) throw new Error(`getTodayRevenue: ${error.message}`);
   return (data ?? []).reduce((sum, row) => sum + Number(row.amount), 0);
+}
+
+export async function deleteAllThoughts(): Promise<number> {
+  // count before deleting
+  const { count } = await supabase
+    .from('thoughts')
+    .select('*', { count: 'exact', head: true });
+  const { error } = await supabase
+    .from('thoughts')
+    .delete()
+    .gte('id', 0);
+  if (error) throw new Error(`deleteAllThoughts: ${error.message}`);
+  return count ?? 0;
+}
+
+export async function getTodayExpenses(): Promise<number> {
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('amount')
+    .eq('type', 'expense')
+    .gte('created_at', todayStart.toISOString());
+
+  if (error) throw new Error(`getTodayExpenses: ${error.message}`);
+  return (data ?? []).reduce((sum, row) => sum + Number(row.amount), 0);
+}
+
+export async function getTodayExpenseCount(): Promise<number> {
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+
+  const { count, error } = await supabase
+    .from('transactions')
+    .select('*', { count: 'exact', head: true })
+    .eq('type', 'expense')
+    .gte('created_at', todayStart.toISOString());
+
+  if (error) throw new Error(`getTodayExpenseCount: ${error.message}`);
+  return count ?? 0;
+}
+
+export async function getRecentExpenses(days: number): Promise<number> {
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - days);
+  since.setUTCHours(0, 0, 0, 0);
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('amount')
+    .eq('type', 'expense')
+    .gte('created_at', since.toISOString());
+
+  if (error) throw new Error(`getRecentExpenses: ${error.message}`);
+  return (data ?? []).reduce((sum, row) => sum + Number(row.amount), 0);
+}
+
+// Villain CRUD functions
+export async function insertVillain(
+  walletAddress: string,
+  imageUrl: string,
+  metadataUrl: string,
+  traits: VillainTraits,
+  donationAmount: number
+): Promise<VillainRow> {
+  const { data, error } = await supabase
+    .from('villains')
+    .insert({
+      wallet_address: walletAddress,
+      image_url: imageUrl,
+      metadata_url: metadataUrl,
+      traits,
+      donation_amount: donationAmount,
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(`insertVillain: ${error.message}`);
+  return data as VillainRow;
+}
+
+export async function getVillainByWallet(walletAddress: string): Promise<VillainRow | null> {
+  const { data, error } = await supabase
+    .from('villains')
+    .select('*')
+    .eq('wallet_address', walletAddress)
+    .maybeSingle();
+
+  if (error) throw new Error(`getVillainByWallet: ${error.message}`);
+  return data as VillainRow | null;
+}
+
+export async function getAllVillains(limit: number = 50): Promise<VillainRow[]> {
+  const { data, error } = await supabase
+    .from('villains')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw new Error(`getAllVillains: ${error.message}`);
+  return (data ?? []) as VillainRow[];
+}
+
+export async function getVillainCount(): Promise<number> {
+  const { count, error } = await supabase
+    .from('villains')
+    .select('*', { count: 'exact', head: true });
+  if (error) throw new Error(`getVillainCount: ${error.message}`);
+  return count ?? 0;
+}
+
+export async function getTodayVillainCount(): Promise<number> {
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+
+  const { count, error } = await supabase
+    .from('villains')
+    .select('*', { count: 'exact', head: true })
+    .gte('created_at', todayStart.toISOString());
+  if (error) throw new Error(`getTodayVillainCount: ${error.message}`);
+  return count ?? 0;
+}
+
+export async function updateVillainMintSignature(
+  walletAddress: string,
+  mintSignature: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('villains')
+    .update({ mint_signature: mintSignature })
+    .eq('wallet_address', walletAddress);
+
+  if (error) throw new Error(`updateVillainMintSignature: ${error.message}`);
 }

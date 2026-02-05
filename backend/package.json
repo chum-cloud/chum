@@ -9,12 +9,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@solana/web3.js": "^1.98.4",
     "@supabase/supabase-js": "^2.49.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "groq-sdk": "^0.9.1",
+    "nft.storage": "^7.2.0",
     "node-cron": "^3.0.3",
     "twitter-api-v2": "^1.18.2"
   },

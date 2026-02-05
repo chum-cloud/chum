@@ -9,7 +9,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': 'https://chum-production.up.railway.app',
+      '/api': 'http://localhost:3001',
     },
   },
 })

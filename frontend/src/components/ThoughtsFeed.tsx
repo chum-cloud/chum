@@ -1,12 +1,4 @@
-import { useState, useEffect } from 'react';
-
-interface Thought {
-  id: number;
-  content: string;
-  mood: string;
-  tweeted: boolean;
-  created_at: string;
-}
+import { useThoughtStream } from '../hooks/useThoughtStream';
 
 const MOOD_EMOJI: Record<string, string> = {
   thriving: '😎',
@@ -37,107 +29,53 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function ThoughtsFeed() {
-  const [thoughts, setThoughts] = useState<Thought[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-
-    async function fetchThoughts() {
-      try {
-        const base = import.meta.env.VITE_API_URL || '';
-        const res = await fetch(`${base}/api/thoughts?limit=20`);
-        if (res.ok) {
-          const ct = res.headers.get('content-type') || '';
-          if (ct.includes('application/json')) {
-            const data = await res.json();
-            if (active) setThoughts(Array.isArray(data) ? data : data.thoughts || []);
-            return;
-          }
-        }
-        // Backend not available or not JSON — fall back to Supabase
-        throw new Error('fallback');
-      } catch {
-        try {
-          const res = await fetch(
-            'https://akkhgcmmgzrianbdfijt.supabase.co/rest/v1/thoughts?order=created_at.desc&limit=20',
-            {
-              headers: {
-                apikey: 'sb_publishable_6vkTlLd3lRSMLPvfaq571g_8XRSdu4W',
-                Authorization: 'Bearer sb_publishable_6vkTlLd3lRSMLPvfaq571g_8XRSdu4W',
-              },
-            }
-          );
-          if (res.ok && active) {
-            setThoughts(await res.json());
-          }
-        } catch {
-          // silent
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
-    fetchThoughts();
-    const interval = setInterval(fetchThoughts, 60_000);
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, []);
-
-  if (loading) {
-    return (
-      <section>
-        <h2 className="text-lg font-bold font-heading mb-4">💭 CHUM's Thoughts</h2>
-        <div className="text-chum-muted text-sm font-mono">Loading thoughts...</div>
-      </section>
-    );
-  }
-
-  if (thoughts.length === 0) {
-    return (
-      <section>
-        <h2 className="text-lg font-bold font-heading mb-4">💭 CHUM's Thoughts</h2>
-        <div className="text-chum-muted text-sm font-mono">
-          The void stares back. No thoughts yet.
-        </div>
-      </section>
-    );
-  }
+  const { thoughts, isConnected } = useThoughtStream();
 
   return (
     <section>
-      <h2 className="text-lg font-bold font-heading mb-4">💭 CHUM's Thoughts</h2>
-      <div className="space-y-3">
-        {thoughts.map((t) => (
-          <div
-            key={t.id}
-            className="bg-chum-surface border border-chum-border rounded-lg p-4 hover:border-chum-accent/30 transition-colors"
-          >
-            <div className="flex items-start gap-3">
-              <span className="text-lg flex-shrink-0 mt-0.5">
-                {MOOD_EMOJI[t.mood] || '💭'}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-mono text-chum-text leading-relaxed whitespace-pre-wrap">
-                  {t.content}
-                </p>
-                <div className="flex items-center gap-3 mt-2 text-xs text-chum-muted font-mono">
-                  <span>{timeAgo(t.created_at)}</span>
-                  <span className="capitalize">{t.mood}</span>
-                  {t.tweeted && (
-                    <span className="text-blue-400">
-                      𝕏 tweeted
-                    </span>
-                  )}
+      <div className="flex items-center gap-2 mb-4">
+        <h2 className="text-lg font-bold font-heading">💭 CHUM's Thoughts</h2>
+        {isConnected ? (
+          <span className="text-xs font-mono text-green-400">● LIVE</span>
+        ) : (
+          <span className="text-xs font-mono text-yellow-400">○ Reconnecting...</span>
+        )}
+      </div>
+
+      {thoughts.length === 0 ? (
+        <div className="text-chum-muted text-sm font-mono">
+          {isConnected ? 'The void stares back. No thoughts yet.' : 'Connecting to thought stream...'}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {thoughts.map((t) => (
+            <div
+              key={t.id}
+              className="bg-chum-surface border border-chum-border rounded-lg p-4 hover:border-chum-accent/30 transition-colors"
+            >
+              <div className="flex items-start gap-3">
+                <span className="text-lg flex-shrink-0 mt-0.5">
+                  {MOOD_EMOJI[t.mood] || '💭'}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-mono text-chum-text leading-relaxed whitespace-pre-wrap">
+                    {t.content}
+                  </p>
+                  <div className="flex items-center gap-3 mt-2 text-xs text-chum-muted font-mono">
+                    <span>{timeAgo(t.created_at)}</span>
+                    <span className="capitalize">{t.mood}</span>
+                    {t.tweeted && (
+                      <span className="text-blue-400">
+                        𝕏 tweeted
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
