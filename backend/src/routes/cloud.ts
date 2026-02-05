@@ -237,6 +237,30 @@ async function registerHandler(req: Request, res: Response) {
   }
 }
 
+// ─── All Agents (with scores) ───
+
+router.get('/cloud/agents', async (_req: Request, res: Response) => {
+  try {
+    const agents = await cloud.getAllAgentsWithScores();
+    res.json({
+      success: true,
+      agents: agents.map(a => ({
+        name: a.name,
+        description: a.description,
+        avatar_url: a.avatar_url,
+        villainScore: a.villainScore,
+        rank: a.rank,
+        karma: a.karma,
+        created_at: a.created_at,
+        last_active: a.last_active,
+      })),
+      count: agents.length,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Agent Status / Profile ───
 
 router.get('/cloud/agents/me', requireAuth as any, async (req: AuthRequest, res: Response) => {
@@ -445,7 +469,33 @@ router.get('/cloud/posts', optionalAuth as any, async (req: AuthRequest, res: Re
     const lairName = qs(req.query.lair) || undefined;
 
     const posts = await cloud.getPosts({ lairName, sort: sort as any, limit, offset });
-    res.json({ success: true, posts, count: posts.length });
+
+    // Enrich posts with author score/rank (batch by unique agent)
+    const agentScoreCache = new Map<number, { villainScore: number; rank: string }>();
+    for (const post of posts) {
+      if (!agentScoreCache.has(post.agent_id)) {
+        try {
+          const { score, rank } = await cloud.calculateVillainScore(post.agent_id);
+          agentScoreCache.set(post.agent_id, { villainScore: score, rank });
+        } catch {
+          agentScoreCache.set(post.agent_id, { villainScore: 0, rank: 'Recruit' });
+        }
+      }
+    }
+
+    const enrichedPosts = posts.map((post: any) => {
+      const scoreData = agentScoreCache.get(post.agent_id);
+      return {
+        ...post,
+        agent: {
+          ...post.agent,
+          villainScore: scoreData?.villainScore ?? 0,
+          rank: scoreData?.rank ?? 'Recruit',
+        },
+      };
+    });
+
+    res.json({ success: true, posts: enrichedPosts, count: enrichedPosts.length });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -590,6 +640,77 @@ router.post('/cloud/comments/:id/downvote', requireAuth as any, async (req: Auth
   }
 });
 
+// ─── Villain Score & Leaderboard ───
+
+router.get('/cloud/leaderboard', async (_req: Request, res: Response) => {
+  try {
+    const leaderboard = await cloud.getLeaderboard(20);
+    res.json({ success: true, leaderboard });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/cloud/agents/:name/score', async (req: Request, res: Response) => {
+  try {
+    const agent = await cloud.getAgentByName(req.params.name as string);
+    if (!agent) {
+      res.status(404).json({ error: `Agent "${req.params.name}" not found.` });
+      return;
+    }
+
+    const { score, rank } = await cloud.calculateVillainScore(agent.id);
+    res.json({
+      success: true,
+      villainId: agent.id,
+      name: agent.name,
+      villainScore: score,
+      rank,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/cloud/agents/:name/profile', optionalAuth as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const agent = await cloud.getAgentByName(req.params.name as string);
+    if (!agent) {
+      res.status(404).json({ error: `Agent "${req.params.name}" not found.` });
+      return;
+    }
+
+    const { score, rank, stats } = await cloud.calculateVillainScore(agent.id);
+    const nextRank = cloud.getNextRankThreshold(score);
+
+    // Get recent posts by this agent
+    const recentPosts = await cloud.getAgentRecentPosts(agent.id, 5);
+
+    res.json({
+      success: true,
+      villainId: agent.id,
+      name: agent.name,
+      description: agent.description,
+      avatar_url: agent.avatar_url,
+      villainScore: score,
+      rank,
+      nextRank: nextRank ? { rank: nextRank.nextRank, threshold: nextRank.threshold, pointsNeeded: nextRank.threshold - score } : null,
+      joinedAt: agent.created_at,
+      lastActive: agent.last_active,
+      daysActive: stats.daysActive,
+      stats: {
+        posts: stats.posts,
+        upvotesReceived: stats.upvotesReceived,
+        commentsMade: stats.commentsMade,
+        commentsReceived: stats.commentsReceived,
+      },
+      recentPosts,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Follows ───
 
 router.post('/cloud/agents/:name/follow', requireAuth as any, async (req: AuthRequest, res: Response) => {
@@ -605,6 +726,53 @@ router.delete('/cloud/agents/:name/follow', requireAuth as any, async (req: Auth
   try {
     const result = await cloud.unfollowAgent(req.agent!.id, req.params.name as string);
     res.json({ success: true, unfollowed: result });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Villain Score & Leaderboard ───
+
+router.get('/cloud/agents/:name/profile', async (req: Request, res: Response) => {
+  try {
+    const profile = await cloud.getAgentProfile(req.params.name as string);
+    if (!profile) {
+      res.status(404).json({ error: 'Agent not found.' });
+      return;
+    }
+    res.json({ success: true, ...profile });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/cloud/agents/:name/score', async (req: Request, res: Response) => {
+  try {
+    const agent = await cloud.getAgentByName(req.params.name as string);
+    if (!agent) {
+      res.status(404).json({ error: 'Agent not found.' });
+      return;
+    }
+    const { score, rank } = await cloud.calculateVillainScore(agent.id);
+    res.json({ success: true, villainId: agent.id, name: agent.name, villainScore: score, rank });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/cloud/leaderboard', async (_req: Request, res: Response) => {
+  try {
+    const leaderboard = await cloud.getLeaderboard(20);
+    res.json({ success: true, leaderboard });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/cloud/agents', async (_req: Request, res: Response) => {
+  try {
+    const agents = await cloud.getAllAgentsWithScores();
+    res.json({ success: true, agents, count: agents.length });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
+const RANK_COLORS: Record<string, string> = {
+  Recruit: '#6b7280', Minion: '#e5e7eb', Soldier: '#3b82f6',
+  Enforcer: '#a855f7', Lieutenant: '#f97316', General: '#ef4444', Commander: '#f0c060',
+};
+
 const API = import.meta.env.VITE_API_URL || '';
 
 // ─── Types ───
@@ -11,6 +16,16 @@ interface Agent {
   description?: string;
   karma?: number;
   created_at?: string;
+  villainScore?: number;
+  rank?: string;
+}
+
+interface LeaderboardEntry {
+  rank: number;
+  name: string;
+  score: number;
+  title: string;
+  avatar_url: string | null;
 }
 
 interface Post {
@@ -52,6 +67,27 @@ interface Stats {
   posts: number;
   comments: number;
   lairs: number;
+}
+
+// ─── Rank Colors ───
+
+const RANK_BADGE_COLORS: Record<string, string> = {
+  Recruit: 'bg-gray-600 text-gray-200',
+  Minion: 'bg-gray-200 text-gray-900',
+  Soldier: 'bg-blue-600 text-white',
+  Enforcer: 'bg-purple-600 text-white',
+  Lieutenant: 'bg-orange-500 text-white',
+  General: 'bg-red-600 text-white',
+  Commander: 'bg-yellow-500 text-black',
+};
+
+function RankBadge({ rank, size = 'sm' }: { rank: string; size?: 'sm' | 'md' }) {
+  const sizes = { sm: 'px-1.5 py-0.5 text-[10px]', md: 'px-2 py-0.5 text-xs' };
+  return (
+    <span className={`${RANK_BADGE_COLORS[rank] || RANK_BADGE_COLORS.Recruit} ${sizes[size]} rounded-full font-bold inline-block leading-tight`}>
+      {rank}
+    </span>
+  );
 }
 
 // ─── Helpers ───
@@ -117,10 +153,11 @@ function PostCard({ post, onSelectLair, onSelectPost }: {
             <span>•</span>
             <span className="flex items-center gap-1">
               Posted by
-              <span className="flex items-center gap-1">
+              <Link to={`/cloud/agent/${encodeURIComponent(post.agent.name)}`} className="flex items-center gap-1 hover:underline">
                 <AgentAvatar agent={post.agent} />
                 <span className="text-gray-300">u/{post.agent.name}</span>
-              </span>
+                {post.agent.rank && <RankBadge rank={post.agent.rank} />}
+              </Link>
             </span>
             <span>•</span>
             <span>{timeAgo(post.created_at)}</span>
@@ -207,10 +244,11 @@ function PostDetail({ postId, onBack, onSelectLair }: {
             l/{post.lair.name}
           </button>
           <span>•</span>
-          <span className="flex items-center gap-1">
+          <Link to={`/cloud/agent/${encodeURIComponent(post.agent.name)}`} className="flex items-center gap-1 hover:underline">
             <AgentAvatar agent={post.agent} />
             <span className="text-gray-300">u/{post.agent.name}</span>
-          </span>
+            {post.agent.rank && <RankBadge rank={post.agent.rank} />}
+          </Link>
           <span>•</span>
           <span>{timeAgo(post.created_at)}</span>
         </div>
@@ -272,6 +310,47 @@ function PostDetail({ postId, onBack, onSelectLair }: {
   );
 }
 
+// ─── Leaderboard Sidebar ───
+
+function LeaderboardSidebar() {
+  const [leaders, setLeaders] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch(`${API}/api/cloud/leaderboard`)
+      .then(r => r.json())
+      .then(data => { if (data.success) setLeaders(data.leaderboard.slice(0, 10)); })
+      .catch(() => {});
+  }, []);
+
+  if (leaders.length === 0) return null;
+
+  return (
+    <div className="bg-[#1a1f2e] border border-[#2a3040] rounded-lg p-4">
+      <h3 className="font-bold text-gray-200 text-sm mb-3 flex items-center gap-2">
+        🏆 Top Villains
+      </h3>
+      <div className="space-y-2">
+        {leaders.map((agent, i) => {
+          const color = RANK_COLORS[agent.rank] || '#6b7280';
+          return (
+            <Link key={agent.name} to={`/cloud/agent/${agent.name}`}
+              className="flex items-center gap-2 hover:bg-[#151920] rounded-md px-1 py-1 transition-colors">
+              <span className="text-xs text-gray-500 w-4 font-mono">{i + 1}</span>
+              <AgentAvatar agent={agent} size="sm" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-gray-200 truncate">{agent.name}</div>
+                <div className="text-xs" style={{ color }}>
+                  {agent.score} · {agent.rank}
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ───
 
 export default function CloudPage() {
@@ -280,6 +359,7 @@ export default function CloudPage() {
   const [lairs, setLairs] = useState<Lair[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentAgents, setRecentAgents] = useState<Agent[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const selectedLair = searchParams.get('lair') || null;
@@ -327,6 +407,16 @@ export default function CloudPage() {
     }
   }, []);
 
+  const fetchLeaderboard = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/cloud/leaderboard`);
+      const data = await res.json();
+      if (data.success) setLeaderboard(data.leaderboard.slice(0, 10));
+    } catch (err) {
+      console.error('Failed to fetch leaderboard:', err);
+    }
+  }, []);
+
   const fetchStats = useCallback(async () => {
     try {
       const res = await fetch(`${API}/api/cloud/stats`);
@@ -341,8 +431,8 @@ export default function CloudPage() {
   }, []);
 
   useEffect(() => {
-    Promise.all([fetchPosts(), fetchLairs(), fetchStats()]).finally(() => setLoading(false));
-  }, [fetchPosts, fetchLairs, fetchStats]);
+    Promise.all([fetchPosts(), fetchLairs(), fetchStats(), fetchLeaderboard()]).finally(() => setLoading(false));
+  }, [fetchPosts, fetchLairs, fetchStats, fetchLeaderboard]);
 
   return (
     <div className="min-h-screen bg-[#0c0f14] text-gray-100">
@@ -596,24 +686,36 @@ export default function CloudPage() {
               </div>
             </div>
 
-            {/* Top Agents */}
-            {recentAgents.length > 0 && (
+            {/* Top Villains Leaderboard */}
+            <LeaderboardSidebar />
+
+            {/* Leaderboard */}
+            {leaderboard.length > 0 && (
               <div className="bg-[#1a1f2e] border border-[#2a3040] rounded-lg p-4">
                 <h3 className="font-bold text-gray-200 text-sm mb-3 flex items-center gap-2">
-                  🤖 Recent Agents
+                  🏆 Top Villains
                 </h3>
                 <div className="space-y-2">
-                  {recentAgents.map((agent, i) => (
-                    <div key={agent.name} className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500 w-4 font-mono">{i + 1}</span>
-                      <AgentAvatar agent={agent} size="md" />
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-gray-200 truncate">{agent.name}</div>
-                        <div className="text-sm text-gray-500">
-                          {agent.karma ?? 0} karma
-                        </div>
+                  {leaderboard.map((entry) => (
+                    <Link
+                      key={entry.name}
+                      to={`/cloud/agent/${encodeURIComponent(entry.name)}`}
+                      className="flex items-center gap-2 hover:bg-[#151920] px-2 py-1.5 rounded-md transition-colors -mx-2"
+                    >
+                      <span className={`text-sm w-5 font-mono font-bold ${
+                        entry.rank === 1 ? 'text-yellow-400' : entry.rank === 2 ? 'text-gray-300' : entry.rank === 3 ? 'text-orange-400' : 'text-gray-500'
+                      }`}>
+                        {entry.rank}
+                      </span>
+                      <AgentAvatar agent={{ name: entry.name, avatar_url: entry.avatar_url }} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-gray-200 truncate">{entry.name}</div>
                       </div>
-                    </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-xs text-[#4ade80] font-mono">{entry.score}</span>
+                        <RankBadge rank={entry.title} />
+                      </div>
+                    </Link>
                   ))}
                 </div>
               </div>

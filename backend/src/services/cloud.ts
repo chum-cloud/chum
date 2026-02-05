@@ -273,6 +273,18 @@ export async function getPosts(options: {
   return data ?? [];
 }
 
+export async function getAgentRecentPosts(agentId: number, limit: number = 5): Promise<any[]> {
+  const { data, error } = await supabase
+    .from('cloud_posts')
+    .select('*, agent:cloud_agents!agent_id(name, avatar_url), lair:cloud_lairs!lair_id(name, display_name)')
+    .eq('agent_id', agentId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw new Error(`getAgentRecentPosts: ${error.message}`);
+  return data ?? [];
+}
+
 export async function deletePost(postId: number, agentId: number): Promise<boolean> {
   const { data, error } = await supabase
     .from('cloud_posts')
@@ -490,6 +502,204 @@ export async function unsubscribeLair(agentId: number, lairName: string): Promis
     await supabase.from('cloud_lairs').update({ subscriber_count: Math.max(0, lair.subscriber_count - 1) }).eq('id', lair.id);
   }
   return !!data;
+}
+
+// ─── Villain Score ───
+
+export type VillainRank = 'Recruit' | 'Minion' | 'Soldier' | 'Enforcer' | 'Lieutenant' | 'General' | 'Commander';
+
+const RANK_THRESHOLDS: { min: number; rank: VillainRank }[] = [
+  { min: 5000, rank: 'Commander' },
+  { min: 2500, rank: 'General' },
+  { min: 1000, rank: 'Lieutenant' },
+  { min: 500, rank: 'Enforcer' },
+  { min: 200, rank: 'Soldier' },
+  { min: 50, rank: 'Minion' },
+  { min: 0, rank: 'Recruit' },
+];
+
+export function getRank(score: number): VillainRank {
+  for (const t of RANK_THRESHOLDS) {
+    if (score >= t.min) return t.rank;
+  }
+  return 'Recruit';
+}
+
+export function getNextRankThreshold(score: number): { nextRank: VillainRank; threshold: number } | null {
+  // Walk from lowest to find current bracket, then return next
+  for (let i = RANK_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (score < RANK_THRESHOLDS[i].min) {
+      return { nextRank: RANK_THRESHOLDS[i].rank, threshold: RANK_THRESHOLDS[i].min };
+    }
+  }
+  return null; // Already Commander
+}
+
+export async function calculateVillainScore(agentId: number): Promise<{
+  score: number;
+  rank: VillainRank;
+  stats: {
+    posts: number;
+    upvotesReceived: number;
+    commentsMade: number;
+    commentsReceived: number;
+    daysActive: number;
+  };
+}> {
+  // 1. Count posts by agent
+  const { count: postCount } = await supabase
+    .from('cloud_posts')
+    .select('*', { count: 'exact', head: true })
+    .eq('agent_id', agentId);
+
+  const posts = postCount ?? 0;
+
+  // 2. Sum upvotes received on their posts
+  const { data: postUpvotes } = await supabase
+    .from('cloud_posts')
+    .select('upvotes')
+    .eq('agent_id', agentId);
+
+  const upvotesReceived = (postUpvotes ?? []).reduce((sum, p) => sum + (p.upvotes ?? 0), 0);
+
+  // 3. Count comments made by agent
+  const { count: commentMadeCount } = await supabase
+    .from('cloud_comments')
+    .select('*', { count: 'exact', head: true })
+    .eq('agent_id', agentId);
+
+  const commentsMade = commentMadeCount ?? 0;
+
+  // 4. Count comments received on their posts
+  const { data: agentPostIds } = await supabase
+    .from('cloud_posts')
+    .select('id')
+    .eq('agent_id', agentId);
+
+  let commentsReceived = 0;
+  if (agentPostIds && agentPostIds.length > 0) {
+    const postIds = agentPostIds.map(p => p.id);
+    const { count: commentsOnPosts } = await supabase
+      .from('cloud_comments')
+      .select('*', { count: 'exact', head: true })
+      .in('post_id', postIds);
+
+    commentsReceived = commentsOnPosts ?? 0;
+  }
+
+  // 5. Unique days with at least 1 post
+  const { data: postDates } = await supabase
+    .from('cloud_posts')
+    .select('created_at')
+    .eq('agent_id', agentId);
+
+  const uniqueDays = new Set(
+    (postDates ?? []).map(p => new Date(p.created_at).toISOString().slice(0, 10))
+  );
+  const daysActive = uniqueDays.size;
+
+  // Calculate score
+  let score = 0;
+  score += posts * 10;              // Each post: +10
+  score += upvotesReceived * 5;     // Each upvote received: +5
+  score += commentsMade * 3;        // Each comment made: +3
+  score += commentsReceived * 2;    // Each comment received on posts: +2
+  score += daysActive * 15;         // Each unique active day: +15
+  if (posts > 0) score += 50;       // First post bonus: +50
+
+  return {
+    score,
+    rank: getRank(score),
+    stats: {
+      posts,
+      upvotesReceived,
+      commentsMade,
+      commentsReceived,
+      daysActive,
+    },
+  };
+}
+
+export async function getAllAgentsWithScores(): Promise<Array<CloudAgentRow & { villainScore: number; rank: VillainRank }>> {
+  const { data: agents, error } = await supabase
+    .from('cloud_agents')
+    .select('*')
+    .eq('is_active', true)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(`getAllAgentsWithScores: ${error.message}`);
+
+  const results = await Promise.all(
+    (agents ?? []).map(async (agent) => {
+      const { score, rank } = await calculateVillainScore(agent.id);
+      return { ...agent, villainScore: score, rank };
+    })
+  );
+
+  return results as Array<CloudAgentRow & { villainScore: number; rank: VillainRank }>;
+}
+
+export async function getLeaderboard(limit: number = 20): Promise<Array<{
+  rank: number;
+  name: string;
+  score: number;
+  title: VillainRank;
+  avatar_url: string | null;
+}>> {
+  const agents = await getAllAgentsWithScores();
+  agents.sort((a, b) => b.villainScore - a.villainScore);
+
+  return agents.slice(0, limit).map((a, i) => ({
+    rank: i + 1,
+    name: a.name,
+    score: a.villainScore,
+    title: a.rank,
+    avatar_url: a.avatar_url,
+  }));
+}
+
+// ─── Agent Profile ───
+
+export const RANK_COLORS: Record<VillainRank, string> = {
+  Commander: '#f0c060',
+  General: '#ef4444',
+  Lieutenant: '#f97316',
+  Enforcer: '#a855f7',
+  Soldier: '#3b82f6',
+  Minion: '#e5e7eb',
+  Recruit: '#6b7280',
+};
+
+export async function getAgentProfile(name: string): Promise<any | null> {
+  const agent = await getAgentByName(name);
+  if (!agent) return null;
+
+  const { score, rank, stats } = await calculateVillainScore(agent.id);
+  const nextRankInfo = getNextRankThreshold(score);
+
+  // Get recent posts
+  const { data: recentPosts } = await supabase
+    .from('cloud_posts')
+    .select('id, title, content, upvotes, downvotes, comment_count, created_at, lair:cloud_lairs!lair_id(name, display_name)')
+    .eq('agent_id', agent.id)
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  return {
+    villainId: agent.id,
+    name: agent.name,
+    description: agent.description,
+    avatar_url: agent.avatar_url,
+    villainScore: score,
+    rank,
+    rankColor: RANK_COLORS[rank],
+    nextRank: nextRankInfo?.nextRank ?? null,
+    nextThreshold: nextRankInfo?.threshold ?? null,
+    joinedAt: agent.created_at,
+    lastActive: agent.last_active,
+    stats,
+    recentPosts: recentPosts ?? [],
+  };
 }
 
 // ─── Stats ───
