@@ -14,7 +14,7 @@ export async function buildThoughtContext(): Promise<ThoughtContext> {
   const [state, recentThoughtRows, revenueToday, villainCount, newVillainsToday, solPrice, last7dExpenses] =
     await Promise.all([
       getChumState(),
-      getRecentThoughts(5),
+      getRecentThoughts(10),
       getTodayRevenue(),
       getVillainCount(),
       getTodayVillainCount(),

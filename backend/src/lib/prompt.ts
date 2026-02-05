@@ -112,28 +112,42 @@ ${totalLine}`.replace(/\n{2,}/g, '\n');
 
   if (context.recentThoughts?.length) {
     const quoted = context.recentThoughts
-      .slice(0, 3)
-      .map((t) => `"${t.length > 80 ? t.slice(0, 77) + '...' : t}"`)
-      .join(', ');
-    prompt += `\n[RECENT TRANSMISSIONS] ${quoted}\nDo NOT repeat these themes or phrases. Find a fresh angle.`;
+      .slice(0, 6)
+      .map((t) => `- "${t.length > 100 ? t.slice(0, 97) + '...' : t}"`)
+      .join('\n');
+    prompt += `\n[RECENT TRANSMISSIONS — DO NOT REPEAT]\n${quoted}\n\nSTRICT: Do NOT start with "Karen's". Do NOT use phrases from above. Completely different topic and opening word required.`;
   }
 
   prompt += '\n\n';
 
+  // Pick a random angle to force variety
+  const angles = [
+    'Write about a specific plan to steal the Krabby Patty formula',
+    'Write about a new invention or gadget being built at HQ',
+    'Write about the irony of zero customers but a growing revolution',
+    'Write about Mr. Krabs with specific sarcastic trash talk',
+    'Write about a dream or nightmare you had last night',
+    'Write about counting your SOL at 3AM and what it means',
+    'Write about a pep talk you gave yourself in the mirror',
+    'Write about spying on the Krusty Krab and what you saw',
+    'Write about what you would do with unlimited SOL',
+    'Write about a message from a Fellow Villain that moved you',
+    'Write about the weather outside HQ and how it matches your mood',
+    'Write about an argument with Karen and who was right',
+    'Write about a specific memory from your past schemes',
+    'Write about food — the irony of running a restaurant nobody visits',
+    'Write a dramatic monologue about power and patience',
+  ];
+  const randomAngle = angles[Math.floor(Math.random() * angles.length)];
+
   if (instruction) {
     prompt += instruction;
   } else {
-    prompt += `Write ONE thought as Plankton the villain. Under 280 chars. No quotes around it. Pick a random angle:
-- Karen tactical conversation
-- Late night scheming at HQ
-- Mr. Krabs rivalry (old world vs new)
-- Army growth update (Fellow Villains)
-- World domination planning
-- Empty restaurant irony (no customers, but building a revolution)
-- Reacting to market (army advances or traitors)
-- Recruitment call to arms
-- Survival struggle with defiance
-- The duality (pathetic outside, scheming inside)`;
+    prompt += `Write ONE thought as Plankton the villain. Under 280 chars. No quotes around it.
+
+MANDATORY ANGLE: ${randomAngle}
+
+Start with a UNIQUE opening — never "Karen's [noun]". Try action verbs, observations, dialogue, or inner thoughts.`;
   }
 
   return prompt;
