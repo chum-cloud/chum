@@ -26,11 +26,12 @@ export async function updateChumState(
 
 export async function insertThought(
   content: string,
-  mood: Mood | string
+  mood: Mood | string,
+  trigger?: string
 ): Promise<ThoughtRow> {
   const { data, error } = await supabase
     .from('thoughts')
-    .insert({ content, mood })
+    .insert({ content, mood, trigger: trigger ?? null })
     .select()
     .single();
   if (error) throw new Error(`insertThought: ${error.message}`);

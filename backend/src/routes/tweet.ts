@@ -7,6 +7,7 @@ import {
 import { generateThought } from '../services/groq';
 import { postTweet } from '../services/twitter';
 import { buildThoughtContext } from '../lib/buildContext';
+import { buildTriggerLine } from '../lib/prompt';
 
 const router = Router();
 
@@ -14,16 +15,17 @@ router.post('/tweet', async (req, res) => {
   try {
     const { content: providedContent } = req.body as { content?: string };
     const state = await getChumState();
+    const context = await buildThoughtContext();
 
     let content: string;
     if (providedContent) {
       content = providedContent.slice(0, 280);
     } else {
-      const context = await buildThoughtContext();
       content = await generateThought(context);
     }
 
-    const thought = await insertThought(content, state.mood);
+    const trigger = buildTriggerLine(context);
+    const thought = await insertThought(content, state.mood, trigger);
     const tweetId = await postTweet(content);
     await markThoughtTweeted(thought.id, tweetId);
 

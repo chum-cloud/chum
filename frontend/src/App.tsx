@@ -25,6 +25,15 @@ export default function App() {
     [streamedThoughts.map((t) => t.id).join(','), chum.recentThoughts],
   );
 
+  // Build a map of thought content → trigger for the visual novel scene
+  const triggerMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of streamedThoughts) {
+      if (t.trigger) map.set(t.content, t.trigger);
+    }
+    return map;
+  }, [streamedThoughts]);
+
   return (
     <div className="min-h-screen bg-chum-bg text-chum-text">
       {/* Token bar */}
@@ -145,6 +154,7 @@ export default function App() {
           healthPercent={chum.healthPercent}
           latestThought={latestThought}
           recentThoughts={recentThoughts}
+          triggerMap={triggerMap}
         />
         <StatsGrid chum={chum} />
         {/* CHUM Cloud with live preview */}

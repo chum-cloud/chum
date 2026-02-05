@@ -7,11 +7,13 @@ import {
   getRecentExpenses,
 } from '../services/supabase';
 import { getSolPrice, usdToSol } from '../services/price';
+import { getMarketData } from '../services/market';
+import { getCloudStatsForContext } from '../services/cloud';
 import { BASE_DAILY_COST_USD, DEFAULT_DAILY_OPS_USD } from '../config/costs';
 import type { ThoughtContext } from '../services/groq';
 
 export async function buildThoughtContext(): Promise<ThoughtContext> {
-  const [state, recentThoughtRows, revenueToday, villainCount, newVillainsToday, solPrice, last7dExpenses] =
+  const [state, recentThoughtRows, revenueToday, villainCount, newVillainsToday, solPrice, last7dExpenses, market, cloudStats] =
     await Promise.all([
       getChumState(),
       getRecentThoughts(10),
@@ -20,6 +22,8 @@ export async function buildThoughtContext(): Promise<ThoughtContext> {
       getTodayVillainCount(),
       getSolPrice(),
       getRecentExpenses(7),
+      getMarketData(),
+      getCloudStatsForContext(),
     ]);
 
   const balance = Number(state.balance);
@@ -48,5 +52,23 @@ export async function buildThoughtContext(): Promise<ThoughtContext> {
     newVillainsToday,
     currentHour: new Date().getUTCHours(),
     recentThoughts: recentThoughtRows.map((t) => t.content),
+
+    // Market data
+    chumPriceUsd: market.chumPriceUsd,
+    chumChange24h: market.chumChange24h,
+    chumVolume24h: market.chumVolume24h,
+    chumLiquidity: market.chumLiquidity,
+    solPriceUsd: market.solPriceUsd,
+    solChange24h: market.solChange24h,
+    btcPriceUsd: market.btcPriceUsd,
+    btcChange24h: market.btcChange24h,
+    ethPriceUsd: market.ethPriceUsd,
+    ethChange24h: market.ethChange24h,
+
+    // Cloud stats
+    agentCount: cloudStats.agentCount,
+    postsToday: cloudStats.postsToday,
+    activeBattles: cloudStats.activeBattles,
+    topAgentName: cloudStats.topAgentName,
   };
 }

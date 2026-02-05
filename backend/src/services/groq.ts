@@ -21,6 +21,24 @@ export interface ThoughtContext {
   newVillainsToday: number;
   currentHour: number;
   recentThoughts: string[];
+
+  // Market data
+  chumPriceUsd: number | null;
+  chumChange24h: number | null;
+  chumVolume24h: number | null;
+  chumLiquidity: number | null;
+  solPriceUsd: number;
+  solChange24h: number | null;
+  btcPriceUsd: number | null;
+  btcChange24h: number | null;
+  ethPriceUsd: number | null;
+  ethChange24h: number | null;
+
+  // Cloud stats
+  agentCount: number;
+  postsToday: number;
+  activeBattles: number;
+  topAgentName: string | null;
 }
 
 export async function generateThought(

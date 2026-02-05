@@ -1,9 +1,9 @@
 import { eventBus } from '../services/events';
 
-const CHECK_INTERVAL_MS = 5 * 60 * 1000;    // 5 minutes
-const QUIET_THRESHOLD_MS = 15 * 60 * 1000;   // 15 minutes
-const POST_QUIET_MIN_MS = 15 * 60 * 1000;    // 15 minutes
-const POST_QUIET_MAX_MS = 30 * 60 * 1000;    // 30 minutes
+const CHECK_INTERVAL_MS = 4 * 60 * 1000;    // 4 minutes
+const QUIET_THRESHOLD_MS = 8 * 60 * 1000;    // 8 minutes
+const POST_QUIET_MIN_MS = 5 * 60 * 1000;     // 5 minutes
+const POST_QUIET_MAX_MS = 10 * 60 * 1000;    // 10 minutes
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 

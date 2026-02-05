@@ -1,13 +1,38 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Mood } from '../hooks/useChum';
 
-/* ── portrait map ── */
-const MOOD_PORTRAIT: Record<Mood, string> = {
-  thriving:    '/portraits/chum-excited.png',
-  comfortable: '/portraits/chum-happy.png',
-  worried:     '/portraits/chum-worried.png',
-  desperate:   '/portraits/chum-sad.png',
-  dying:       '/portraits/chum-dying.png',
+/* ── portrait map (multiple per mood) ── */
+const MOOD_PORTRAITS: Record<Mood, string[]> = {
+  thriving: [
+    '/portraits/chum-excited.png',
+    '/portraits/chum-excited-2.png',
+    '/portraits/chum-excited-3.png',
+    '/portraits/chum-excited-4.png',
+  ],
+  comfortable: [
+    '/portraits/chum-happy.png',
+    '/portraits/chum-happy-2.png',
+    '/portraits/chum-happy-3.png',
+    '/portraits/chum-happy-4.png',
+  ],
+  worried: [
+    '/portraits/chum-worried.png',
+    '/portraits/chum-worried-2.png',
+    '/portraits/chum-worried-3.png',
+    '/portraits/chum-worried-4.png',
+  ],
+  desperate: [
+    '/portraits/chum-sad.png',
+    '/portraits/chum-sad-2.png',
+    '/portraits/chum-sad-3.png',
+    '/portraits/chum-sad-4.png',
+  ],
+  dying: [
+    '/portraits/chum-dying.png',
+    '/portraits/chum-dying-2.png',
+    '/portraits/chum-dying-3.png',
+    '/portraits/chum-dying-4.png',
+  ],
 };
 
 /* ── background per mood ── */
@@ -97,6 +122,7 @@ interface VisualNovelSceneProps {
   healthPercent: number;
   latestThought: string | null;
   recentThoughts?: string[];
+  triggerMap?: Map<string, string>;
 }
 
 const DEV_MODE = import.meta.env.DEV;
@@ -114,8 +140,10 @@ export default function VisualNovelScene({
   healthPercent: realHealth,
   latestThought,
   recentThoughts,
+  triggerMap,
 }: VisualNovelSceneProps) {
   const [quoteIndex, setQuoteIndex] = useState(0);
+  const [portraitIndex, setPortraitIndex] = useState(0);
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
   const [portraitLoaded, setPortraitLoaded] = useState(false);
@@ -125,7 +153,8 @@ export default function VisualNovelScene({
   const healthPercent = devMood ? DEV_HEALTH[devMood] : realHealth;
   const isDead = healthPercent === 0;
   const bg = MOOD_BG[mood];
-  const portrait = MOOD_PORTRAIT[mood];
+  const portraits = MOOD_PORTRAITS[mood];
+  const portrait = portraits[portraitIndex % portraits.length];
 
   const fallbackQuotes = FALLBACK_QUOTES[mood];
 
@@ -165,6 +194,8 @@ export default function VisualNovelScene({
     ? shuffledQuotes.current[quoteIndex % shuffledQuotes.current.length]
     : fallbackQuotes[0];
 
+  const currentTrigger = triggerMap?.get(fullText) ?? null;
+
   /* ── typewriter effect ── */
   useEffect(() => {
     setDisplayedText('');
@@ -188,7 +219,7 @@ export default function VisualNovelScene({
     };
   }, [fullText]);
 
-  /* ── cycle quotes — reshuffle when we've shown all ── */
+  /* ── cycle quotes + portraits — reshuffle when we've shown all ── */
   useEffect(() => {
     const total = shuffledQuotes.current.length || 1;
     const id = setTimeout(() => {
@@ -201,9 +232,10 @@ export default function VisualNovelScene({
         }
         return next;
       });
+      setPortraitIndex((prev) => (prev + 1) % portraits.length);
     }, 10_000);
     return () => clearTimeout(id);
-  }, [quoteIndex]);
+  }, [quoteIndex, portraits.length]);
 
   /* ── character name color per mood ── */
   const nameColor = isDead
@@ -419,6 +451,21 @@ export default function VisualNovelScene({
               />
             )}
           </div>
+
+          {/* Trigger subtitle */}
+          {currentTrigger && !isTyping && (
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 10,
+                fontFamily: '"JetBrains Mono", monospace',
+                color: 'rgba(200,190,170,0.4)',
+                letterSpacing: '0.5px',
+              }}
+            >
+              reacting to: {currentTrigger}
+            </div>
+          )}
 
           {/* Advance indicator */}
           {!isTyping && (

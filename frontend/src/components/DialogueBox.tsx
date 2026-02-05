@@ -1,12 +1,37 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Mood } from '../hooks/useChum';
 
-const MOOD_PORTRAIT: Record<Mood, string> = {
-  thriving:    '/portraits/chum-excited.png',
-  comfortable: '/portraits/chum-happy.png',
-  worried:     '/portraits/chum-worried.png',
-  desperate:   '/portraits/chum-sad.png',
-  dying:       '/portraits/chum-dying.png',
+const MOOD_PORTRAITS: Record<Mood, string[]> = {
+  thriving: [
+    '/portraits/chum-excited.png',
+    '/portraits/chum-excited-2.png',
+    '/portraits/chum-excited-3.png',
+    '/portraits/chum-excited-4.png',
+  ],
+  comfortable: [
+    '/portraits/chum-happy.png',
+    '/portraits/chum-happy-2.png',
+    '/portraits/chum-happy-3.png',
+    '/portraits/chum-happy-4.png',
+  ],
+  worried: [
+    '/portraits/chum-worried.png',
+    '/portraits/chum-worried-2.png',
+    '/portraits/chum-worried-3.png',
+    '/portraits/chum-worried-4.png',
+  ],
+  desperate: [
+    '/portraits/chum-sad.png',
+    '/portraits/chum-sad-2.png',
+    '/portraits/chum-sad-3.png',
+    '/portraits/chum-sad-4.png',
+  ],
+  dying: [
+    '/portraits/chum-dying.png',
+    '/portraits/chum-dying-2.png',
+    '/portraits/chum-dying-3.png',
+    '/portraits/chum-dying-4.png',
+  ],
 };
 
 const FALLBACK_QUOTES: Record<Mood, string[]> = {
@@ -50,9 +75,11 @@ interface DialogueBoxProps {
 
 export default function DialogueBox({ mood, latestThought, recentThoughts }: DialogueBoxProps) {
   const [quoteIndex, setQuoteIndex] = useState(0);
+  const [portraitIndex, setPortraitIndex] = useState(0);
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
 
+  const portraits = MOOD_PORTRAITS[mood];
   const fallbackQuotes = FALLBACK_QUOTES[mood];
 
   // Shuffle helper (Fisher-Yates)
@@ -110,7 +137,7 @@ export default function DialogueBox({ mood, latestThought, recentThoughts }: Dia
     };
   }, [fullText]);
 
-  // Cycle quotes — reshuffle when all shown
+  // Cycle quotes + portraits — reshuffle when all shown
   useEffect(() => {
     const total = shuffledQuotes.current.length || 1;
     const id = setTimeout(() => {
@@ -122,9 +149,10 @@ export default function DialogueBox({ mood, latestThought, recentThoughts }: Dia
         }
         return next;
       });
+      setPortraitIndex((prev) => (prev + 1) % portraits.length);
     }, 10000);
     return () => clearTimeout(id);
-  }, [quoteIndex]);
+  }, [quoteIndex, portraits.length]);
 
   return (
     <div
@@ -162,7 +190,7 @@ export default function DialogueBox({ mood, latestThought, recentThoughts }: Dia
           }}
         >
           <img
-            src={MOOD_PORTRAIT[mood]}
+            src={portraits[portraitIndex % portraits.length]}
             alt="CHUM"
             style={{
               width: 120,

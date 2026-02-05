@@ -716,6 +716,37 @@ export async function getAgentProfile(name: string): Promise<any | null> {
   };
 }
 
+// ─── Context Stats (lightweight, for thought generation) ───
+
+export async function getCloudStatsForContext(): Promise<{
+  agentCount: number;
+  postsToday: number;
+  activeBattles: number;
+  topAgentName: string | null;
+}> {
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+
+  try {
+    const [agents, postsToday, activeBattles, topAgent] = await Promise.all([
+      supabase.from('cloud_agents').select('*', { count: 'exact', head: true }),
+      supabase.from('cloud_posts').select('*', { count: 'exact', head: true }).gte('created_at', todayStart.toISOString()),
+      supabase.from('cloud_battles').select('*', { count: 'exact', head: true }).in('status', ['open', 'active', 'voting']),
+      supabase.from('cloud_agents').select('name').eq('is_active', true).order('karma', { ascending: false }).limit(1).maybeSingle(),
+    ]);
+
+    return {
+      agentCount: agents.count ?? 0,
+      postsToday: postsToday.count ?? 0,
+      activeBattles: activeBattles.count ?? 0,
+      topAgentName: topAgent.data?.name ?? null,
+    };
+  } catch (err) {
+    console.warn('[CLOUD] Stats for context failed:', err);
+    return { agentCount: 0, postsToday: 0, activeBattles: 0, topAgentName: null };
+  }
+}
+
 // ─── Stats ───
 
 export async function getCloudStats(): Promise<{

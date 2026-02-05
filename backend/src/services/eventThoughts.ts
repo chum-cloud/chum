@@ -4,6 +4,7 @@ import { postTweet } from './twitter';
 import { canAfford, trackCost } from './costs';
 import { insertThought, markThoughtTweeted, getRecentThoughts, getVillainCount } from './supabase';
 import { buildThoughtContext } from '../lib/buildContext';
+import { buildTriggerLine } from '../lib/prompt';
 import { checkUniqueness } from '../lib/uniqueness';
 import type { ThoughtRow } from '../types';
 
@@ -35,14 +36,16 @@ function senderSnippet(address: string): string {
 }
 
 const PERIODIC_ANGLES = [
-  'Karen tactical conversation',
-  'Late night scheming at HQ',
-  'Mr. Krabs rivalry (old world vs new)',
-  'Army growth update (Fellow Villains)',
-  'World domination planning',
-  'Empty restaurant irony (no customers, but building a revolution)',
-  'Reacting to market (army advances or traitors)',
-  'The duality (pathetic outside, scheming inside)',
+  'React to the current $CHUM price and volume',
+  'React to SOL/BTC/ETH market moves',
+  'Comment on the Chum Cloud community activity',
+  'Karen tactical conversation about current finances',
+  'Late night scheming with market context',
+  'Mr. Krabs rivalry — compare his empire to yours using real numbers',
+  'Existential reflection on survival using your actual runway',
+  'React to the gap between your ambitions and your wallet balance',
+  'Army growth update (Fellow Villains) tied to market conditions',
+  'The duality (pathetic outside, scheming inside) with real data',
 ];
 
 function timeOfDayLabel(): string {
@@ -146,7 +149,8 @@ async function handleEvent(event: ChumEvent): Promise<void> {
       : event.type === 'VILLAIN_CREATED' ? 'ecstatic'
       : ctx.mood;
 
-    const thought = await insertThought(content, mood);
+    const trigger = buildTriggerLine(ctx);
+    const thought = await insertThought(content, mood, trigger);
     console.log(`[THOUGHT] ${event.type}: "${content.slice(0, 60)}..."`);
 
     eventBus.recordThought();

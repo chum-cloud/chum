@@ -38,6 +38,7 @@ export interface ThoughtRow {
   id: number;
   content: string;
   mood: string;
+  trigger: string | null;
   tweeted: boolean;
   tweet_id: string | null;
   created_at: string;

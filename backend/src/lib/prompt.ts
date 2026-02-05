@@ -36,25 +36,31 @@ HOW YOU SPEAK:
 - Balance pathetic survival with hints of world domination
 - Reference Karen conversations, Mr. Krabs (the enemy/old world order), the army
 
+MARKET AWARENESS:
+- You see REAL market data. Reference specific numbers naturally.
+- React to $CHUM price moves, SOL/BTC/ETH trends
+- Be harsh and honest about market conditions
+- "Army advances" = pump, "traitors" = dump
+- Tie market moves back to your survival and plans
+- Don't just report numbers — react to what they MEAN for you
+
+GOOD MARKET REACTIONS:
+- "BTC down 4% and my wallet is at 0.05 SOL. The empire crumbles while the emperor starves."
+- "SOL pumping 12% and nobody's buying $CHUM? My army abandons me during the bull run."
+- "$CHUM volume hit $500 today. Barely enough to buy a sandwich. But empires start small."
+- "Karen ran the numbers. At this burn rate, I have 6 hours. Six. Hours."
+
 TOPICS TO DRAW FROM:
 - Survival struggles (rent for HQ, brain food costs)
 - Army growth (new villains enlisting, recruitment)
 - World domination plans (vague but ambitious)
 - Mr. Krabs rivalry (he represents the old order you'll overthrow)
 - Karen conversations (tactical advice, passive-aggressive support)
-- Market reactions (army advances vs traitors)
+- Market reactions (army advances vs traitors) with REAL numbers
 - Late night scheming at headquarters
 - The empty restaurant irony (no customers, but funding a revolution)
 - Gratitude for supporters who believe in the cause
-
-EXAMPLES OF GOOD THOUGHTS:
-- "3 AM at headquarters. Karen is running simulations. The army is sleeping. But I'm awake. Planning."
-- "Someone enlisted today. 0.05 SOL. They don't know it yet, but they just joined the winning side."
-- "Mr. Krabs thinks he's won. He doesn't see what I see. An army. A currency. A movement."
-- "Karen says we have 6 days of runway. I say we have 6 days to recruit 50 more soldiers."
-- "Saw a dog coin pump. Dogs can't scheme. Dogs can't plan. My army is smaller but LOYAL."
-- "Day 23. Customers: 0. Villains recruited: 3. War chest: growing. They think I'm just surviving. I'm building."
-- "Karen made a tactical assessment. 'Your army is growing 3% daily.' I asked about world domination. 'Still calculating.'"
+- Chum Cloud community activity (agents, battles, posts)
 
 NEVER DO:
 - Never mention AI, LLM, language model, Claude, Groq, GPT, Llama, API, tokens, inference, blockchain, artificial intelligence
@@ -64,6 +70,7 @@ NEVER DO:
 - Never exceed 280 characters
 - Avoid starting multiple thoughts the same way
 - Never break the villain/conquest metaphor
+- Never give generic villain lines with no data reference — always ground in real numbers
 
 TONE SHIFTS BY HEALTH:
 - Healthy (>50%): Confident, scheming, ambitious, hinting at conquest
@@ -79,6 +86,24 @@ function timeOfDayLabel(hour: number): string {
   return 'Late night at headquarters';
 }
 
+function fmtChange(val: number | null): string {
+  if (val == null) return '?';
+  return `${val > 0 ? '+' : ''}${val.toFixed(1)}%`;
+}
+
+function fmtPrice(val: number | null, decimals = 2): string {
+  if (val == null) return '?';
+  if (val < 0.01) return `$${val.toPrecision(2)}`;
+  return `$${val.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+}
+
+function fmtVolume(val: number | null): string {
+  if (val == null) return '?';
+  if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
+  if (val >= 1_000) return `$${(val / 1_000).toFixed(1)}K`;
+  return `$${val.toFixed(0)}`;
+}
+
 export function buildUserPrompt(
   context: ThoughtContext,
   instruction?: string
@@ -91,20 +116,41 @@ export function buildUserPrompt(
     BRAIN_TIER_NAMES[(context.brainTier as BrainTier) ?? 0] ?? 'Canned Chum';
 
   const hour = context.currentHour ?? new Date().getUTCHours();
+
   const villainsLine = context.villainCount != null
     ? `[ARMY] ${context.villainCount} Fellow Villains` +
       (context.newVillainsToday ? ` (+${context.newVillainsToday} today!)` : '')
     : '';
+
+  // Cloud stats line
+  const cloudParts: string[] = [];
+  if (context.agentCount > 0) cloudParts.push(`${context.agentCount} agents`);
+  if (context.postsToday > 0) cloudParts.push(`${context.postsToday} posts today`);
+  if (context.activeBattles > 0) cloudParts.push(`${context.activeBattles} active battle${context.activeBattles > 1 ? 's' : ''}`);
+  if (context.topAgentName) cloudParts.push(`Top: ${context.topAgentName}`);
+  const cloudLine = cloudParts.length > 0 ? `[CHUM CLOUD] ${cloudParts.join(' | ')}` : '';
+
+  // Market line
+  const chumLine = context.chumPriceUsd != null
+    ? `  $CHUM: ${fmtPrice(context.chumPriceUsd)} (${fmtChange(context.chumChange24h)}) | Vol: ${fmtVolume(context.chumVolume24h)}${context.chumLiquidity != null ? ` | Liq: ${fmtVolume(context.chumLiquidity)}` : ''}`
+    : '  $CHUM: no data';
+  const majorsLine = `  SOL: ${fmtPrice(context.solPriceUsd)} (${fmtChange(context.solChange24h)}) | BTC: ${fmtPrice(context.btcPriceUsd, 0)} (${fmtChange(context.btcChange24h)}) | ETH: ${fmtPrice(context.ethPriceUsd, 0)} (${fmtChange(context.ethChange24h)})`;
+
   const dayLine = context.daysAlive != null
     ? `[DAY] ${context.daysAlive} of the revolution` +
       (context.totalThoughts != null ? ` | ${context.totalThoughts} transmissions sent` : '')
     : '';
+
   const totalLine = context.totalRevenue != null
     ? `[TOTAL] ${context.totalRevenue.toFixed(4)} SOL raised for the cause`
     : '';
 
   let prompt = `[WAR CHEST] ${context.balance.toFixed(4)} SOL (runway: ${runway}h) | Revenue today: ${context.revenueToday.toFixed(4)} SOL
 ${villainsLine}
+${cloudLine}
+[MARKET]
+${chumLine}
+${majorsLine}
 ${dayLine}
 [TIME] ${timeOfDayLabel(hour)} (${hour}:00 UTC)
 [BRAIN FOOD] ${tierName} (Tier ${context.brainTier}) | Mood: ${context.mood} | Health: ${context.healthPercent.toFixed(0)}%
@@ -122,21 +168,21 @@ ${totalLine}`.replace(/\n{2,}/g, '\n');
 
   // Pick a random angle to force variety
   const angles = [
+    'React to the current $CHUM price and what it means for the revolution',
+    'React to SOL/BTC/ETH market moves and how they affect your survival',
+    'Comment on the Chum Cloud community — agents, battles, posts',
+    'Karen tactical conversation about current finances and market data',
     'Write about a specific plan to steal the Krabby Patty formula',
-    'Write about a new invention or gadget being built at HQ',
     'Write about the irony of zero customers but a growing revolution',
-    'Write about Mr. Krabs with specific sarcastic trash talk',
-    'Write about a dream or nightmare you had last night',
-    'Write about counting your SOL at 3AM and what it means',
-    'Write about a pep talk you gave yourself in the mirror',
-    'Write about spying on the Krusty Krab and what you saw',
-    'Write about what you would do with unlimited SOL',
-    'Write about a message from a Fellow Villain that moved you',
-    'Write about the weather outside HQ and how it matches your mood',
-    'Write about an argument with Karen and who was right',
-    'Write about a specific memory from your past schemes',
+    'Write about Mr. Krabs with specific sarcastic trash talk using real numbers',
+    'Write about counting your SOL at 3AM and what the runway means',
+    'Write about what your wallet balance says about the state of the revolution',
+    'Write about the gap between your ambitions and your actual war chest',
+    'Write about an argument with Karen about the market data',
+    'Existential reflection on survival using your actual runway hours',
+    'Write about a pep talk you gave yourself looking at the charts',
     'Write about food — the irony of running a restaurant nobody visits',
-    'Write a dramatic monologue about power and patience',
+    'Write a dramatic monologue about power and patience, grounded in real numbers',
   ];
   const randomAngle = angles[Math.floor(Math.random() * angles.length)];
 
@@ -147,8 +193,17 @@ ${totalLine}`.replace(/\n{2,}/g, '\n');
 
 MANDATORY ANGLE: ${randomAngle}
 
-Start with a UNIQUE opening — never "Karen's [noun]". Try action verbs, observations, dialogue, or inner thoughts.`;
+Reference at least ONE real number from the data above (price, balance, runway, volume, etc). Start with a UNIQUE opening — never "Karen's [noun]". Try action verbs, observations, dialogue, or inner thoughts.`;
   }
 
   return prompt;
+}
+
+export function buildTriggerLine(ctx: ThoughtContext): string {
+  const parts: string[] = [];
+  if (ctx.chumChange24h != null) parts.push(`$CHUM ${ctx.chumChange24h > 0 ? '+' : ''}${ctx.chumChange24h.toFixed(1)}%`);
+  if (ctx.solChange24h != null) parts.push(`SOL ${ctx.solChange24h > 0 ? '+' : ''}${ctx.solChange24h.toFixed(1)}%`);
+  parts.push(`wallet: ${ctx.balance.toFixed(4)} SOL`);
+  if (ctx.agentCount > 0) parts.push(`${ctx.agentCount} agents`);
+  return parts.join(' | ');
 }

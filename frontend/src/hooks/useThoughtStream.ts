@@ -4,6 +4,7 @@ export interface StreamedThought {
   id: number;
   content: string;
   mood: string;
+  trigger: string | null;
   tweeted: boolean;
   created_at: string;
 }
