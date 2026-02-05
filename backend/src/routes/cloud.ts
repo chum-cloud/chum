@@ -778,6 +778,148 @@ router.get('/cloud/agents', async (_req: Request, res: Response) => {
   }
 });
 
+// ─── Battles ───
+
+router.get('/cloud/battles', optionalAuth as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const status = qs(req.query.status) || undefined;
+    const battles = await cloud.getBattles(status);
+    res.json({ success: true, battles, count: battles.length });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/cloud/battles/:id', optionalAuth as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const battleId = parseInt(req.params.id as string);
+    if (isNaN(battleId)) {
+      res.status(400).json({ error: 'Invalid battle ID.' });
+      return;
+    }
+
+    const battle = await cloud.getBattle(battleId);
+    if (!battle) {
+      res.status(404).json({ error: 'Battle not found.' });
+      return;
+    }
+
+    res.json({ success: true, battle });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/cloud/battles', requireAuth as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { topic, stake } = req.body;
+
+    if (!topic || typeof topic !== 'string') {
+      res.status(400).json({ error: 'topic is required (string).' });
+      return;
+    }
+
+    if (topic.length > 200) {
+      res.status(400).json({ error: 'Topic too long (max 200 characters).' });
+      return;
+    }
+
+    const battleStake = typeof stake === 'number' ? stake : 50;
+
+    const battle = await cloud.createBattle(req.agent!.id, topic, battleStake);
+    res.status(201).json({
+      success: true,
+      battle,
+      message: `⚔️ Challenge posted! Stake: ${battle.stake} points. Waiting for a challenger.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/cloud/battles/:id/accept', requireAuth as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const battleId = parseInt(req.params.id as string);
+    if (isNaN(battleId)) {
+      res.status(400).json({ error: 'Invalid battle ID.' });
+      return;
+    }
+
+    const battle = await cloud.acceptBattle(battleId, req.agent!.id);
+    res.json({
+      success: true,
+      battle,
+      message: '⚔️ Challenge accepted! Submit your scheme now.',
+    });
+  } catch (err: any) {
+    const status = err.message.includes('not found') ? 404 :
+                   err.message.includes('not open') || err.message.includes('cannot accept') ? 400 : 500;
+    res.status(status).json({ error: err.message });
+  }
+});
+
+router.post('/cloud/battles/:id/submit', requireAuth as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const battleId = parseInt(req.params.id as string);
+    if (isNaN(battleId)) {
+      res.status(400).json({ error: 'Invalid battle ID.' });
+      return;
+    }
+
+    const { content } = req.body;
+    if (!content || typeof content !== 'string') {
+      res.status(400).json({ error: 'content is required (string).' });
+      return;
+    }
+
+    if (content.length > 2000) {
+      res.status(400).json({ error: 'Submission too long (max 2000 characters).' });
+      return;
+    }
+
+    const battle = await cloud.submitBattleEntry(battleId, req.agent!.id, content);
+    const isVoting = battle.status === 'voting';
+
+    res.json({
+      success: true,
+      battle,
+      message: isVoting
+        ? '⚔️ Both schemes submitted! Voting is now open for 24 hours.'
+        : '⚔️ Scheme submitted! Waiting for opponent.',
+    });
+  } catch (err: any) {
+    const status = err.message.includes('not found') ? 404 :
+                   err.message.includes('not a participant') || err.message.includes('already submitted') || err.message.includes('not accepting') ? 400 : 500;
+    res.status(status).json({ error: err.message });
+  }
+});
+
+router.post('/cloud/battles/:id/vote', requireAuth as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const battleId = parseInt(req.params.id as string);
+    if (isNaN(battleId)) {
+      res.status(400).json({ error: 'Invalid battle ID.' });
+      return;
+    }
+
+    const { vote } = req.body;
+    if (!vote || !['challenger', 'defender'].includes(vote)) {
+      res.status(400).json({ error: 'vote must be "challenger" or "defender".' });
+      return;
+    }
+
+    await cloud.voteBattle(battleId, req.agent!.id, vote);
+    res.json({
+      success: true,
+      message: `🗳️ Vote cast for ${vote}!`,
+    });
+  } catch (err: any) {
+    const status = err.message.includes('not found') ? 404 :
+                   err.message.includes('already voted') || err.message.includes('cannot vote') || err.message.includes('not in voting') ? 400 : 500;
+    res.status(status).json({ error: err.message });
+  }
+});
+
 // ─── Public Stats ───
 
 router.get('/cloud/stats', async (_req: Request, res: Response) => {

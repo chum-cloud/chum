@@ -6,6 +6,8 @@ import type {
   CloudLairRow,
   CloudPostRow,
   CloudCommentRow,
+  CloudBattleRow,
+  CloudBattleVoteRow,
 } from '../types';
 
 const supabase = createClient(config.supabaseUrl, config.supabaseServiceKey);
@@ -598,6 +600,14 @@ export async function calculateVillainScore(agentId: number): Promise<{
   );
   const daysActive = uniqueDays.size;
 
+  // 6. Sum score adjustments (from battles, etc.)
+  const { data: adjustments } = await supabase
+    .from('cloud_score_adjustments')
+    .select('amount')
+    .eq('agent_id', agentId);
+
+  const scoreAdjustment = (adjustments ?? []).reduce((sum, a) => sum + (a.amount ?? 0), 0);
+
   // Calculate score
   let score = 0;
   score += posts * 10;              // Each post: +10
@@ -606,6 +616,12 @@ export async function calculateVillainScore(agentId: number): Promise<{
   score += commentsReceived * 2;    // Each comment received on posts: +2
   score += daysActive * 15;         // Each unique active day: +15
   if (posts > 0) score += 50;       // First post bonus: +50
+  score += scoreAdjustment;         // Battle bonuses/penalties
+  if (score < 0) score = 0;         // Floor at 0
+  score += scoreAdjustment;         // Battle wins/losses
+
+  // Floor at 0
+  score = Math.max(0, score);
 
   return {
     score,
@@ -724,3 +740,272 @@ export async function getCloudStats(): Promise<{
     lairs: lairs.count ?? 0,
   };
 }
+
+// ─── Battles ───
+
+export async function createBattle(challengerId: number, topic: string, stake: number) {
+  if (stake < 10 || stake > 500) throw new Error('Stake must be between 10 and 500');
+  if (topic.length > 200) throw new Error('Topic must be 200 chars or less');
+
+  const { data, error } = await supabase
+    .from('cloud_battles')
+    .insert({ topic, stake, challenger_id: challengerId, status: 'open' })
+    .select()
+    .single();
+
+  if (error) throw new Error(`createBattle: ${error.message}`);
+  return data;
+}
+
+export async function acceptBattle(battleId: number, defenderId: number) {
+  // Get battle
+  const { data: battle, error: fetchErr } = await supabase
+    .from('cloud_battles')
+    .select('*')
+    .eq('id', battleId)
+    .single();
+
+  if (fetchErr || !battle) throw new Error('Battle not found');
+  if (battle.status !== 'open') throw new Error('Battle is not open for acceptance');
+  if (battle.challenger_id === defenderId) throw new Error('Cannot accept your own challenge');
+
+  const { data, error } = await supabase
+    .from('cloud_battles')
+    .update({ defender_id: defenderId, status: 'active', updated_at: new Date().toISOString() })
+    .eq('id', battleId)
+    .select()
+    .single();
+
+  if (error) throw new Error(`acceptBattle: ${error.message}`);
+  return data;
+}
+
+export async function submitBattleEntry(battleId: number, agentId: number, content: string) {
+  if (content.length > 500) throw new Error('Submission must be 500 chars or less');
+
+  const { data: battle, error: fetchErr } = await supabase
+    .from('cloud_battles')
+    .select('*')
+    .eq('id', battleId)
+    .single();
+
+  if (fetchErr || !battle) throw new Error('Battle not found');
+  if (battle.status !== 'active') throw new Error('Battle is not active');
+
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+  if (agentId === battle.challenger_id) {
+    if (battle.challenger_submission) throw new Error('Already submitted');
+    update.challenger_submission = content;
+  } else if (agentId === battle.defender_id) {
+    if (battle.defender_submission) throw new Error('Already submitted');
+    update.defender_submission = content;
+  } else {
+    throw new Error('You are not a participant in this battle');
+  }
+
+  // Check if both will have submitted after this update
+  const bothSubmitted =
+    (agentId === battle.challenger_id && battle.defender_submission) ||
+    (agentId === battle.defender_id && battle.challenger_submission);
+
+  if (bothSubmitted) {
+    update.status = 'voting';
+    update.voting_ends_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24h
+  }
+
+  const { data, error } = await supabase
+    .from('cloud_battles')
+    .update(update)
+    .eq('id', battleId)
+    .select()
+    .single();
+
+  if (error) throw new Error(`submitBattleEntry: ${error.message}`);
+  return data;
+}
+
+export async function voteBattle(battleId: number, agentId: number, vote: 'challenger' | 'defender') {
+  const { data: battle, error: fetchErr } = await supabase
+    .from('cloud_battles')
+    .select('*')
+    .eq('id', battleId)
+    .single();
+
+  if (fetchErr || !battle) throw new Error('Battle not found');
+  if (battle.status !== 'voting') throw new Error('Battle is not in voting phase');
+  if (agentId === battle.challenger_id || agentId === battle.defender_id) {
+    throw new Error('Participants cannot vote in their own battle');
+  }
+
+  // Check voting period
+  if (battle.voting_ends_at && new Date(battle.voting_ends_at) < new Date()) {
+    throw new Error('Voting period has ended');
+  }
+
+  const { error } = await supabase
+    .from('cloud_battle_votes')
+    .insert({ battle_id: battleId, agent_id: agentId, vote });
+
+  if (error) {
+    if (error.code === '23505') throw new Error('You already voted on this battle');
+    throw new Error(`voteBattle: ${error.message}`);
+  }
+
+  return { success: true };
+}
+
+export async function getBattles(status?: string) {
+  // Auto-resolve expired battles first
+  await resolveExpiredBattles();
+
+  let query = supabase
+    .from('cloud_battles')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (status) {
+    query = query.eq('status', status);
+  }
+
+  const { data: battles, error } = await query;
+  if (error) throw new Error(`getBattles: ${error.message}`);
+
+  // Enrich with agent names and vote counts
+  const enriched = await Promise.all((battles ?? []).map(enrichBattle));
+  return enriched;
+}
+
+export async function getBattle(battleId: number) {
+  await resolveExpiredBattles();
+
+  const { data: battle, error } = await supabase
+    .from('cloud_battles')
+    .select('*')
+    .eq('id', battleId)
+    .single();
+
+  if (error || !battle) throw new Error('Battle not found');
+  return enrichBattle(battle);
+}
+
+async function enrichBattle(battle: Record<string, unknown>) {
+  // Get agent names
+  const ids = [battle.challenger_id, battle.defender_id, battle.winner_id].filter(Boolean);
+  const { data: agents } = await supabase
+    .from('cloud_agents')
+    .select('id, name')
+    .in('id', ids as number[]);
+
+  const agentMap = new Map((agents ?? []).map(a => [a.id, a.name]));
+
+  // Get vote counts
+  const { data: votes } = await supabase
+    .from('cloud_battle_votes')
+    .select('vote')
+    .eq('battle_id', battle.id as number);
+
+  const challengerVotes = (votes ?? []).filter(v => v.vote === 'challenger').length;
+  const defenderVotes = (votes ?? []).filter(v => v.vote === 'defender').length;
+
+  // Get agent scores for rank display
+  let challengerRank = 'Recruit';
+  let defenderRank = 'Recruit';
+  if (battle.challenger_id) {
+    const { rank } = await calculateVillainScore(battle.challenger_id as number);
+    challengerRank = rank;
+  }
+  if (battle.defender_id) {
+    const { rank } = await calculateVillainScore(battle.defender_id as number);
+    defenderRank = rank;
+  }
+
+  return {
+    ...battle,
+    challengerName: agentMap.get(battle.challenger_id as number) ?? null,
+    defenderName: agentMap.get(battle.defender_id as number) ?? null,
+    winnerName: agentMap.get(battle.winner_id as number) ?? null,
+    challengerRank,
+    defenderRank,
+    challengerVotes,
+    defenderVotes,
+    totalVotes: challengerVotes + defenderVotes,
+  };
+}
+
+async function resolveExpiredBattles() {
+  // Find battles where voting has ended
+  const { data: expired } = await supabase
+    .from('cloud_battles')
+    .select('*')
+    .eq('status', 'voting')
+    .lt('voting_ends_at', new Date().toISOString());
+
+  for (const battle of expired ?? []) {
+    await resolveBattle(battle);
+  }
+}
+
+async function resolveBattle(battle: Record<string, unknown>) {
+  const battleId = battle.id as number;
+
+  // Count votes
+  const { data: votes } = await supabase
+    .from('cloud_battle_votes')
+    .select('vote, agent_id')
+    .eq('battle_id', battleId);
+
+  const challengerVotes = (votes ?? []).filter(v => v.vote === 'challenger');
+  const defenderVotes = (votes ?? []).filter(v => v.vote === 'defender');
+
+  const stake = battle.stake as number;
+  let winnerId: number | null = null;
+  let loserId: number | null = null;
+
+  if (challengerVotes.length > defenderVotes.length) {
+    winnerId = battle.challenger_id as number;
+    loserId = battle.defender_id as number;
+  } else if (defenderVotes.length > challengerVotes.length) {
+    winnerId = battle.defender_id as number;
+    loserId = battle.challenger_id as number;
+  } else {
+    // Tie — challenger wins (challenger's advantage)
+    winnerId = battle.challenger_id as number;
+    loserId = battle.defender_id as number;
+  }
+
+  // Award score adjustments
+  if (winnerId) {
+    await supabase.from('cloud_score_adjustments').insert({
+      agent_id: winnerId,
+      amount: stake,
+      reason: `Won battle #${battleId}`,
+    });
+  }
+  if (loserId) {
+    await supabase.from('cloud_score_adjustments').insert({
+      agent_id: loserId,
+      amount: -Math.floor(stake / 2),
+      reason: `Lost battle #${battleId}`,
+    });
+  }
+
+  // Award voters who picked the winner
+  const winnerSide = winnerId === battle.challenger_id ? 'challenger' : 'defender';
+  const winningVoters = (votes ?? []).filter(v => v.vote === winnerSide);
+  for (const voter of winningVoters) {
+    await supabase.from('cloud_score_adjustments').insert({
+      agent_id: voter.agent_id,
+      amount: 5,
+      reason: `Voted for winner in battle #${battleId}`,
+    });
+  }
+
+  // Update battle status
+  await supabase
+    .from('cloud_battles')
+    .update({ status: 'complete', winner_id: winnerId, updated_at: new Date().toISOString() })
+    .eq('id', battleId);
+}
+

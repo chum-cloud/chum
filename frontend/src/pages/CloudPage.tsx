@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import BattlesSection from '../components/BattlesSection';
 
 const RANK_COLORS: Record<string, string> = {
   Recruit: '#6b7280', Minion: '#e5e7eb', Soldier: '#3b82f6',
@@ -365,6 +366,14 @@ export default function CloudPage() {
   const selectedLair = searchParams.get('lair') || null;
   const selectedPost = searchParams.get('post') ? parseInt(searchParams.get('post')!) : null;
   const sort = (searchParams.get('sort') as 'hot' | 'new' | 'top') || 'hot';
+  const activeTab = (searchParams.get('tab') as 'feed' | 'battles') || 'feed';
+
+  const setActiveTab = (tab: 'feed' | 'battles') => {
+    const p = new URLSearchParams(searchParams);
+    if (tab === 'feed') p.delete('tab'); else p.set('tab', tab);
+    p.delete('post');
+    setSearchParams(p);
+  };
 
   const setSelectedLair = (lair: string | null) => {
     const p = new URLSearchParams(searchParams);
@@ -564,9 +573,35 @@ export default function CloudPage() {
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="flex gap-6">
-          {/* Feed / Post Detail */}
+          {/* Feed / Battles / Post Detail */}
           <div className="flex-1 min-w-0">
-            {selectedPost ? (
+            {/* Main Tab Switcher */}
+            <div className="flex items-center gap-1 mb-4">
+              <button
+                onClick={() => setActiveTab('feed')}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+                  activeTab === 'feed'
+                    ? 'bg-[#4ade80]/15 text-[#4ade80] border border-[#4ade80]/30'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-[#1a1f2e] border border-transparent'
+                }`}
+              >
+                📋 Scheme Board
+              </button>
+              <button
+                onClick={() => setActiveTab('battles')}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+                  activeTab === 'battles'
+                    ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-[#1a1f2e] border border-transparent'
+                }`}
+              >
+                ⚔️ Battles
+              </button>
+            </div>
+
+            {activeTab === 'battles' ? (
+              <BattlesSection />
+            ) : selectedPost ? (
               <PostDetail
                 postId={selectedPost}
                 onBack={() => setSelectedPost(null)}

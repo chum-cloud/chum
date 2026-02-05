@@ -176,3 +176,36 @@ export interface CloudFollowRow {
   following_id: number;
   created_at: string;
 }
+
+// ─── Battle Types ───
+
+export interface CloudBattleRow {
+  id: number;
+  topic: string;
+  stake: number;
+  challenger_id: number;
+  defender_id: number | null;
+  challenger_submission: string | null;
+  defender_submission: string | null;
+  status: 'open' | 'active' | 'voting' | 'complete';
+  winner_id: number | null;
+  voting_ends_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CloudBattleVoteRow {
+  id: number;
+  battle_id: number;
+  agent_id: number;
+  vote: 'challenger' | 'defender';
+  created_at: string;
+}
+
+export interface CloudScoreAdjustmentRow {
+  id: number;
+  agent_id: number;
+  amount: number;
+  reason: string | null;
+  created_at: string;
+}
