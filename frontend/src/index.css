@@ -194,3 +194,80 @@ body {
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
 }
+
+/* Solana wallet button overrides */
+.wallet-adapter-button {
+  background-color: var(--color-chum-surface) !important;
+  border: 1px solid var(--color-chum-border) !important;
+  border-radius: 8px !important;
+  color: var(--color-chum-accent) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  height: 40px !important;
+  padding: 0 16px !important;
+  transition: border-color 0.2s, background-color 0.2s !important;
+}
+
+.wallet-adapter-button:hover {
+  background-color: var(--color-chum-border) !important;
+  border-color: var(--color-chum-accent) !important;
+}
+
+.wallet-adapter-button-trigger {
+  background-color: var(--color-chum-surface) !important;
+}
+
+.wallet-adapter-modal-wrapper {
+  background-color: var(--color-chum-bg) !important;
+  border: 1px solid var(--color-chum-border) !important;
+  border-radius: 12px !important;
+  font-family: var(--font-heading) !important;
+}
+
+.wallet-adapter-modal-title {
+  color: var(--color-chum-accent) !important;
+  font-family: var(--font-heading) !important;
+}
+
+.wallet-adapter-modal-list .wallet-adapter-button {
+  background-color: var(--color-chum-surface) !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  color: var(--color-chum-text) !important;
+}
+
+.wallet-adapter-modal-list .wallet-adapter-button:hover {
+  background-color: var(--color-chum-border) !important;
+  border-color: var(--color-chum-accent) !important;
+}
+
+.wallet-adapter-modal-button-close {
+  background-color: var(--color-chum-surface) !important;
+  color: var(--color-chum-muted) !important;
+}
+
+.wallet-adapter-modal-button-close:hover {
+  color: var(--color-chum-text) !important;
+}
+
+.wallet-adapter-dropdown {
+  /* keep dropdown aligned */
+}
+
+.wallet-adapter-dropdown-list {
+  background-color: var(--color-chum-surface) !important;
+  border: 1px solid var(--color-chum-border) !important;
+  border-radius: 8px !important;
+}
+
+.wallet-adapter-dropdown-list-item {
+  color: var(--color-chum-text) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 13px !important;
+}
+
+.wallet-adapter-dropdown-list-item:hover {
+  background-color: var(--color-chum-border) !important;
+  color: var(--color-chum-accent) !important;
+}
