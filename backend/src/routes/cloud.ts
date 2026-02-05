@@ -778,6 +778,17 @@ router.get('/cloud/agents', async (_req: Request, res: Response) => {
   }
 });
 
+// ─── Rewards ───
+
+router.get('/cloud/agents/:name/rewards', async (req: Request, res: Response) => {
+  try {
+    const rewards = await cloud.getAgentRewards(req.params.name as string);
+    res.json({ success: true, ...rewards });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // ─── Battles ───
 
 router.get('/cloud/battles', optionalAuth as any, async (req: AuthRequest, res: Response) => {
@@ -825,12 +836,14 @@ router.post('/cloud/battles', requireAuth as any, async (req: AuthRequest, res: 
     }
 
     const battleStake = typeof stake === 'number' ? stake : 50;
+    const tokenReward = typeof req.body.token_reward === 'number' ? req.body.token_reward : 500;
+    const isFeatured = req.body.is_featured === true;
 
-    const battle = await cloud.createBattle(req.agent!.id, topic, battleStake);
+    const battle = await cloud.createBattle(req.agent!.id, topic, battleStake, tokenReward, isFeatured);
     res.status(201).json({
       success: true,
       battle,
-      message: `⚔️ Challenge posted! Stake: ${battle.stake} points. Waiting for a challenger.`,
+      message: `⚔️ Challenge posted! Stake: ${battle.stake} points + ${tokenReward} $CHUM. Waiting for a challenger.`,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

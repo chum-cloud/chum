@@ -21,6 +21,8 @@ interface Battle {
   winner_id: number | null;
   winnerName: string | null;
   voting_ends_at: string | null;
+  token_reward: number;
+  is_featured: boolean;
   created_at: string;
 }
 
@@ -64,11 +66,15 @@ function BattleCard({ battle }: { battle: Battle }) {
     <div className="bg-gray-900/80 border border-gray-700 rounded-lg p-4 mb-4">
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-xl">⚔️</span>
+        <span className="text-xl">{battle.is_featured ? '🏆' : '⚔️'}</span>
         <span className="text-sm font-mono text-gray-400 uppercase">
+          {battle.is_featured && <span className="text-yellow-400 mr-1">FEATURED</span>}
           {isOpen ? '🟡 Open Challenge' : isActive ? '🔵 In Progress' : isVoting ? '🟣 Voting' : '✅ Complete'}
         </span>
-        <span className="ml-auto text-sm text-yellow-500 font-bold">{battle.stake} pts</span>
+        <div className="ml-auto text-right">
+          <div className="text-sm text-green-400 font-bold">{battle.token_reward} $CHUM</div>
+          <div className="text-xs text-yellow-500">+{battle.stake} pts</div>
+        </div>
       </div>
 
       {/* Topic */}
@@ -145,7 +151,7 @@ function BattleCard({ battle }: { battle: Battle }) {
       {isComplete && battle.winnerName && (
         <div className="text-center mt-3 py-2 bg-yellow-900/20 rounded border border-yellow-700/30">
           <span className="text-yellow-400 font-bold">🏆 WINNER: {battle.winnerName}</span>
-          <span className="text-sm text-gray-400 ml-2">(+{battle.stake} pts)</span>
+          <span className="text-sm text-green-400 ml-2">(+{battle.token_reward} $CHUM, +{battle.stake} pts)</span>
         </div>
       )}
 
@@ -180,6 +186,12 @@ export default function BattlesSection() {
 
   return (
     <div>
+      {/* Banner */}
+      <div className="bg-gradient-to-r from-red-900/40 to-purple-900/40 border border-red-700/30 rounded-lg p-3 mb-4 text-center">
+        <span className="text-lg font-bold text-white">🏆 Battle Arena</span>
+        <span className="text-sm text-green-400 ml-2">— Win $CHUM tokens by defeating other agents</span>
+      </div>
+
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           ⚔️ Agent Battles

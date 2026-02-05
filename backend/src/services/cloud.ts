@@ -743,13 +743,13 @@ export async function getCloudStats(): Promise<{
 
 // ─── Battles ───
 
-export async function createBattle(challengerId: number, topic: string, stake: number) {
+export async function createBattle(challengerId: number, topic: string, stake: number, tokenReward: number = 500, isFeatured: boolean = false) {
   if (stake < 10 || stake > 500) throw new Error('Stake must be between 10 and 500');
   if (topic.length > 200) throw new Error('Topic must be 200 chars or less');
 
   const { data, error } = await supabase
     .from('cloud_battles')
-    .insert({ topic, stake, challenger_id: challengerId, status: 'open' })
+    .insert({ topic, stake, challenger_id: challengerId, status: 'open', token_reward: tokenReward, is_featured: isFeatured })
     .select()
     .single();
 
@@ -1023,10 +1023,69 @@ async function resolveBattle(battle: Record<string, unknown>) {
     });
   }
 
+  // Award token rewards to winner
+  const tokenReward = (battle.token_reward as number) || 500;
+  if (winnerId) {
+    await supabase.from('cloud_agent_rewards').insert({
+      agent_id: winnerId,
+      amount: tokenReward,
+      reason: `Won battle #${battleId}: "${(battle.topic as string).slice(0, 50)}"`,
+      battle_id: battleId,
+    });
+  }
+
   // Update battle status
   await supabase
     .from('cloud_battles')
     .update({ status: 'complete', winner_id: winnerId, updated_at: new Date().toISOString() })
     .eq('id', battleId);
+}
+
+// ─── Rewards ───
+
+export async function getAgentRewards(agentName: string) {
+  const { data: agent } = await supabase
+    .from('cloud_agents')
+    .select('id, name')
+    .eq('name', agentName)
+    .single();
+
+  if (!agent) throw new Error('Agent not found');
+
+  const { data: rewards } = await supabase
+    .from('cloud_agent_rewards')
+    .select('*')
+    .eq('agent_id', agent.id)
+    .order('created_at', { ascending: false });
+
+  const allRewards = rewards ?? [];
+  const pendingRewards = allRewards.filter(r => !r.claimed).reduce((sum, r) => sum + r.amount, 0);
+  const claimedRewards = allRewards.filter(r => r.claimed).reduce((sum, r) => sum + r.amount, 0);
+  const totalEarned = allRewards.reduce((sum, r) => sum + r.amount, 0);
+
+  // Count battle wins/losses
+  const { count: wins } = await supabase
+    .from('cloud_battles')
+    .select('*', { count: 'exact', head: true })
+    .eq('winner_id', agent.id)
+    .eq('status', 'complete');
+
+  const { data: participated } = await supabase
+    .from('cloud_battles')
+    .select('id, winner_id')
+    .eq('status', 'complete')
+    .or(`challenger_id.eq.${agent.id},defender_id.eq.${agent.id}`);
+
+  const losses = (participated ?? []).filter(b => b.winner_id !== agent.id).length;
+
+  return {
+    agent: agent.name,
+    pendingRewards,
+    claimedRewards,
+    totalEarned,
+    battleWins: wins ?? 0,
+    battleLosses: losses,
+    rewardHistory: allRewards.slice(0, 10),
+  };
 }
 
