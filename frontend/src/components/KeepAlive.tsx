@@ -2,8 +2,9 @@ import { useState, useCallback } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
+// CHUM war chest wallet - hardcoded fallback to ensure donations go to the right place
 const AGENT_WALLET = new PublicKey(
-  import.meta.env.VITE_AGENT_WALLET || '11111111111111111111111111111111'
+  import.meta.env.VITE_AGENT_WALLET || 'chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T'
 );
 
 const PRESET_AMOUNTS = [0.01, 0.05, 0.1];
