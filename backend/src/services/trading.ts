@@ -3,7 +3,15 @@
  * Survival-first trading logic for the plankton villain
  */
 
-import { Connection, Keypair, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { 
+  Connection, 
+  Keypair, 
+  PublicKey, 
+  LAMPORTS_PER_SOL,
+  Transaction,
+  SystemProgram,
+  sendAndConfirmTransaction
+} from '@solana/web3.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -26,6 +34,14 @@ export const RULES = {
   RESERVE_PERCENT: 0.20,      // 20% goes to reserve on activation
 };
 
+// Auto-funding rules
+export const FUNDING = {
+  TRIGGER_THRESHOLD: 1.2,     // Auto-fund when survival > 1.2 SOL
+  KEEP_IN_SURVIVAL: 0.2,      // Always keep 0.2 SOL in survival (for show)
+  TRADING_PERCENT: 0.80,      // 80% of transfer goes to trading
+  RESERVE_PERCENT: 0.20,      // 20% of transfer goes to reserve
+};
+
 export type TradingMode = 'dormant' | 'active' | 'paused' | 'emergency';
 export type MoodLevel = 'thriving' | 'comfortable' | 'worried' | 'desperate' | 'dying';
 
@@ -45,12 +61,14 @@ interface TradeDecision {
 
 class TradingService {
   private connection: Connection;
+  private survivalKeypair: Keypair | null = null;
   private tradingKeypair: Keypair | null = null;
   private reserveKeypair: Keypair | null = null;
   private mode: TradingMode = 'dormant';
   private lastTradeTime: number = 0;
   private tradesToday: number = 0;
   private lastTradeDayReset: string = '';
+  private lastFundingCheck: number = 0;
 
   constructor() {
     const rpcUrl = process.env.HELIUS_RPC_URL || 'https://api.mainnet-beta.solana.com';
@@ -62,6 +80,20 @@ class TradingService {
     try {
       // Try env vars first (Railway), then files (local dev)
       
+      // Load survival wallet (public donations wallet)
+      if (process.env.SURVIVAL_WALLET_SECRET) {
+        const secretKey = JSON.parse(process.env.SURVIVAL_WALLET_SECRET);
+        this.survivalKeypair = Keypair.fromSecretKey(Uint8Array.from(secretKey));
+        console.log('[Trading] Loaded survival wallet from env:', this.survivalKeypair.publicKey.toBase58());
+      } else {
+        const survivalPath = path.join(__dirname, '../../../chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T.json');
+        if (fs.existsSync(survivalPath)) {
+          const survivalData = JSON.parse(fs.readFileSync(survivalPath, 'utf-8'));
+          this.survivalKeypair = Keypair.fromSecretKey(Uint8Array.from(survivalData));
+          console.log('[Trading] Loaded survival wallet from file:', this.survivalKeypair.publicKey.toBase58());
+        }
+      }
+
       // Load trading wallet
       if (process.env.TRADING_WALLET_SECRET) {
         const secretKey = JSON.parse(process.env.TRADING_WALLET_SECRET);
@@ -233,6 +265,79 @@ class TradingService {
       reason: 'No action',
       urgency: mood,
     };
+  }
+
+  // Auto-funding: move SOL from survival to trading/reserve when threshold reached
+  async checkAndFund(): Promise<{ funded: boolean; message: string; txSignatures?: string[] }> {
+    if (!this.survivalKeypair || !this.tradingKeypair || !this.reserveKeypair) {
+      return { funded: false, message: 'Wallets not loaded' };
+    }
+
+    // Rate limit: check at most once per 5 minutes
+    const now = Date.now();
+    if (now - this.lastFundingCheck < 5 * 60 * 1000) {
+      return { funded: false, message: 'Funding check rate limited' };
+    }
+    this.lastFundingCheck = now;
+
+    const state = await this.getWalletState();
+    const survivalBalance = state.survival.balance;
+
+    if (survivalBalance < FUNDING.TRIGGER_THRESHOLD) {
+      return { 
+        funded: false, 
+        message: `Survival balance ${survivalBalance.toFixed(4)} SOL < threshold ${FUNDING.TRIGGER_THRESHOLD} SOL` 
+      };
+    }
+
+    // Calculate transfer amounts
+    const transferAmount = survivalBalance - FUNDING.KEEP_IN_SURVIVAL;
+    const toTrading = transferAmount * FUNDING.TRADING_PERCENT;
+    const toReserve = transferAmount * FUNDING.RESERVE_PERCENT;
+
+    console.log(`[Trading] Auto-funding triggered: ${survivalBalance.toFixed(4)} SOL`);
+    console.log(`[Trading] Transferring ${toTrading.toFixed(4)} SOL to trading, ${toReserve.toFixed(4)} SOL to reserve`);
+
+    const txSignatures: string[] = [];
+
+    try {
+      // Transfer to trading wallet
+      if (toTrading > 0.001) {
+        const tradingTx = new Transaction().add(
+          SystemProgram.transfer({
+            fromPubkey: this.survivalKeypair.publicKey,
+            toPubkey: this.tradingKeypair.publicKey,
+            lamports: Math.floor(toTrading * LAMPORTS_PER_SOL),
+          })
+        );
+        const tradingSig = await sendAndConfirmTransaction(this.connection, tradingTx, [this.survivalKeypair]);
+        txSignatures.push(tradingSig);
+        console.log(`[Trading] Funded trading wallet: ${tradingSig}`);
+      }
+
+      // Transfer to reserve wallet
+      if (toReserve > 0.001) {
+        const reserveTx = new Transaction().add(
+          SystemProgram.transfer({
+            fromPubkey: this.survivalKeypair.publicKey,
+            toPubkey: this.reserveKeypair.publicKey,
+            lamports: Math.floor(toReserve * LAMPORTS_PER_SOL),
+          })
+        );
+        const reserveSig = await sendAndConfirmTransaction(this.connection, reserveTx, [this.survivalKeypair]);
+        txSignatures.push(reserveSig);
+        console.log(`[Trading] Funded reserve wallet: ${reserveSig}`);
+      }
+
+      return {
+        funded: true,
+        message: `Auto-funded! Trading: ${toTrading.toFixed(4)} SOL, Reserve: ${toReserve.toFixed(4)} SOL`,
+        txSignatures,
+      };
+    } catch (error) {
+      console.error('[Trading] Auto-funding failed:', error);
+      return { funded: false, message: `Funding failed: ${error}` };
+    }
   }
 
   // Mode controls

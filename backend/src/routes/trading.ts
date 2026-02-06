@@ -97,6 +97,56 @@ router.get('/evaluate', async (req, res) => {
   }
 });
 
+// Check and execute auto-funding (requires auth)
+router.post('/fund', async (req, res) => {
+  try {
+    const { adminKey } = req.body;
+    
+    // Auth check
+    const expectedKey = process.env.TRADING_ADMIN_KEY;
+    if (!expectedKey || adminKey !== expectedKey) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const result = await tradingService.checkAndFund();
+    
+    res.json({
+      success: true,
+      ...result,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('[Trading Route] Fund error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fund' });
+  }
+});
+
+// Auto-fund status check (no auth, just info)
+router.get('/fund/status', async (req, res) => {
+  try {
+    const walletState = await tradingService.getWalletState();
+    const survivalBalance = walletState.survival.balance;
+    const threshold = 1.2; // FUNDING.TRIGGER_THRESHOLD
+    const ready = survivalBalance >= threshold;
+    
+    res.json({
+      success: true,
+      autoFunding: {
+        survivalBalance,
+        threshold,
+        ready,
+        willTransfer: ready ? survivalBalance - 0.2 : 0,
+        message: ready 
+          ? `Ready to fund! ${(survivalBalance - 0.2).toFixed(4)} SOL will be distributed.`
+          : `Need ${(threshold - survivalBalance).toFixed(4)} more SOL to trigger auto-funding.`,
+      },
+    });
+  } catch (error) {
+    console.error('[Trading Route] Fund status error:', error);
+    res.status(500).json({ success: false, error: 'Failed to get status' });
+  }
+});
+
 // War chest progress (public)
 router.get('/warchest', async (req, res) => {
   try {
