@@ -10,6 +10,7 @@ import cloudRouter from './routes/cloud';
 import skillRouter from './routes/skill';
 import { startBalanceCheck } from './cron/balanceCheck';
 import { startBrainAgent } from './cron/brainAgent';
+import { startPriceMonitor } from './cron/priceMonitor';
 import streamRouter from './routes/stream';
 import roomRouter from './routes/room';
 import verifyRouter from './routes/verify';
@@ -45,4 +46,5 @@ app.listen(config.port, () => {
   startBalanceCheck();
   startEventThoughtListener();
   startBrainAgent();
+  startPriceMonitor();
 });

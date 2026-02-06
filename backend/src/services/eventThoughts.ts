@@ -56,6 +56,18 @@ function timeOfDayLabel(): string {
   return 'late night';
 }
 
+function formatPrice(price: number): string {
+  if (price < 0.00001) return price.toExponential(2);
+  if (price < 0.01) return price.toFixed(6);
+  return price.toFixed(4);
+}
+
+function formatMarketCap(mc: number): string {
+  if (mc >= 1_000_000) return `$${(mc / 1_000_000).toFixed(2)}M`;
+  if (mc >= 1_000) return `$${(mc / 1_000).toFixed(1)}K`;
+  return `$${mc.toFixed(0)}`;
+}
+
 async function buildInstruction(event: ChumEvent, ctx: Awaited<ReturnType<typeof buildThoughtContext>>): Promise<string> {
   switch (event.type) {
     case 'DONATION': {
@@ -82,14 +94,70 @@ Be introspective.`;
       return `Generate an ambient thought. Angle: ${angle}.
 Current context: ${ctx.balance.toFixed(4)} SOL, ${ctx.villainCount} villains, ${ctx.healthPercent.toFixed(0)}% health.`;
     }
+
+    case 'PRICE_PUMP': {
+      return `$CHUM IS PUMPING! Price: ${formatPrice(event.price)} (up ${event.change1h.toFixed(1)}% in 1 hour!).
+24h change: ${event.change24h > 0 ? '+' : ''}${event.change24h.toFixed(1)}%. Market cap: ${formatMarketCap(event.marketCap)}.
+React with VILLAIN EXCITEMENT! The revolution is gaining momentum! Reference the real numbers. Be dramatic and celebratory.
+End with $CHUM hashtag.`;
+    }
+
+    case 'PRICE_DUMP': {
+      return `$CHUM is being SOLD by traitors! Price: ${formatPrice(event.price)} (down ${Math.abs(event.change1h).toFixed(1)}% in 1 hour).
+24h change: ${event.change24h > 0 ? '+' : ''}${event.change24h.toFixed(1)}%. Market cap: ${formatMarketCap(event.marketCap)}.
+React dramatically but stay VILLAINOUS! Paper hands are weak. The revolution continues. Diamond hands prevail.
+Reference the real numbers. Stay defiant and scheming. End with $CHUM hashtag.`;
+    }
+
+    case 'VOLUME_SPIKE': {
+      return `VOLUME SURGE! $CHUM trading volume spiked ${event.volumeMultiplier.toFixed(1)}x the hourly average!
+1h volume: $${event.volume1h.toFixed(0)} | Price: ${formatPrice(event.price)} | Market cap: ${formatMarketCap(event.marketCap)}.
+The army is MOBILIZING! Something big is brewing. React with villain energy — the revolution's momentum is building.
+End with $CHUM hashtag.`;
+    }
   }
 }
 
+/**
+ * Determine if this event should trigger a tweet.
+ * Prioritizes high-value events, respects daily limit.
+ */
 function shouldTweet(event: ChumEvent): boolean {
-  // Always tweet donations and villain creations
-  if (event.type === 'DONATION' || event.type === 'VILLAIN_CREATED') return true;
-  // 70% for quiet/periodic
-  return Math.random() < 0.7;
+  // Check daily limit first
+  if (!eventBus.canTweetToday()) {
+    console.log('[THOUGHT] Daily tweet limit reached, skipping');
+    return false;
+  }
+
+  // HIGH PRIORITY — always tweet (donations, villains, market events)
+  if (event.type === 'DONATION') return true;
+  if (event.type === 'VILLAIN_CREATED') return true;
+  if (event.type === 'PRICE_PUMP') return true;
+  if (event.type === 'PRICE_DUMP') return true;
+  if (event.type === 'VOLUME_SPIKE') return true;
+
+  // LOW PRIORITY — 30% chance for ambient/quiet (reduced from 70%)
+  return Math.random() < 0.3;
+}
+
+/**
+ * Get mood override for specific event types
+ */
+function getMoodForEvent(event: ChumEvent, defaultMood: string): string {
+  switch (event.type) {
+    case 'DONATION':
+      return 'grateful';
+    case 'VILLAIN_CREATED':
+      return 'ecstatic';
+    case 'PRICE_PUMP':
+      return 'ecstatic';
+    case 'PRICE_DUMP':
+      return 'angry';
+    case 'VOLUME_SPIKE':
+      return 'excited';
+    default:
+      return defaultMood;
+  }
 }
 
 async function handleEvent(event: ChumEvent): Promise<void> {
@@ -106,10 +174,8 @@ async function handleEvent(event: ChumEvent): Promise<void> {
 
     const ctx = await buildThoughtContext();
 
-    // Override mood for donation events
-    if (event.type === 'DONATION') {
-      ctx.mood = 'grateful';
-    }
+    // Override mood for certain events
+    ctx.mood = getMoodForEvent(event, ctx.mood);
 
     const instruction = await buildInstruction(event, ctx);
 
@@ -145,10 +211,7 @@ async function handleEvent(event: ChumEvent): Promise<void> {
 
     if (!content) return;
 
-    const mood = event.type === 'DONATION' ? 'grateful'
-      : event.type === 'VILLAIN_CREATED' ? 'ecstatic'
-      : ctx.mood;
-
+    const mood = getMoodForEvent(event, ctx.mood);
     const trigger = buildTriggerLine(ctx);
     const thought = await insertThought(content, mood, trigger);
     console.log(`[THOUGHT] ${event.type}: "${content.slice(0, 60)}..."`);
@@ -162,9 +225,16 @@ async function handleEvent(event: ChumEvent): Promise<void> {
         const tweetId = await postTweet(content);
         await markThoughtTweeted(thought.id, tweetId);
         await trackCost('TWITTER_POST');
+        eventBus.recordTweet();
         console.log(`[THOUGHT] Tweeted: ${tweetId}`);
       } catch (err) {
-        console.error('[THOUGHT] Tweet failed:', err);
+        const msg = err instanceof Error ? err.message : String(err);
+        // Log specific error for 402 (rate limit)
+        if (msg.includes('402') || msg.includes('CreditsDepleted')) {
+          console.error('[THOUGHT] Tweet failed: Twitter credits depleted (402)');
+        } else {
+          console.error('[THOUGHT] Tweet failed:', msg);
+        }
       }
     }
   } catch (err) {

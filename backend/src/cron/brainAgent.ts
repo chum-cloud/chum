@@ -434,15 +434,21 @@ Current context: ${ctx.balance.toFixed(4)} SOL, ${ctx.villainCount} villains, ${
   eventBus.recordThought();
   broadcastThought(thought);
 
-  // 50% chance to tweet ambient thoughts
-  if (Math.random() < 0.5) {
+  // 30% chance to tweet ambient thoughts (respects daily limit)
+  if (eventBus.canTweetToday() && Math.random() < 0.3) {
     try {
       const tweetId = await postTweet(content);
       await markThoughtTweeted(thought.id, tweetId);
       await trackCost('TWITTER_POST');
+      eventBus.recordTweet();
       console.log(`[BRAIN] Tweeted: ${tweetId}`);
     } catch (err) {
-      console.error('[BRAIN] Tweet failed:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('402') || msg.includes('CreditsDepleted')) {
+        console.error('[BRAIN] Tweet failed: Twitter credits depleted (402)');
+      } else {
+        console.error('[BRAIN] Tweet failed:', msg);
+      }
     }
   }
 

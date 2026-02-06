@@ -5,6 +5,7 @@ import StatsGrid from './components/StatsGrid';
 import LatestTweet from './components/LatestTweet';
 import CloudPreview from './components/CloudPreview';
 import KeepAlive from './components/KeepAlive';
+import WarChest from './components/WarChest';
 import { Link } from 'react-router-dom';
 import { useChum } from './hooks/useChum';
 import { useThoughtStream } from './hooks/useThoughtStream';
@@ -158,6 +159,7 @@ export default function App() {
           triggerMap={triggerMap}
         />
         <StatsGrid chum={chum} />
+        <WarChest />
         <KeepAlive />
         {/* CHUM Cloud with live preview */}
         <CloudPreview />

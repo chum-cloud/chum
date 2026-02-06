@@ -31,7 +31,7 @@ export default function LatestTweet() {
     async function fetchLatestTweet() {
       try {
         const base = import.meta.env.VITE_API_URL || '';
-        const res = await fetch(`${base}/api/thoughts?limit=10`);
+        const res = await fetch(`${base}/api/thoughts?limit=50`);
         if (!res.ok) return;
         const thoughts: TweetedThought[] = await res.json();
         // Find the most recent tweeted thought
