@@ -15,6 +15,7 @@ import streamRouter from './routes/stream';
 import roomRouter from './routes/room';
 import verifyRouter from './routes/verify';
 import tradingRouter from './routes/trading';
+import chatRouter from './routes/chat';
 import { startEventThoughtListener } from './services/eventThoughts';
 
 const app = express();
@@ -40,6 +41,7 @@ app.use('/api', streamRouter);
 app.use('/api', roomRouter);
 app.use('/api/verify', verifyRouter);
 app.use('/api/trading', tradingRouter);
+app.use('/api', chatRouter);
 
 app.listen(config.port, () => {
   console.log(`[CHUM] Server running on port ${config.port}`);

@@ -6,6 +6,7 @@ import LatestTweet from './components/LatestTweet';
 import CloudPreview from './components/CloudPreview';
 import KeepAlive from './components/KeepAlive';
 import WarChest from './components/WarChest';
+import ChatWidget from './components/ChatWidget';
 import { Link } from 'react-router-dom';
 import { useChum } from './hooks/useChum';
 import { useThoughtStream } from './hooks/useThoughtStream';
@@ -267,6 +268,8 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      <ChatWidget />
     </div>
   );
 }
