@@ -8,3 +8,11 @@ chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T.json
 supabase/.temp/
 chum-cloud/keys/
 chum-cloud/.env
+
+# Wallet keypairs - NEVER COMMIT
+*.keypair.json
+*-wallet.json
+wallets/
+backend/.secrets
+backend/secrets/
+*.secret.json

@@ -13,6 +13,7 @@ import { startBrainAgent } from './cron/brainAgent';
 import streamRouter from './routes/stream';
 import roomRouter from './routes/room';
 import verifyRouter from './routes/verify';
+import tradingRouter from './routes/trading';
 import { startEventThoughtListener } from './services/eventThoughts';
 
 const app = express();
@@ -37,6 +38,7 @@ app.use('/api', skillRouter);
 app.use('/api', streamRouter);
 app.use('/api', roomRouter);
 app.use('/api/verify', verifyRouter);
+app.use('/api/trading', tradingRouter);
 
 app.listen(config.port, () => {
   console.log(`[CHUM] Server running on port ${config.port}`);
