@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+
+# Keys (NEVER commit)
+keys/
+*.json
+
+# OS
+.DS_Store

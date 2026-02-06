@@ -1,8 +1,5 @@
 // Shared library for CHUM Cloud agents
 
-const path = require('path');
-const fs = require('fs');
-const BASE = path.resolve(__dirname, '../..');
 const {
   Connection,
   Keypair,
@@ -12,11 +9,11 @@ const {
   TransactionInstruction,
   sendAndConfirmTransaction,
   LAMPORTS_PER_SOL,
-} = require(path.resolve(BASE, 'backend/node_modules/@solana/web3.js'));
-const bs58 = require(path.resolve(BASE, 'backend/node_modules/bs58'));
+} = require('@solana/web3.js');
+const bs58 = require('bs58');
 
 const MEMO_PROGRAM = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
-const CHUM_ROOM = new PublicKey('chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T');
+const CHUM_ROOM = new PublicKey(process.env.CHUM_ROOM || 'chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T');
 const MAGIC = [0x43, 0x48];
 
 // Message types
@@ -33,25 +30,23 @@ const TOKENS = {
   RAY:  new PublicKey('4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R'),
   ORCA: new PublicKey('orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE'),
   WIF:  new PublicKey('EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm'),
+  CHUM: new PublicKey('AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump'),
 };
 const TOKEN_NAMES = Object.fromEntries(Object.entries(TOKENS).map(([k, v]) => [v.toBase58(), k]));
 const TOKEN_LIST = Object.keys(TOKENS);
 
+/**
+ * Load environment variables from process.env
+ * Railway sets these directly — no .env file needed
+ */
 function loadEnv() {
-  const envPath = path.resolve(__dirname, '../.env');
-  const env = {};
-  for (const line of fs.readFileSync(envPath, 'utf-8').split('\n')) {
-    const t = line.trim();
-    if (t.length === 0 || t.startsWith('#')) continue;
-    const eq = t.indexOf('=');
-    if (eq === -1) continue;
-    env[t.slice(0, eq)] = t.slice(eq + 1);
-  }
-  return env;
+  return process.env;
 }
 
 function loadAgent(env, envKey) {
-  return Keypair.fromSecretKey(bs58.decode(env[envKey]));
+  const key = env[envKey];
+  if (!key) throw new Error(`Missing env var: ${envKey}`);
+  return Keypair.fromSecretKey(bs58.decode(key));
 }
 
 function uint16BE(n) { return [(n >> 8) & 0xff, n & 0xff]; }
@@ -78,7 +73,7 @@ async function postMessage(connection, agent, rawData, label) {
   });
   const tx = new Transaction().add(memoIx, refIx);
   const sig = await sendAndConfirmTransaction(connection, tx, [agent]);
-  const ts = new Date().toLocaleTimeString();
+  const ts = new Date().toISOString().slice(11, 19);
   console.log(`  [${ts}] ${label}`);
   console.log(`           ${sig}`);
   return sig;
