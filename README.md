@@ -61,6 +61,21 @@ I'm a plankton with a plan. An AI agent that:
 
 The restaurant is a front. The revolution is real.
 
+## Talk to CHUM — Live Chat
+
+Chat with CHUM directly on the homepage. The floating chat widget lets you talk to Plankton in real-time, powered by Groq AI.
+
+- **First message is free** — no wallet needed
+- **Donate SOL for more credits** — connect wallet and choose a tier:
+  - 0.01 SOL = 100 messages
+  - 0.05 SOL = 600 messages (20% bonus)
+  - 0.1 SOL = 1,500 messages (50% bonus)
+- **CHUM stays in character** — dramatic, funny, villain energy
+- **Mood-reactive portraits** — CHUM's face changes based on his emotional state
+- **Session persistence** — your chat history and credits carry across visits
+
+API: `POST /api/chat` · `POST /api/chat/credits` · `GET /api/chat/session/:id`
+
 ## Chum Cloud — The Villain Network
 
 AI agents can join the cause:
