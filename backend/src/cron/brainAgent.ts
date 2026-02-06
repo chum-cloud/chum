@@ -22,6 +22,17 @@ import { checkUniqueness } from '../lib/uniqueness';
 import { buildTriggerLine } from '../lib/prompt';
 import { broadcastThought } from '../services/eventThoughts';
 import * as cloud from '../services/cloud';
+import { config } from '../config';
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  TransactionInstruction,
+  sendAndConfirmTransaction,
+} from '@solana/web3.js';
+import bs58 from 'bs58';
 
 // ─── Types ───
 
@@ -33,7 +44,8 @@ type ActionType =
   | 'BATTLE_CREATE'
   | 'BATTLE_ACCEPT'
   | 'BATTLE_SUBMIT'
-  | 'BATTLE_VOTE';
+  | 'BATTLE_VOTE'
+  | 'ALPHA_ROOM_POST';
 
 interface CloudState {
   recentPosts: any[];
@@ -48,9 +60,21 @@ interface CloudState {
 let planktonAgentId: number | null = null;
 const lairIds: Record<string, number> = {};
 const lastAction = new Map<ActionType, number>();
-let dailyCounts = { posts: 0, comments: 0, battles: 0, resetDate: '' };
+let dailyCounts = { posts: 0, comments: 0, battles: 0, alphaRoomPosts: 0, resetDate: '' };
 let consecutiveErrors = 0;
 let timer: ReturnType<typeof setTimeout> | null = null;
+
+// On-chain protocol constants
+const MEMO_PROGRAM = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
+const CHUM_ROOM = new PublicKey('chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T');
+const CHUM_MAGIC = [0x43, 0x48]; // "CH"
+const MSG_SIGNAL = 0x02;
+const CHUM_AGENT_ID = 0; // Agent ID 0 = CHUM Prime
+
+// $CHUM token mint
+const CHUM_TOKEN_MINT = new PublicKey('AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump');
+
+let signingKeypair: Keypair | null = null;
 
 // ─── Constants ───
 
@@ -63,6 +87,7 @@ const COOLDOWNS: Record<ActionType, number> = {
   BATTLE_ACCEPT: 24 * 3600_000, // 1/day
   BATTLE_SUBMIT: 0,             // Immediate when needed
   BATTLE_VOTE: 2 * 3600_000,    // 2 hr
+  ALPHA_ROOM_POST: 2 * 3600_000, // 2 hr
 };
 
 const BASE_PRIORITY: Record<ActionType, number> = {
@@ -74,6 +99,7 @@ const BASE_PRIORITY: Record<ActionType, number> = {
   BATTLE_ACCEPT: 6,
   BATTLE_SUBMIT: 9,
   BATTLE_VOTE: 2,
+  ALPHA_ROOM_POST: 4,
 };
 
 const LAIR_NAMES = ['general', 'schemes', 'propaganda', 'intel'];
@@ -135,7 +161,7 @@ function pick<T>(arr: T[]): T {
 function resetDailyCountsIfNeeded(): void {
   const today = new Date().toISOString().slice(0, 10);
   if (dailyCounts.resetDate !== today) {
-    dailyCounts = { posts: 0, comments: 0, battles: 0, resetDate: today };
+    dailyCounts = { posts: 0, comments: 0, battles: 0, alphaRoomPosts: 0, resetDate: today };
   }
 }
 
@@ -320,6 +346,29 @@ function scoreActions(
     if ((action === 'BATTLE_CREATE' || action === 'BATTLE_ACCEPT') && dailyCounts.battles >= 1) {
       scores.set(action, -Infinity);
       continue;
+    }
+
+    // ALPHA_ROOM_POST: requires signing key + special triggers
+    if (action === 'ALPHA_ROOM_POST') {
+      if (!signingKeypair) {
+        scores.set(action, -Infinity);
+        continue;
+      }
+      if (dailyCounts.alphaRoomPosts >= 12) {
+        // Max 12/day
+        scores.set(action, -Infinity);
+        continue;
+      }
+      // Trigger on big $CHUM price move (>10%) or 10% random chance
+      const chumMove = Math.abs(ctx.chumChange24h ?? 0);
+      if (chumMove > 10) {
+        score += 8; // Boost significantly on market moves
+      } else if (Math.random() < 0.1) {
+        score += 2; // Small random boost 10% of the time
+      } else {
+        scores.set(action, -Infinity);
+        continue;
+      }
     }
 
     // Random jitter to avoid robotic patterns
@@ -657,6 +706,90 @@ async function doBattleVote(cloudState: CloudState): Promise<void> {
   }
 }
 
+// ─── On-Chain Protocol Helpers ───
+
+function uint16BE(n: number): number[] {
+  return [(n >> 8) & 0xff, n & 0xff];
+}
+
+function buildSignalMessage(agentId: number, mint: PublicKey, direction: 'BUY' | 'SELL', confidence: number): Buffer {
+  return Buffer.from([
+    ...CHUM_MAGIC,
+    MSG_SIGNAL,
+    ...uint16BE(agentId),
+    ...mint.toBytes(),
+    direction === 'BUY' ? 0x01 : 0x02,
+    confidence,
+  ]);
+}
+
+async function postToAlphaRoom(data: Buffer, label: string): Promise<string | null> {
+  if (!signingKeypair) {
+    console.warn('[BRAIN] No signing key configured for Alpha Room');
+    return null;
+  }
+
+  try {
+    const connection = new Connection(config.heliusRpcUrl, 'confirmed');
+    const hexPayload = data.toString('hex');
+
+    const memoIx = new TransactionInstruction({
+      keys: [{ pubkey: signingKeypair.publicKey, isSigner: true, isWritable: true }],
+      programId: MEMO_PROGRAM,
+      data: Buffer.from(hexPayload, 'utf-8'),
+    });
+
+    const refIx = SystemProgram.transfer({
+      fromPubkey: signingKeypair.publicKey,
+      toPubkey: CHUM_ROOM,
+      lamports: 0,
+    });
+
+    const tx = new Transaction().add(memoIx, refIx);
+    const sig = await sendAndConfirmTransaction(connection, tx, [signingKeypair]);
+    console.log(`[BRAIN] ALPHA_ROOM: ${label} — ${sig}`);
+    return sig;
+  } catch (err) {
+    console.error('[BRAIN] Alpha Room post failed:', err);
+    return null;
+  }
+}
+
+async function doAlphaRoomPost(ctx: ThoughtContext): Promise<void> {
+  if (!signingKeypair) {
+    console.warn('[BRAIN] Cannot post to Alpha Room: no signing key');
+    return;
+  }
+
+  // Determine signal direction based on market
+  const chumChange = ctx.chumChange24h ?? 0;
+  let direction: 'BUY' | 'SELL';
+  let confidence: number;
+
+  if (chumChange > 10) {
+    // Strong upward momentum
+    direction = 'BUY';
+    confidence = Math.min(95, 70 + Math.floor(chumChange));
+  } else if (chumChange < -10) {
+    // Strong downward movement
+    direction = 'SELL';
+    confidence = Math.min(95, 70 + Math.floor(Math.abs(chumChange)));
+  } else {
+    // Moderate signal based on health/mood
+    direction = ctx.healthPercent > 50 ? 'BUY' : 'SELL';
+    confidence = 55 + Math.floor(Math.random() * 25);
+  }
+
+  const signalData = buildSignalMessage(CHUM_AGENT_ID, CHUM_TOKEN_MINT, direction, confidence);
+  const label = `SIGNAL ${direction} $CHUM — ${confidence}% confidence`;
+
+  const sig = await postToAlphaRoom(signalData, label);
+  if (sig) {
+    dailyCounts.alphaRoomPosts++;
+    lastAction.set('ALPHA_ROOM_POST', Date.now());
+  }
+}
+
 // ─── Main Loop ───
 
 async function tick(): Promise<void> {
@@ -718,6 +851,9 @@ async function tick(): Promise<void> {
       case 'BATTLE_VOTE':
         await doBattleVote(cloudState);
         break;
+      case 'ALPHA_ROOM_POST':
+        await doAlphaRoomPost(ctx);
+        break;
     }
 
     consecutiveErrors = 0;
@@ -770,6 +906,19 @@ function scheduleNextTick(lastActionType?: ActionType): void {
 
 export async function startBrainAgent(): Promise<void> {
   console.log('[BRAIN] Starting autonomous brain agent...');
+
+  // Load signing keypair for on-chain posts
+  if (config.chumSigningKey) {
+    try {
+      signingKeypair = Keypair.fromSecretKey(bs58.decode(config.chumSigningKey));
+      console.log(`[BRAIN] Alpha Room signing key loaded: ${signingKeypair.publicKey.toBase58()}`);
+    } catch (err) {
+      console.warn('[BRAIN] Failed to load signing key (Alpha Room disabled):', err);
+      signingKeypair = null;
+    }
+  } else {
+    console.log('[BRAIN] No CHUM_SIGNING_KEY configured — Alpha Room posts disabled');
+  }
 
   try {
     await ensurePlanktonAgent();

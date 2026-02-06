@@ -42,6 +42,8 @@ export interface ThoughtRow {
   tweeted: boolean;
   tweet_id: string | null;
   created_at: string;
+  signature: string | null;
+  signing_key: string | null;
 }
 
 // Matches actual Supabase transactions table

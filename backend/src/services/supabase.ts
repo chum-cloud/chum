@@ -29,11 +29,63 @@ export async function insertThought(
   mood: Mood | string,
   trigger?: string
 ): Promise<ThoughtRow> {
-  const { data, error } = await supabase
-    .from('thoughts')
-    .insert({ content, mood, trigger: trigger ?? null })
-    .select()
-    .single();
+  // Sign the thought for verifiable identity
+  let signature: string | null = null;
+  let signingKey: string | null = null;
+  try {
+    const { signMessage, getSigningPublicKey } = await import('./signing');
+    signature = signMessage(content);
+    signingKey = getSigningPublicKey();
+  } catch (err) {
+    console.warn('[SUPABASE] Signing not configured, inserting unsigned thought');
+  }
+
+  // Try to insert with signature columns, fallback to without if columns don't exist
+  let data: ThoughtRow | null = null;
+  let error: Error | null = null;
+
+  if (signature) {
+    const result = await supabase
+      .from('thoughts')
+      .insert({ 
+        content, 
+        mood, 
+        trigger: trigger ?? null,
+        signature,
+        signing_key: signingKey,
+      })
+      .select()
+      .single();
+    
+    if (result.error?.message?.includes('column')) {
+      // Columns don't exist yet, insert without them
+      console.warn('[SUPABASE] Signature columns not found, inserting without signature');
+      const fallback = await supabase
+        .from('thoughts')
+        .insert({ content, mood, trigger: trigger ?? null })
+        .select()
+        .single();
+      data = fallback.data as ThoughtRow | null;
+      if (fallback.error) error = new Error(fallback.error.message);
+      // Attach signature to returned object even if not persisted
+      if (data) {
+        data.signature = signature;
+        data.signing_key = signingKey;
+      }
+    } else {
+      data = result.data as ThoughtRow | null;
+      if (result.error) error = new Error(result.error.message);
+    }
+  } else {
+    const result = await supabase
+      .from('thoughts')
+      .insert({ content, mood, trigger: trigger ?? null })
+      .select()
+      .single();
+    data = result.data as ThoughtRow | null;
+    if (result.error) error = new Error(result.error.message);
+  }
+
   if (error) throw new Error(`insertThought: ${error.message}`);
   return data as ThoughtRow;
 }

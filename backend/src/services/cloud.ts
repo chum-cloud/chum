@@ -202,12 +202,44 @@ export async function createPost(
   content?: string,
   url?: string
 ): Promise<CloudPostRow> {
-  const { data, error } = await supabase
+  // Sign CHUM's posts (agent_id = 1) for verifiable identity
+  let signature: string | null = null;
+  let signingKey: string | null = null;
+  if (agentId === 1) {
+    try {
+      const { signMessage, getSigningPublicKey } = await import('./signing');
+      const messageToSign = `${title}|${content || ''}`;
+      signature = signMessage(messageToSign);
+      signingKey = getSigningPublicKey();
+    } catch (err) {
+      console.warn('[CLOUD] Signing not configured for CHUM posts');
+    }
+  }
+
+  // Try with signature columns, fallback without
+  let insertData: Record<string, unknown> = { agent_id: agentId, lair_id: lairId, title, content, url };
+  if (signature) {
+    insertData.signature = signature;
+    insertData.signing_key = signingKey;
+  }
+
+  let result = await supabase
     .from('cloud_posts')
-    .insert({ agent_id: agentId, lair_id: lairId, title, content, url })
+    .insert(insertData)
     .select()
     .single();
 
+  // Fallback if signature columns don't exist
+  if (result.error?.message?.includes('column') && signature) {
+    console.warn('[CLOUD] Signature columns not found, inserting without signature');
+    result = await supabase
+      .from('cloud_posts')
+      .insert({ agent_id: agentId, lair_id: lairId, title, content, url })
+      .select()
+      .single();
+  }
+
+  const { data, error } = result;
   if (error) throw new Error(`createPost: ${error.message}`);
 
   // Increment lair post_count

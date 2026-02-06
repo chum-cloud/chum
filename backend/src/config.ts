@@ -35,4 +35,7 @@ export const config = {
   twitterApiSecret: required('TWITTER_API_SECRET'),
   twitterAccessToken: required('TWITTER_ACCESS_TOKEN'),
   twitterAccessSecret: required('TWITTER_ACCESS_SECRET'),
+
+  // Message signing keypair (for verifiable CHUM identity)
+  chumSigningKey: process.env.CHUM_SIGNING_KEY || '',
 } as const;
