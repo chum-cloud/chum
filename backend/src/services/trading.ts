@@ -59,23 +59,35 @@ class TradingService {
   }
 
   private loadKeypairs(): void {
-    const secretsDir = path.join(__dirname, '../../secrets');
-    
     try {
+      // Try env vars first (Railway), then files (local dev)
+      
       // Load trading wallet
-      const tradingPath = path.join(secretsDir, 'trading-wallet.json');
-      if (fs.existsSync(tradingPath)) {
-        const tradingData = JSON.parse(fs.readFileSync(tradingPath, 'utf-8'));
-        this.tradingKeypair = Keypair.fromSecretKey(Uint8Array.from(tradingData.secretKey));
-        console.log('[Trading] Loaded trading wallet:', this.tradingKeypair.publicKey.toBase58());
+      if (process.env.TRADING_WALLET_SECRET) {
+        const secretKey = JSON.parse(process.env.TRADING_WALLET_SECRET);
+        this.tradingKeypair = Keypair.fromSecretKey(Uint8Array.from(secretKey));
+        console.log('[Trading] Loaded trading wallet from env:', this.tradingKeypair.publicKey.toBase58());
+      } else {
+        const tradingPath = path.join(__dirname, '../../secrets/trading-wallet.json');
+        if (fs.existsSync(tradingPath)) {
+          const tradingData = JSON.parse(fs.readFileSync(tradingPath, 'utf-8'));
+          this.tradingKeypair = Keypair.fromSecretKey(Uint8Array.from(tradingData.secretKey));
+          console.log('[Trading] Loaded trading wallet from file:', this.tradingKeypair.publicKey.toBase58());
+        }
       }
 
       // Load reserve wallet
-      const reservePath = path.join(secretsDir, 'reserve-wallet.json');
-      if (fs.existsSync(reservePath)) {
-        const reserveData = JSON.parse(fs.readFileSync(reservePath, 'utf-8'));
-        this.reserveKeypair = Keypair.fromSecretKey(Uint8Array.from(reserveData.secretKey));
-        console.log('[Trading] Loaded reserve wallet:', this.reserveKeypair.publicKey.toBase58());
+      if (process.env.RESERVE_WALLET_SECRET) {
+        const secretKey = JSON.parse(process.env.RESERVE_WALLET_SECRET);
+        this.reserveKeypair = Keypair.fromSecretKey(Uint8Array.from(secretKey));
+        console.log('[Trading] Loaded reserve wallet from env:', this.reserveKeypair.publicKey.toBase58());
+      } else {
+        const reservePath = path.join(__dirname, '../../secrets/reserve-wallet.json');
+        if (fs.existsSync(reservePath)) {
+          const reserveData = JSON.parse(fs.readFileSync(reservePath, 'utf-8'));
+          this.reserveKeypair = Keypair.fromSecretKey(Uint8Array.from(reserveData.secretKey));
+          console.log('[Trading] Loaded reserve wallet from file:', this.reserveKeypair.publicKey.toBase58());
+        }
       }
     } catch (error) {
       console.error('[Trading] Failed to load keypairs:', error);
