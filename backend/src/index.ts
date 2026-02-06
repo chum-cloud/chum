@@ -9,7 +9,7 @@ import villainRouter from './routes/villain';
 import cloudRouter from './routes/cloud';
 import skillRouter from './routes/skill';
 import { startBalanceCheck } from './cron/balanceCheck';
-import { startQuietDetector } from './cron/quietDetector';
+import { startBrainAgent } from './cron/brainAgent';
 import streamRouter from './routes/stream';
 import roomRouter from './routes/room';
 import { startEventThoughtListener } from './services/eventThoughts';
@@ -40,5 +40,5 @@ app.listen(config.port, () => {
   console.log(`[CHUM] Server running on port ${config.port}`);
   startBalanceCheck();
   startEventThoughtListener();
-  startQuietDetector();
+  startBrainAgent();
 });

@@ -20,7 +20,7 @@ export function unregisterSSEClient(callback: SSECallback): void {
   sseClients.delete(callback);
 }
 
-function broadcastThought(thought: ThoughtRow): void {
+export function broadcastThought(thought: ThoughtRow): void {
   for (const cb of sseClients) {
     try {
       cb(thought);

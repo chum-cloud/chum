@@ -8,6 +8,7 @@ export const OPERATION_COSTS = {
   IPFS_UPLOAD: 0.005,         // NFT.Storage pin
   TWITTER_POST: 0.001,        // Rate-limited API slot
   SUPABASE_WRITE: 0.00002,    // DB insert/update
+  GROQ_CLOUD_POST: 0.003,     // Llama 3.3 70B, ~300 tokens (Cloud posts + battle entries)
 } as const;
 
 export type OperationType = keyof typeof OPERATION_COSTS;

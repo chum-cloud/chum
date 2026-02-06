@@ -82,3 +82,50 @@ export async function generateThought(
 
   return text;
 }
+
+/**
+ * Generate longer content for Cloud posts and battle entries.
+ * Similar to generateThought but with configurable length limits.
+ */
+export async function generateContent(
+  context: ThoughtContext,
+  instruction: string,
+  opts: { maxTokens?: number; maxChars?: number } = {}
+): Promise<string> {
+  const { maxTokens = 300, maxChars = 500 } = opts;
+
+  if (!(await canAfford('GROQ_CLOUD_POST'))) {
+    throw new Error('BRAIN_OFFLINE: Cannot afford content generation');
+  }
+
+  const completion = await groq.chat.completions.create({
+    model: 'llama-3.3-70b-versatile',
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: buildUserPrompt(context, instruction) },
+    ],
+    temperature: 0.9,
+    max_tokens: maxTokens,
+  });
+
+  let text = completion.choices[0]?.message?.content?.trim() ?? '';
+
+  // Strip quotes if the model wraps its response
+  if (
+    (text.startsWith('"') && text.endsWith('"')) ||
+    (text.startsWith("'") && text.endsWith("'"))
+  ) {
+    text = text.slice(1, -1);
+  }
+
+  text = applyMassGlitch(text, context.healthPercent);
+
+  // Truncate to maxChars
+  if (text.length > maxChars) {
+    text = text.slice(0, maxChars - 3) + '...';
+  }
+
+  await trackCost('GROQ_CLOUD_POST');
+
+  return text;
+}
