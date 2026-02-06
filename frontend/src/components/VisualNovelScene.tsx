@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Mood } from '../hooks/useChum';
-import WarChest from './WarChest';
 
 /* ── portrait map (multiple per mood) ── */
 const MOOD_PORTRAITS: Record<Mood, string[]> = {
@@ -434,8 +433,6 @@ export default function VisualNovelScene({
         className="absolute bottom-0 left-0 right-0 z-30"
         style={{ padding: '0 16px 16px' }}
       >
-        {/* War Chest - above dialogue */}
-        <WarChest />
         <div
           style={{
             position: 'relative',
