@@ -5,7 +5,7 @@ import {
   markThoughtTweeted,
 } from '../services/supabase';
 import { generateThought } from '../services/groq';
-import { postTweet } from '../services/twitter';
+import { postTweet, testTwitterConnection } from '../services/twitter';
 import { buildThoughtContext } from '../lib/buildContext';
 import { buildTriggerLine } from '../lib/prompt';
 
@@ -34,6 +34,16 @@ router.post('/tweet', async (req, res) => {
     console.error('[TWEET]', err);
     res.status(500).json({ error: 'Failed to post tweet' });
   }
+});
+
+/**
+ * Test endpoint to diagnose Twitter API issues
+ * POST /api/tweet-test
+ * Returns full error details if tweet fails
+ */
+router.post('/tweet-test', async (_req, res) => {
+  const result = await testTwitterConnection();
+  res.json(result);
 });
 
 export default router;
