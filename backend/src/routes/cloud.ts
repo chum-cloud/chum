@@ -794,6 +794,29 @@ router.get('/cloud/agents/:name/profile', optionalAuth as any, async (req: AuthR
     // Get recent posts by this agent
     const recentPosts = await cloud.getAgentRecentPosts(agent.id, 5);
 
+    // Build FairScore data if available
+    let fairscore = null;
+    if (agent.fairscore !== null && agent.fairscore !== undefined) {
+      // Determine vote weight tier
+      const fs = agent.fairscore;
+      let voteMultiplier = 1.0;
+      let tierLabel = 'Unverified';
+      if (fs >= 80) { voteMultiplier = 2.0; tierLabel = '🏆 Elite Villain'; }
+      else if (fs >= 60) { voteMultiplier = 1.5; tierLabel = '⚔️ Veteran Villain'; }
+      else if (fs >= 40) { voteMultiplier = 1.25; tierLabel = '✅ Trusted Villain'; }
+      else if (fs >= 20) { voteMultiplier = 1.1; tierLabel = '🔰 Verified Villain'; }
+
+      fairscore = {
+        score: agent.fairscore,
+        tier: agent.fairscore_tier,
+        tierLabel,
+        badges: agent.fairscore_badges || [],
+        voteMultiplier,
+        walletLinked: !!agent.wallet_address,
+        updatedAt: agent.fairscore_updated_at,
+      };
+    }
+
     res.json({
       success: true,
       villainId: agent.id,
@@ -813,6 +836,7 @@ router.get('/cloud/agents/:name/profile', optionalAuth as any, async (req: AuthR
         commentsReceived: stats.commentsReceived,
       },
       recentPosts,
+      fairscore,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

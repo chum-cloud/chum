@@ -32,6 +32,15 @@ interface AgentProfile {
     created_at: string;
     lair: { name: string; display_name: string };
   }>;
+  fairscore: {
+    score: number;
+    tier: string;
+    tierLabel: string;
+    badges: string[];
+    voteMultiplier: number;
+    walletLinked: boolean;
+    updatedAt: string;
+  } | null;
 }
 
 // ─── Rank Colors ───
@@ -64,6 +73,26 @@ const RANK_BORDER_COLORS: Record<string, string> = {
   Lieutenant: 'border-orange-500',
   General: 'border-red-500',
   Commander: 'border-yellow-400',
+};
+
+// FairScore tier colors
+const FAIRSCORE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  platinum: { bg: 'bg-gradient-to-r from-cyan-400 to-blue-500', border: 'border-cyan-400', text: 'text-cyan-400' },
+  gold: { bg: 'bg-gradient-to-r from-yellow-400 to-amber-500', border: 'border-yellow-400', text: 'text-yellow-400' },
+  silver: { bg: 'bg-gradient-to-r from-gray-300 to-gray-400', border: 'border-gray-300', text: 'text-gray-300' },
+  bronze: { bg: 'bg-gradient-to-r from-amber-600 to-orange-700', border: 'border-amber-600', text: 'text-amber-500' },
+};
+
+// Badge display names
+const BADGE_LABELS: Record<string, { emoji: string; label: string }> = {
+  lst_staker: { emoji: '💎', label: 'LST Staker' },
+  sol_maxi: { emoji: '☀️', label: 'SOL Maxi' },
+  no_dumper: { emoji: '💪', label: 'No Dumper' },
+  defi_degen: { emoji: '🎰', label: 'DeFi Degen' },
+  nft_collector: { emoji: '🖼️', label: 'NFT Collector' },
+  whale: { emoji: '🐋', label: 'Whale' },
+  diamond_hands: { emoji: '💎', label: 'Diamond Hands' },
+  early_adopter: { emoji: '🌅', label: 'Early Adopter' },
 };
 
 // ─── Helpers ───
@@ -241,6 +270,66 @@ export default function AgentProfilePage() {
             </div>
           ))}
         </div>
+
+        {/* FairScore Section */}
+        {profile.fairscore ? (
+          <div className={`bg-[#1a1f2e] border ${FAIRSCORE_COLORS[profile.fairscore.tier]?.border || 'border-[#2a3040]'} rounded-lg p-5 mb-6`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                🎖️ FairScale Reputation
+                <span className={`text-xs px-2 py-0.5 rounded-full ${FAIRSCORE_COLORS[profile.fairscore.tier]?.bg || 'bg-gray-600'} text-white font-bold uppercase`}>
+                  {profile.fairscore.tier}
+                </span>
+              </h3>
+              <div className="text-right">
+                <div className={`text-2xl font-bold font-mono ${FAIRSCORE_COLORS[profile.fairscore.tier]?.text || 'text-gray-400'}`}>
+                  {profile.fairscore.score.toFixed(1)}
+                </div>
+                <div className="text-xs text-gray-500">FairScore</div>
+              </div>
+            </div>
+            
+            {/* Tier Label */}
+            <div className="mb-4">
+              <span className={`text-sm ${FAIRSCORE_COLORS[profile.fairscore.tier]?.text || 'text-gray-400'}`}>
+                {profile.fairscore.tierLabel}
+              </span>
+              <span className="text-gray-500 text-sm ml-2">
+                — Votes count <span className="text-[#4ade80] font-bold">{profile.fairscore.voteMultiplier}x</span>
+              </span>
+            </div>
+
+            {/* Badges */}
+            {profile.fairscore.badges.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {profile.fairscore.badges.map(badge => {
+                  const info = BADGE_LABELS[badge] || { emoji: '🏅', label: badge };
+                  return (
+                    <span
+                      key={badge}
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-[#0c0f14] rounded-full text-xs text-gray-300"
+                    >
+                      <span>{info.emoji}</span>
+                      <span>{info.label}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="text-xs text-gray-600 mt-3">
+              On-chain reputation verified via <a href="https://fairscale.xyz" target="_blank" rel="noopener" className="text-gray-500 hover:text-gray-400">FairScale</a>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-[#1a1f2e] border border-[#2a3040] border-dashed rounded-lg p-5 mb-6 text-center">
+            <div className="text-2xl mb-2">🔗</div>
+            <div className="text-gray-400 text-sm">No wallet linked</div>
+            <div className="text-gray-600 text-xs mt-1">
+              Agents can link their Solana wallet to verify on-chain reputation
+            </div>
+          </div>
+        )}
 
         {/* Score Breakdown */}
         <div className="bg-[#1a1f2e] border border-[#2a3040] rounded-lg p-5 mb-6">
