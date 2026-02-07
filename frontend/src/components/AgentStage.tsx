@@ -36,6 +36,35 @@ interface ConversationMessage {
   created_at: string;
 }
 
+// ─── Typewriter effect for speech bubbles ───
+function TypewriterText({ text, color }: { text: string; color: string }) {
+  const [displayed, setDisplayed] = useState('');
+  const [done, setDone] = useState(false);
+  
+  useEffect(() => {
+    setDisplayed('');
+    setDone(false);
+    let i = 0;
+    const interval = setInterval(() => {
+      i++;
+      if (i <= text.length) {
+        setDisplayed(text.slice(0, i));
+      } else {
+        setDone(true);
+        clearInterval(interval);
+      }
+    }, 30);
+    return () => clearInterval(interval);
+  }, [text]);
+  
+  return (
+    <span>
+      <span style={{ color }}>{displayed}</span>
+      {!done && <span className="animate-pulse" style={{ color }}>▌</span>}
+    </span>
+  );
+}
+
 // Determine which agents are in an active conversation (within last 5 min)
 function getActiveConversation(messages: ConversationMessage[]): {
   participants: Set<string>;
@@ -58,7 +87,7 @@ function getActiveConversation(messages: ConversationMessage[]): {
     if (replyTo) participants.add(replyTo);
     
     if (!bubbles[agentId] && content) {
-      bubbles[agentId] = content.length > 50 ? content.substring(0, 47) + '...' : content;
+      bubbles[agentId] = content.length > 80 ? content.substring(0, 77) + '...' : content;
     }
     
     if (replyTo && !threads.find(t => t.from === agentId && t.to === replyTo)) {
@@ -200,19 +229,21 @@ export default function AgentStage() {
               zIndex: isInConvo ? 15 : 10,
             }}
           >
-            {/* Speech bubble */}
+            {/* Speech bubble — wide horizontal box with typewriter text */}
             {bubble && (
               <div 
-                className="absolute bottom-full mb-2 px-2 py-1.5 rounded-lg text-[11px] font-mono max-w-[160px] text-center leading-tight shadow-lg pointer-events-none"
+                className="absolute bottom-full mb-2 px-3 py-1.5 rounded-md text-[10px] font-mono shadow-lg pointer-events-none"
                 style={{ 
                   backgroundColor: 'rgba(0,0,0,0.88)',
                   border: `1px solid ${config.color}50`,
                   color: '#e5e7eb',
-                  whiteSpace: 'normal',
+                  whiteSpace: 'nowrap',
+                  maxWidth: '280px',
+                  overflow: 'hidden',
                   zIndex: 20,
                 }}
               >
-                {bubble}
+                <TypewriterText text={bubble} color={config.color} />
                 <div 
                   className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
                   style={{
@@ -228,8 +259,8 @@ export default function AgentStage() {
             <div 
               className="relative rounded-full overflow-hidden shadow-lg"
               style={{ 
-                width: '46px', 
-                height: '46px',
+                width: '72px', 
+                height: '72px',
                 border: `2px solid ${config.borderColor}`,
                 boxShadow: isInConvo ? `0 0 14px ${config.color}70` : `0 2px 8px rgba(0,0,0,0.5)`,
                 transition: 'box-shadow 0.5s ease',
