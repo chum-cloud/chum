@@ -7,6 +7,7 @@ import { ChumAgent } from '../agents/chum';
 import { KarenAgent } from '../agents/karen';
 import { SpyAgent } from '../agents/spy';
 import { SchemeService } from './scheme-service';
+import { ConversationEngine } from './conversation-engine';
 import { getChumState } from '../services/supabase';
 import type { ChumStateResponse, StepStatus, SchemeRow } from '../types';
 
@@ -18,7 +19,8 @@ export class Heartbeat {
   private static lastRun = {
     spy_intel: 0,
     chum_scheme: 0,
-    karen_review: 0
+    karen_review: 0,
+    conversation: 0
   };
 
   /**
@@ -269,6 +271,15 @@ export class Heartbeat {
         console.log('[HEARTBEAT] 5b. Checking if CHUM should propose scheme...');
         await this.runChumSchemeCheck();
         this.lastRun.chum_scheme = now;
+      }
+
+      // Every 10 min: Agent conversations
+      const conversationInterval = intervals.conversation || 10;
+      if (now - this.lastRun.conversation > conversationInterval * 60 * 1000) {
+        console.log('[HEARTBEAT] 5c. Generating agent conversation...');
+        const msgCount = await ConversationEngine.generateConversation();
+        console.log(`[HEARTBEAT] Conversation generated: ${msgCount} messages`);
+        this.lastRun.conversation = now;
       }
 
       // Every 4 hours: Karen reviews agent performance

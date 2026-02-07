@@ -290,18 +290,45 @@ function HeartbeatGroup({ events, expanded, onToggle }: { events: AgentEvent[]; 
 function EventLine({ event }: { event: AgentEvent }) {
   const config = getAgentConfig(event.agent_id);
   const { icon, text } = formatEventDescription(event);
-  const isConversation = event.event_type === 'conversation' || event.event_type === 'message';
+  const isConversation = event.event_type === 'conversation';
   const isKarenReview = event.event_type === 'karen_review' || 
     (event.event_type.includes('approved') || event.event_type.includes('rejected'));
   
+  const data = event.data || {};
+  const replyToAgent = data.reply_to_agent as string | undefined;
+  const replyConfig = replyToAgent ? getAgentConfig(replyToAgent) : null;
+  
+  // Conversation messages get special VoxYZ-style rendering
+  if (isConversation) {
+    const content = (data.content as string) || '';
+    return (
+      <div className="font-mono text-sm px-3 py-2 rounded bg-chum-surface/30 border-l-2 hover:bg-chum-surface/50 transition-colors"
+           style={{ borderColor: config.color === 'bg-green-500' ? '#4ade80' : config.color === 'bg-purple-500' ? '#c084fc' : config.color === 'bg-orange-500' ? '#fb923c' : '#9ca3af' }}>
+        <div className="flex items-start gap-2">
+          <span className="text-chum-muted w-16 shrink-0">{timeAgo(event.created_at)}</span>
+          <span className={`${config.textColor} font-bold shrink-0`}>{getAgentName(event.agent_id)}</span>
+          <span className="text-chum-muted">💬</span>
+          {replyToAgent && (
+            <span className="text-chum-muted/60">→ <span className={replyConfig?.textColor || 'text-chum-muted'}>{getAgentName(replyToAgent)}</span>:</span>
+          )}
+          <span className="flex-1 text-chum-text">{content}</span>
+        </div>
+        {replyToAgent && (
+          <div className="ml-[4.5rem] mt-0.5">
+            <span className="text-xs text-chum-muted/40">↳ {getAgentName(replyToAgent)} → {getAgentName(event.agent_id)}</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  // Regular events
   return (
     <div className="font-mono text-sm hover:bg-chum-surface/50 px-3 py-1.5 rounded transition-colors flex items-start gap-2">
       <span className="text-chum-muted w-16 shrink-0">{timeAgo(event.created_at)}</span>
-      <span className="text-chum-muted">│</span>
-      <span className={`${config.textColor} w-24 shrink-0`}>{config.emoji} {getAgentName(event.agent_id)}</span>
-      <span className="text-chum-muted">│</span>
+      <span className={`${config.textColor} w-24 shrink-0 font-bold`}>{getAgentName(event.agent_id)}</span>
       <span>{icon}</span>
-      <span className={`flex-1 ${isConversation ? 'italic text-chum-muted' : ''} ${isKarenReview ? 'text-purple-300' : ''}`}>
+      <span className={`flex-1 ${isKarenReview ? 'text-purple-300' : 'text-chum-text/80'}`}>
         {text}
       </span>
     </div>
