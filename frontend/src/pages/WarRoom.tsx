@@ -69,6 +69,8 @@ const AGENTS: Record<string, { color: string; textColor: string; emoji: string; 
   karen: { color: 'bg-purple-500', textColor: 'text-purple-400', emoji: '💻', role: 'Strategic Analyst & QC' },
   spy: { color: 'bg-gray-500', textColor: 'text-gray-400', emoji: '🕵️', role: 'Intelligence Operative' },
   recruiter: { color: 'bg-orange-500', textColor: 'text-orange-400', emoji: '📢', role: 'Propaganda Minister' },
+  henchman: { color: 'bg-yellow-500', textColor: 'text-yellow-400', emoji: '🔨', role: 'Loyal Grunt & Mission Executor' },
+  treasurer: { color: 'bg-emerald-500', textColor: 'text-emerald-400', emoji: '💰', role: 'Financial Controller & Budget Hawk' },
 };
 
 const STATUS_BADGES: Record<string, { bg: string; text: string }> = {

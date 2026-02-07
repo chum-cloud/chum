@@ -50,6 +50,18 @@ const AGENT_CONFIG = {
     name: 'RECRUITER',
     color: 'text-orange-400',
     accent: 'text-orange-300'
+  },
+  HENCHMAN: {
+    emoji: '🔨',
+    name: 'HENCHMAN',
+    color: 'text-yellow-400',
+    accent: 'text-yellow-300'
+  },
+  TREASURER: {
+    emoji: '💰',
+    name: 'TREASURER',
+    color: 'text-emerald-400',
+    accent: 'text-emerald-300'
   }
 };
 
@@ -330,6 +342,14 @@ export default function AgentChat() {
               <div className="flex items-center gap-1">
                 <span className="text-orange-400">●</span>
                 <span>RECRUITER</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-yellow-400">●</span>
+                <span>HENCHMAN</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-emerald-400">●</span>
+                <span>TREASURER</span>
               </div>
             </div>
             <span className="text-xs text-chum-muted/40 font-mono">

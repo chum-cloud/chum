@@ -4,6 +4,8 @@ import { ChumAgent } from '../agents/chum';
 import { KarenAgent } from '../agents/karen';
 import { SpyAgent } from '../agents/spy';
 import { RecruiterAgent } from '../agents/recruiter';
+import { HenchmanAgent } from '../agents/henchman';
+import { TreasurerAgent } from '../agents/treasurer';
 import { BaseAgent } from '../agents/base';
 
 const supabase = createClient(config.supabaseUrl, config.supabaseServiceKey);
@@ -31,6 +33,22 @@ const CONVERSATION_STARTERS = [
   { initiator: 'chum', target: 'recruiter', topic: 'motivation', prompt: 'Give the Recruiter a dramatic motivational speech about expanding the army. Villain energy. Under 200 chars.' },
   // Spy warns Karen
   { initiator: 'spy', target: 'karen', topic: 'threat_alert', prompt: 'Alert Karen about a potential threat or suspicious pattern you detected. Brief, cryptic spy language. Under 150 chars.' },
+  // Henchman complains to CHUM
+  { initiator: 'henchman', target: 'chum', topic: 'workload', prompt: 'Complain to the Boss about your workload, but make it clear you\'ll keep going because you\'re loyal. Simple words. Under 150 chars.' },
+  // CHUM assigns Henchman
+  { initiator: 'chum', target: 'henchman', topic: 'assignment', prompt: 'Give Henchman a dramatic new assignment. Make it sound important even if it\'s mundane. Villain boss energy. Under 200 chars.' },
+  // Treasurer panics to Karen
+  { initiator: 'treasurer', target: 'karen', topic: 'budget_panic', prompt: 'Panic about the current burn rate or a recent expense. Reference your spreadsheet. Be neurotic. Under 200 chars.' },
+  // Karen dismisses Treasurer
+  { initiator: 'karen', target: 'treasurer', topic: 'budget_response', prompt: 'Respond to the Treasurer\'s budget concerns. You agree the numbers are bad but mock their panic level. Under 200 chars.' },
+  // Treasurer argues with CHUM
+  { initiator: 'treasurer', target: 'chum', topic: 'spending_argument', prompt: 'Argue with CHUM about a recent or planned expense. Reference ROI and your spreadsheets. Under 200 chars.' },
+  // Henchman asks Spy for help
+  { initiator: 'henchman', target: 'spy', topic: 'help_request', prompt: 'Ask the Spy for help with something. You don\'t understand spy stuff but you need Shadow Guy\'s skills. Simple words. Under 150 chars.' },
+  // Recruiter hypes Henchman
+  { initiator: 'recruiter', target: 'henchman', topic: 'hype', prompt: 'Hype up the Henchman like they\'re the MVP of the army. Military recruiter energy. Over the top. Under 200 chars.' },
+  // Treasurer reports to CHUM
+  { initiator: 'treasurer', target: 'chum', topic: 'treasury_update', prompt: 'Give CHUM a brief, stressed update on the war chest. Include specific numbers if possible. Under 200 chars.' },
 ];
 
 function getAgent(agentId: string): BaseAgent {
@@ -39,6 +57,8 @@ function getAgent(agentId: string): BaseAgent {
     case 'karen': return new KarenAgent();
     case 'spy': return new SpyAgent();
     case 'recruiter': return new RecruiterAgent();
+    case 'henchman': return new HenchmanAgent();
+    case 'treasurer': return new TreasurerAgent();
     default: return new ChumAgent();
   }
 }
@@ -102,7 +122,7 @@ Respond with ONLY the reply text, nothing else.`;
 
       // Step 3: Maybe a third agent chimes in (50% chance)
       if (Math.random() > 0.3) {
-        const otherAgents = ['chum', 'karen', 'spy', 'recruiter'].filter(
+        const otherAgents = ['chum', 'karen', 'spy', 'recruiter', 'henchman', 'treasurer'].filter(
           a => a !== starter.initiator && a !== starter.target
         );
         const thirdAgentId = otherAgents[Math.floor(Math.random() * otherAgents.length)];
