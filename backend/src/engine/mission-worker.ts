@@ -1,5 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from '../config';
+import { ChumAgent } from '../agents/chum';
+import { KarenAgent } from '../agents/karen';
+import { SpyAgent } from '../agents/spy';
+import { RecruiterAgent } from '../agents/recruiter';
 import type { 
   MissionStepRow, 
   MissionRow, 
@@ -268,78 +272,150 @@ export class MissionWorker {
     }
   }
 
-  // ─── Step Handlers ───
+  // ─── Step Handlers (wired to real agents) ───
+
+  /**
+   * Get the scheme context for a mission step
+   */
+  private static async getSchemeForStep(step: MissionStepRow): Promise<Record<string, unknown>> {
+    try {
+      const { data: mission } = await supabase
+        .from('missions')
+        .select('scheme_id')
+        .eq('id', step.mission_id)
+        .single();
+      
+      if (mission) {
+        const { data: scheme } = await supabase
+          .from('schemes')
+          .select('*')
+          .eq('id', mission.scheme_id)
+          .single();
+        return (scheme || {}) as Record<string, unknown>;
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  }
 
   private static async handleDraftTweet(step: MissionStepRow): Promise<Record<string, unknown>> {
-    // Placeholder implementation - would integrate with CHUM agent
+    const chum = new ChumAgent();
+    const scheme = await this.getSchemeForStep(step);
+    const tweet = await chum.draftTweet(scheme as any);
+    
     return {
-      tweet_content: "🎭 The army advances! New scheme in motion! Mass loyalty pledges welcome! #CHUMArmy In Plankton We Trust! 🦠⚡",
-      character_count: 124,
+      tweet_content: tweet,
+      character_count: tweet.length,
+      agent: 'chum',
       timestamp: new Date().toISOString()
     };
   }
 
   private static async handlePostCloud(step: MissionStepRow): Promise<Record<string, unknown>> {
-    // Placeholder implementation - would integrate with CHUM Cloud
-    return {
-      post_url: "https://cloud.chumcoin.me/lair/headquarters/post/123",
-      post_id: 123,
-      timestamp: new Date().toISOString()
-    };
+    const recruiter = new RecruiterAgent();
+    const scheme = await this.getSchemeForStep(step);
+    const post = await recruiter.draftCloudPost(scheme);
+    
+    // Actually post to Chum Cloud
+    try {
+      const response = await fetch('https://chum-production.up.railway.app/api/cloud/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_name: 'CHUM',
+          api_key: process.env.CHUM_CLOUD_API_KEY || '',
+          lair: 'general',
+          title: (scheme as any).title || 'Dispatches from HQ',
+          content: post
+        })
+      });
+      const result = await response.json();
+      return {
+        post_content: post,
+        post_id: (result as any)?.id || null,
+        agent: 'recruiter',
+        timestamp: new Date().toISOString()
+      };
+    } catch (err) {
+      return {
+        post_content: post,
+        post_id: null,
+        error: `Cloud post failed: ${err}`,
+        agent: 'recruiter',
+        timestamp: new Date().toISOString()
+      };
+    }
   }
 
   private static async handleAnalyze(step: MissionStepRow): Promise<Record<string, unknown>> {
-    // Placeholder implementation - would integrate with Spy agent
+    const spy = new SpyAgent();
+    const scheme = await this.getSchemeForStep(step);
+    const analysis = await spy.analyzeEvent(scheme);
+    
     return {
-      analysis: "Market sentiment: cautiously optimistic. Whale activity: moderate. Recommendation: proceed with caution.",
+      analysis,
+      agent: 'spy',
       confidence: 0.75,
       timestamp: new Date().toISOString()
     };
   }
 
   private static async handleScoutPrice(step: MissionStepRow): Promise<Record<string, unknown>> {
-    // Placeholder implementation - would integrate with price monitoring
+    const spy = new SpyAgent();
+    const result = await spy.scoutPrice();
+    
     return {
-      current_price: 0.00001234,
-      change_24h: -2.5,
-      volume: 45000,
+      ...result,
+      agent: 'spy',
       timestamp: new Date().toISOString()
     };
   }
 
   private static async handleScoutMentions(step: MissionStepRow): Promise<Record<string, unknown>> {
-    // Placeholder implementation - would integrate with social monitoring
+    const spy = new SpyAgent();
+    const result = await spy.scoutMentions();
+    
     return {
-      mentions_count: 42,
-      sentiment_score: 0.65,
-      top_keywords: ["chum", "army", "domination"],
+      ...result,
+      agent: 'spy',
       timestamp: new Date().toISOString()
     };
   }
 
   private static async handleRecruit(step: MissionStepRow): Promise<Record<string, unknown>> {
-    // Placeholder implementation - would integrate with Recruiter agent
+    const recruiter = new RecruiterAgent();
+    const scheme = await this.getSchemeForStep(step);
+    const message = await recruiter.draftRecruitmentTweet(scheme);
+    
     return {
-      recruitment_message: "Join the CHUM Army! World domination awaits! 🎭⚡",
-      target_platforms: ["twitter", "telegram"],
+      recruitment_message: message,
+      agent: 'recruiter',
       timestamp: new Date().toISOString()
     };
   }
 
   private static async handleReview(step: MissionStepRow): Promise<Record<string, unknown>> {
-    // Placeholder implementation - would integrate with Karen agent
+    const karen = new KarenAgent();
+    const scheme = await this.getSchemeForStep(step);
+    const { approved, review } = await karen.reviewScheme(scheme as any);
+    
     return {
-      review_result: "approved",
-      review_notes: "[APPROVED] Surprisingly competent for once. The army might actually advance with this scheme.",
+      review_result: approved ? 'approved' : 'rejected',
+      review_notes: review,
+      agent: 'karen',
       timestamp: new Date().toISOString()
     };
   }
 
   private static async handleCelebrate(step: MissionStepRow): Promise<Record<string, unknown>> {
-    // Placeholder implementation - would integrate with CHUM agent
+    const chum = new ChumAgent();
+    const scheme = await this.getSchemeForStep(step);
+    const celebration = await chum.celebrate(scheme);
+    
     return {
-      celebration_message: "VICTORY ACHIEVED! The army ADVANCES! World domination is within grasp! In Plankton We Trust! 🎭⚡",
-      mood_boost: 15,
+      celebration_message: celebration,
+      agent: 'chum',
       timestamp: new Date().toISOString()
     };
   }

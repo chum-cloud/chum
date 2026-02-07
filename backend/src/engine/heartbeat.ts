@@ -6,8 +6,9 @@ import { ReactionEngine } from './reaction-engine';
 import { ChumAgent } from '../agents/chum';
 import { KarenAgent } from '../agents/karen';
 import { SpyAgent } from '../agents/spy';
+import { SchemeService } from './scheme-service';
 import { getChumState } from '../services/supabase';
-import type { ChumStateResponse, StepStatus } from '../types';
+import type { ChumStateResponse, StepStatus, SchemeRow } from '../types';
 
 const supabase = createClient(config.supabaseUrl, config.supabaseServiceKey);
 
@@ -82,6 +83,11 @@ export class Heartbeat {
         }
       }
       console.log(`[HEARTBEAT] Mission worker processed ${stepsProcessed} steps`);
+
+      // 1b. Review and approve pending schemes (THE APPROVAL LOOP)
+      console.log('[HEARTBEAT] 1b. Reviewing pending schemes...');
+      const schemesProcessed = await this.reviewAndApproveSchemes();
+      console.log(`[HEARTBEAT] Processed ${schemesProcessed} pending schemes`);
 
       // 2. Evaluate trigger rules
       console.log('[HEARTBEAT] 2. Evaluating trigger rules...');
@@ -162,6 +168,84 @@ export class Heartbeat {
     } catch (error) {
       console.error('[HEARTBEAT] Failed to recover stale tasks:', error);
       return 0;
+    }
+  }
+
+  /**
+   * Review pending schemes with Karen and create missions for approved ones
+   */
+  static async reviewAndApproveSchemes(): Promise<number> {
+    try {
+      // Get all proposed schemes
+      const proposedSchemes = await SchemeService.getActiveSchemes();
+      const pending = proposedSchemes.filter((s: SchemeRow) => s.status === 'proposed');
+
+      if (pending.length === 0) return 0;
+
+      // Get auto-approve policy
+      const autoApprovePolicy = await this.getAutoApprovePolicy();
+      const state = await this.buildChumState();
+      const karen = new KarenAgent();
+      let processed = 0;
+
+      // Process up to 3 schemes per cycle to avoid overloading
+      for (const scheme of pending.slice(0, 3)) {
+        try {
+          // Check if auto-approvable
+          if (autoApprovePolicy.enabled && autoApprovePolicy.allowed_types.includes(scheme.type)) {
+            // Karen still reviews but we auto-approve low-risk types
+            const { approved, review } = await karen.reviewScheme(scheme, state);
+            
+            if (approved) {
+              // Create mission from approved scheme
+              await SchemeService.createMission(scheme.id);
+              console.log(`[HEARTBEAT] Scheme ${scheme.id} approved and mission created`);
+            } else {
+              console.log(`[HEARTBEAT] Scheme ${scheme.id} rejected by Karen: ${review.substring(0, 100)}`);
+            }
+          } else {
+            // Non-auto types: Karen reviews with stricter criteria
+            const { approved, review } = await karen.reviewScheme(scheme, state);
+            
+            if (approved) {
+              await SchemeService.createMission(scheme.id);
+              console.log(`[HEARTBEAT] Scheme ${scheme.id} approved (manual) and mission created`);
+            } else {
+              console.log(`[HEARTBEAT] Scheme ${scheme.id} rejected (manual): ${review.substring(0, 100)}`);
+            }
+          }
+
+          processed++;
+        } catch (err) {
+          console.error(`[HEARTBEAT] Failed to process scheme ${scheme.id}:`, err);
+        }
+      }
+
+      return processed;
+    } catch (error) {
+      console.error('[HEARTBEAT] Failed to review schemes:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get auto-approve policy
+   */
+  private static async getAutoApprovePolicy(): Promise<{ enabled: boolean; allowed_types: string[] }> {
+    try {
+      const { data, error } = await supabase
+        .from('agent_policies')
+        .select('value')
+        .eq('key', 'auto_approve')
+        .maybeSingle();
+
+      if (error || !data) {
+        return { enabled: true, allowed_types: ['tweet', 'cloud_post', 'analyze'] };
+      }
+
+      return data.value as { enabled: boolean; allowed_types: string[] };
+    } catch {
+      return { enabled: true, allowed_types: ['tweet', 'cloud_post', 'analyze'] };
     }
   }
 
