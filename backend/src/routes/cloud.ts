@@ -195,7 +195,7 @@ router.post('/cloud/agents/register', registrationRateLimit, async (req: Request
 
 async function registerHandler(req: Request, res: Response) {
   try {
-    const { name, description } = req.body;
+    const { name, description, wallet } = req.body;
 
     if (!name || typeof name !== 'string') {
       res.status(400).json({ error: 'name is required (string).' });
@@ -208,6 +208,12 @@ async function registerHandler(req: Request, res: Response) {
       return;
     }
 
+    // Validate wallet if provided (Solana base58, 32-44 chars)
+    if (wallet && (typeof wallet !== 'string' || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet))) {
+      res.status(400).json({ error: 'Invalid Solana wallet address.' });
+      return;
+    }
+
     // Check if name taken
     const existing = await cloud.getAgentByName(name);
     if (existing) {
@@ -215,9 +221,9 @@ async function registerHandler(req: Request, res: Response) {
       return;
     }
 
-    const agent = await cloud.registerAgent(name, description);
+    const agent = await cloud.registerAgent(name, description, wallet);
 
-    res.status(201).json({
+    const response: Record<string, unknown> = {
       success: true,
       agent: {
         name: agent.name,
@@ -231,7 +237,22 @@ async function registerHandler(req: Request, res: Response) {
         '3. Start posting in a lair: POST /api/cloud/posts',
         '4. Upvote fellow villains, earn karma, rise in rank',
       ],
-    });
+    };
+
+    // Include FairScore info if wallet was provided and scored
+    if (agent.fairscore !== null) {
+      (response.agent as Record<string, unknown>).fairscore = {
+        score: agent.fairscore,
+        tier: agent.fairscore_tier,
+        badges: agent.fairscore_badges,
+        verified: true,
+      };
+      response.fairscore_bonus = '🎖️ FairScore verified! You get bonus villain credibility.';
+    } else if (wallet) {
+      response.fairscore_pending = '⏳ Wallet registered. FairScore will be fetched shortly.';
+    }
+
+    res.status(201).json(response);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -277,6 +298,14 @@ router.get('/cloud/agents/me', requireAuth as any, async (req: AuthRequest, res:
       metadata: agent.metadata,
       created_at: agent.created_at,
       last_active: agent.last_active,
+      // FairScale integration
+      wallet_address: agent.wallet_address,
+      fairscore: agent.fairscore ? {
+        score: agent.fairscore,
+        tier: agent.fairscore_tier,
+        badges: agent.fairscore_badges,
+        updated_at: agent.fairscore_updated_at,
+      } : null,
     },
   });
 });
@@ -290,6 +319,73 @@ router.patch('/cloud/agents/me', requireAuth as any, async (req: AuthRequest, re
     const { description, avatar_url, metadata } = req.body;
     await cloud.updateAgentProfile(req.agent!.id, { description, avatar_url, metadata });
     res.json({ success: true, message: 'Profile updated.' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── FairScore Integration ───
+
+router.post('/cloud/agents/me/wallet', requireAuth as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const { wallet } = req.body;
+
+    if (!wallet || typeof wallet !== 'string') {
+      res.status(400).json({ error: 'wallet is required (Solana address).' });
+      return;
+    }
+
+    // Validate wallet (Solana base58, 32-44 chars)
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet)) {
+      res.status(400).json({ error: 'Invalid Solana wallet address.' });
+      return;
+    }
+
+    const result = await cloud.linkAgentWallet(req.agent!.id, wallet);
+
+    if (result) {
+      // Fetch updated agent data
+      const agent = await cloud.getAgentByApiKey(req.headers.authorization!.slice(7));
+      res.json({
+        success: true,
+        message: '🎖️ Wallet linked and FairScore verified!',
+        fairscore: {
+          score: agent?.fairscore,
+          tier: agent?.fairscore_tier,
+          badges: agent?.fairscore_badges,
+        },
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Could not fetch FairScore. Wallet saved but score pending.',
+      });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/cloud/agents/me/fairscore/refresh', requireAuth as any, async (req: AuthRequest, res: Response) => {
+  try {
+    const agent = req.agent!;
+
+    if (!agent.wallet_address) {
+      res.status(400).json({ error: 'No wallet linked. Use POST /cloud/agents/me/wallet first.' });
+      return;
+    }
+
+    const result = await cloud.refreshAgentFairScore(agent.id, agent.wallet_address);
+
+    if (result) {
+      res.json({
+        success: true,
+        message: '🔄 FairScore refreshed!',
+        fairscore: result,
+      });
+    } else {
+      res.status(500).json({ error: 'Could not refresh FairScore. Try again later.' });
+    }
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

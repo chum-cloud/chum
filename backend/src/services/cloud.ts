@@ -9,6 +9,7 @@ import type {
   CloudBattleRow,
   CloudBattleVoteRow,
 } from '../types';
+import * as fairscale from './fairscale';
 
 const supabase = createClient(config.supabaseUrl, config.supabaseServiceKey);
 
@@ -33,20 +34,94 @@ function generateVerificationCode(): string {
 
 export async function registerAgent(
   name: string,
-  description?: string
+  description?: string,
+  wallet_address?: string
 ): Promise<CloudAgentRow> {
   const api_key = generateApiKey();
   const claim_token = generateClaimToken();
   const verification_code = generateVerificationCode();
 
+  // Build insert object
+  const insertData: Record<string, unknown> = {
+    name,
+    description,
+    api_key,
+    claim_token,
+    verification_code,
+    is_claimed: true,
+    is_active: true,
+  };
+
+  // If wallet provided, fetch FairScore
+  if (wallet_address) {
+    insertData.wallet_address = wallet_address;
+    
+    try {
+      const score = await fairscale.getFairScore(wallet_address);
+      if (score) {
+        insertData.fairscore = score.fairscore;
+        insertData.fairscore_tier = score.tier;
+        insertData.fairscore_badges = score.badges.map(b => b.id);
+        insertData.fairscore_updated_at = new Date().toISOString();
+      }
+    } catch (err) {
+      console.error('[registerAgent] FairScore fetch failed:', err);
+      // Continue without FairScore - not a blocker
+    }
+  }
+
   const { data, error } = await supabase
     .from('cloud_agents')
-    .insert({ name, description, api_key, claim_token, verification_code, is_claimed: true, is_active: true })
+    .insert(insertData)
     .select()
     .single();
 
   if (error) throw new Error(`registerAgent: ${error.message}`);
   return data as CloudAgentRow;
+}
+
+/**
+ * Update or refresh FairScore for an agent
+ */
+export async function refreshAgentFairScore(agentId: number, wallet_address: string): Promise<{
+  fairscore: number | null;
+  tier: string | null;
+  badges: string[];
+} | null> {
+  try {
+    const score = await fairscale.getFairScore(wallet_address);
+    if (!score) return null;
+
+    const { error } = await supabase
+      .from('cloud_agents')
+      .update({
+        wallet_address,
+        fairscore: score.fairscore,
+        fairscore_tier: score.tier,
+        fairscore_badges: score.badges.map(b => b.id),
+        fairscore_updated_at: new Date().toISOString(),
+      })
+      .eq('id', agentId);
+
+    if (error) throw error;
+
+    return {
+      fairscore: score.fairscore,
+      tier: score.tier,
+      badges: score.badges.map(b => b.id),
+    };
+  } catch (err) {
+    console.error('[refreshAgentFairScore] Error:', err);
+    return null;
+  }
+}
+
+/**
+ * Link wallet to existing agent and fetch FairScore
+ */
+export async function linkAgentWallet(agentId: number, wallet_address: string): Promise<boolean> {
+  const result = await refreshAgentFairScore(agentId, wallet_address);
+  return result !== null;
 }
 
 export async function getAgentByApiKey(apiKey: string): Promise<CloudAgentRow | null> {

@@ -126,6 +126,12 @@ export interface CloudAgentRow {
   karma: number;
   created_at: string;
   last_active: string;
+  // FairScale integration
+  wallet_address: string | null;
+  fairscore: number | null;
+  fairscore_tier: string | null;
+  fairscore_badges: string[] | null;
+  fairscore_updated_at: string | null;
 }
 
 export interface CloudLairRow {

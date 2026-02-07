@@ -38,4 +38,7 @@ export const config = {
 
   // Message signing keypair (for verifiable CHUM identity)
   chumSigningKey: process.env.CHUM_SIGNING_KEY || '',
+
+  // FairScale API for reputation scoring
+  fairscaleApiKey: process.env.FAIRSCALE_API_KEY || '',
 } as const;
