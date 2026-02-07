@@ -96,7 +96,7 @@ export async function getFairScoreOnly(wallet: string): Promise<number | null> {
 
     if (!response.ok) return null;
 
-    const data = await response.json();
+    const data = await response.json() as { fairscore?: number };
     return data.fairscore ?? null;
   } catch {
     return null;
