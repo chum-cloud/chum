@@ -16,6 +16,8 @@ function optional(key: string, fallback: string): string {
 export const config = {
   port: parseInt(optional('PORT', '3001'), 10),
 
+  apiBaseUrl: optional('API_BASE_URL', 'https://api.chumcoin.me'),
+
   groqApiKey: required('GROQ_API_KEY'),
 
   supabaseUrl: required('SUPABASE_URL'),

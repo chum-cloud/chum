@@ -217,7 +217,8 @@ export async function insertVillain(
   imageUrl: string,
   metadataUrl: string,
   traits: VillainTraits,
-  donationAmount: number
+  donationAmount: number,
+  rarityScore: number
 ): Promise<VillainRow> {
   const { data, error } = await supabase
     .from('villains')
@@ -227,6 +228,7 @@ export async function insertVillain(
       metadata_url: metadataUrl,
       traits,
       donation_amount: donationAmount,
+      rarity_score: rarityScore,
     })
     .select()
     .single();
@@ -277,13 +279,39 @@ export async function getTodayVillainCount(): Promise<number> {
   return count ?? 0;
 }
 
+export async function getVillainById(id: number): Promise<VillainRow | null> {
+  const { data, error } = await supabase
+    .from('villains')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) throw new Error(`getVillainById: ${error.message}`);
+  return data as VillainRow | null;
+}
+
+export async function updateVillainMetadataUrl(
+  id: number,
+  metadataUrl: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('villains')
+    .update({ metadata_url: metadataUrl })
+    .eq('id', id);
+
+  if (error) throw new Error(`updateVillainMetadataUrl: ${error.message}`);
+}
+
 export async function updateVillainMintSignature(
   walletAddress: string,
   mintSignature: string
 ): Promise<void> {
   const { error } = await supabase
     .from('villains')
-    .update({ mint_signature: mintSignature })
+    .update({ 
+      mint_signature: mintSignature,
+      is_minted: true 
+    })
     .eq('wallet_address', walletAddress);
 
   if (error) throw new Error(`updateVillainMintSignature: ${error.message}`);

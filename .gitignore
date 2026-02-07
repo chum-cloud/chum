@@ -16,3 +16,4 @@ wallets/
 backend/.secrets
 backend/secrets/
 *.secret.json
+demo-assets/

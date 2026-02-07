@@ -8,7 +8,7 @@ import {
   getRecentExpenses,
 } from '../services/supabase';
 import { generateVillainImage } from '../services/gemini';
-import { uploadVillainToIPFS } from '../services/ipfs';
+import { uploadVillainToStorage } from '../services/storage';
 import { insertVillain } from '../services/supabase';
 import { trackCost } from '../services/costs';
 import { getSolPrice, usdToSol } from '../services/price';
@@ -138,19 +138,20 @@ async function generateVillainForDonor(walletAddress: string, amount: number): P
     console.log(`[VILLAIN] Generating for ${walletAddress}...`);
 
     // Generate image
-    const { imageBuffer, traits } = await generateVillainImage();
+    const { imageBuffer, traits, rarityScore } = await generateVillainImage();
     await trackCost('GEMINI_IMAGE');
 
-    // Upload to IPFS
-    const { imageUrl, metadataUrl } = await uploadVillainToIPFS(
+    // Upload to storage
+    const { imageUrl, metadataUrl } = await uploadVillainToStorage(
       imageBuffer,
       traits,
-      walletAddress
+      walletAddress,
+      rarityScore
     );
     await trackCost('IPFS_UPLOAD');
 
     // Save to database
-    const villain = await insertVillain(walletAddress, imageUrl, metadataUrl, traits, amount);
+    const villain = await insertVillain(walletAddress, imageUrl, metadataUrl, traits, amount, rarityScore);
 
     console.log(`[VILLAIN] Created villain #${villain.id} for ${walletAddress}`);
 

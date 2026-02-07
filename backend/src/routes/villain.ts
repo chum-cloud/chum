@@ -1,12 +1,15 @@
 import { Router } from 'express';
 import { generateVillainImage } from '../services/gemini';
-import { uploadVillainToIPFS } from '../services/ipfs';
+import { uploadVillainToStorage, generateMetadata } from '../services/storage';
 import {
   insertVillain,
   getVillainByWallet,
+  getVillainById,
   getAllVillains,
+  updateVillainMetadataUrl,
   updateVillainMintSignature,
 } from '../services/supabase';
+import { config } from '../config';
 
 const router = Router();
 
@@ -43,14 +46,15 @@ router.post('/generate-villain', async (req, res) => {
 
     console.log(`[VILLAIN] Generating for ${walletAddress} (${donationAmount} SOL)`);
 
-    // Generate image via Gemini
-    const { imageBuffer, traits } = await generateVillainImage();
+    // Generate image via Imagen 4.0
+    const { imageBuffer, traits, rarityScore } = await generateVillainImage();
 
-    // Upload to IPFS
-    const { imageUrl, metadataUrl } = await uploadVillainToIPFS(
+    // Upload to Supabase Storage
+    const { imageUrl, metadataUrl } = await uploadVillainToStorage(
       imageBuffer,
       traits,
-      walletAddress
+      walletAddress,
+      rarityScore
     );
 
     // Save to database
@@ -59,8 +63,14 @@ router.post('/generate-villain', async (req, res) => {
       imageUrl,
       metadataUrl,
       traits,
-      donationAmount
+      donationAmount,
+      rarityScore
     );
+
+    // Update metadata URL with actual villain ID
+    const actualMetadataUrl = `${config.apiBaseUrl}/api/villain/${villain.id}/metadata`;
+    await updateVillainMetadataUrl(villain.id, actualMetadataUrl);
+    villain.metadata_url = actualMetadataUrl;
 
     console.log(`[VILLAIN] Created villain #${villain.id} for ${walletAddress}`);
 
@@ -125,6 +135,47 @@ router.get('/villain/:wallet', async (req, res) => {
     console.error('[VILLAIN] Failed to fetch villain:', error);
     res.status(500).json({
       error: 'Failed to fetch villain',
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/villain/:id/metadata
+ * Get NFT-standard metadata for a villain by ID
+ */
+router.get('/villain/:id/metadata', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const villainId = parseInt(id);
+
+    if (isNaN(villainId)) {
+      return res.status(400).json({
+        error: 'Invalid villain ID',
+      });
+    }
+
+    const villain = await getVillainById(villainId);
+
+    if (!villain) {
+      return res.status(404).json({
+        error: 'Villain not found',
+      });
+    }
+
+    const metadata = generateMetadata(
+      villain.id,
+      villain.traits,
+      villain.wallet_address,
+      villain.image_url,
+      villain.rarity_score
+    );
+
+    res.json(metadata);
+  } catch (error: any) {
+    console.error('[VILLAIN] Failed to fetch metadata:', error);
+    res.status(500).json({
+      error: 'Failed to fetch metadata',
       details: error.message,
     });
   }

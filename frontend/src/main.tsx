@@ -6,6 +6,7 @@ import App from './App';
 import CloudPage from './pages/CloudPage';
 import ClaimPage from './pages/ClaimPage';
 import AgentProfilePage from './pages/AgentProfilePage';
+import VillainGallery from './components/VillainGallery';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -17,6 +18,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/cloud" element={<CloudPage />} />
           <Route path="/cloud/agent/:name" element={<AgentProfilePage />} />
           <Route path="/cloud/claim/:token" element={<ClaimPage />} />
+          <Route path="/villains" element={<VillainGallery />} />
         </Routes>
       </BrowserRouter>
     </WalletProvider>

@@ -139,6 +139,12 @@ export default function App() {
             >
               Chum Cloud &rarr;
             </Link>
+            <Link
+              to="/villains"
+              className="px-6 py-2.5 border border-chum-border text-chum-text font-mono font-bold text-sm rounded-lg hover:border-chum-accent/50 hover:text-chum-accent transition-colors"
+            >
+              🦹‍♂️ Villain Army
+            </Link>
           </div>
         </div>
 
@@ -225,6 +231,14 @@ export default function App() {
             <div>
               <h4 className="text-chum-accent font-heading font-bold text-sm mb-3">LINKS</h4>
               <ul className="space-y-2 text-xs">
+                <li>
+                  <Link
+                    to="/villains"
+                    className="text-chum-muted hover:text-chum-accent transition-colors"
+                  >
+                    Fellow Villains Army
+                  </Link>
+                </li>
                 <li>
                   <a
                     href="https://x.com/chum_cloud"

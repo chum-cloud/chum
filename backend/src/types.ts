@@ -106,6 +106,8 @@ export interface VillainRow {
   traits: VillainTraits;
   donation_amount: number;
   mint_signature: string | null;
+  is_minted: boolean;
+  rarity_score: number;
   created_at: string;
 }
 

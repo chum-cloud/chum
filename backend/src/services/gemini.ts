@@ -3,61 +3,123 @@ import type { VillainTraits, BodyColor, Hat, EyeColor, Accessory, Expression, Ba
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-// Trait arrays for randomization
-const BODY_COLORS: BodyColor[] = ['green', 'blue', 'purple', 'red', 'gold', 'teal'];
-const HATS: Hat[] = ['none', 'chef hat', 'crown', 'pirate hat', 'top hat', 'helmet'];
-const EYE_COLORS: EyeColor[] = ['red', 'yellow', 'blue', 'pink', 'gold'];
-const ACCESSORIES: Accessory[] = ['none', 'monocle', 'eyepatch', 'scar', 'sunglasses'];
-const EXPRESSIONS: Expression[] = ['evil grin', 'worried', 'scheming', 'angry', 'happy'];
+// Trait arrays with rarity weights
+const BODY_COLORS: { value: BodyColor; weight: number }[] = [
+  { value: 'green', weight: 30 },
+  { value: 'blue', weight: 20 },
+  { value: 'purple', weight: 15 },
+  { value: 'red', weight: 15 },
+  { value: 'teal', weight: 15 },
+  { value: 'gold', weight: 5 },
+];
+
+const HATS: { value: Hat; weight: number }[] = [
+  { value: 'none', weight: 30 },
+  { value: 'chef hat', weight: 15 },
+  { value: 'top hat', weight: 15 },
+  { value: 'pirate hat', weight: 15 },
+  { value: 'helmet', weight: 15 },
+  { value: 'crown', weight: 10 },
+];
+
+const EYE_COLORS: { value: EyeColor; weight: number }[] = [
+  { value: 'red', weight: 30 },
+  { value: 'yellow', weight: 25 },
+  { value: 'blue', weight: 20 },
+  { value: 'pink', weight: 15 },
+  { value: 'gold', weight: 10 },
+];
+
+const ACCESSORIES: { value: Accessory; weight: number }[] = [
+  { value: 'none', weight: 35 },
+  { value: 'monocle', weight: 20 },
+  { value: 'sunglasses', weight: 15 },
+  { value: 'eyepatch', weight: 15 },
+  { value: 'scar', weight: 15 },
+];
+
+const EXPRESSIONS: { value: Expression; weight: number }[] = [
+  { value: 'evil grin', weight: 25 },
+  { value: 'scheming', weight: 25 },
+  { value: 'angry', weight: 20 },
+  { value: 'worried', weight: 20 },
+  { value: 'happy', weight: 10 },
+];
+
 const BACKGROUNDS: Background[] = ['chum bucket', 'underwater', 'purple', 'orange', 'teal'];
+
+function weightedRandom<T>(arr: { value: T; weight: number }[]): T {
+  const totalWeight = arr.reduce((sum, item) => sum + item.weight, 0);
+  let random = Math.random() * totalWeight;
+  
+  for (const item of arr) {
+    random -= item.weight;
+    if (random <= 0) {
+      return item.value;
+    }
+  }
+  
+  return arr[arr.length - 1].value;
+}
 
 function randomFromArray<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+export function calculateRarityScore(traits: VillainTraits): number {
+  let score = 0;
+  
+  // Add rarity based on trait weights (rarer = higher score)
+  const bodyRarity = BODY_COLORS.find(b => b.value === traits.bodyColor)?.weight || 0;
+  score += (50 - bodyRarity); // Invert weight so rare = high score
+  
+  const hatRarity = HATS.find(h => h.value === traits.hat)?.weight || 0;
+  score += (50 - hatRarity);
+  
+  const eyeRarity = EYE_COLORS.find(e => e.value === traits.eyeColor)?.weight || 0;
+  score += (50 - eyeRarity);
+  
+  const accessoryRarity = ACCESSORIES.find(a => a.value === traits.accessory)?.weight || 0;
+  score += (50 - accessoryRarity);
+  
+  const expressionRarity = EXPRESSIONS.find(e => e.value === traits.expression)?.weight || 0;
+  score += (50 - expressionRarity);
+  
+  return Math.round(score * 10) / 10; // Round to 1 decimal place
+}
+
 export function generateRandomTraits(): VillainTraits {
   return {
-    bodyColor: randomFromArray(BODY_COLORS),
-    hat: randomFromArray(HATS),
-    eyeColor: randomFromArray(EYE_COLORS),
-    accessory: randomFromArray(ACCESSORIES),
-    expression: randomFromArray(EXPRESSIONS),
+    bodyColor: weightedRandom(BODY_COLORS),
+    hat: weightedRandom(HATS),
+    eyeColor: weightedRandom(EYE_COLORS),
+    accessory: weightedRandom(ACCESSORIES),
+    expression: weightedRandom(EXPRESSIONS),
     background: randomFromArray(BACKGROUNDS),
   };
 }
 
 function buildPrompt(traits: VillainTraits): string {
-  const { bodyColor, hat, eyeColor, accessory, expression, background } = traits;
+  const { bodyColor, hat, eyeColor, accessory, expression } = traits;
 
-  let prompt = `Create a pixel art profile picture of Sheldon J. Plankton from SpongeBob SquarePants.
-
-Character description:
-- Small copepod creature with ${bodyColor} body
-- ONE large eye with ${eyeColor} iris (very important - single cyclopean eye)
-- Two antennae on top of head
-- Small arms and legs
-- ${expression} expression`;
-
+  let hatDesc = '';
   if (hat !== 'none') {
-    prompt += `\n- Wearing a ${hat} on head`;
+    hatDesc = hat === 'chef hat' ? 'wearing a white chef hat' :
+              hat === 'crown' ? 'wearing a golden crown' :
+              hat === 'pirate hat' ? 'wearing a black pirate hat with skull and crossbones' :
+              hat === 'top hat' ? 'wearing a black top hat' :
+              hat === 'helmet' ? 'wearing a metallic helmet' : '';
   }
 
+  let accessoryDesc = '';
   if (accessory !== 'none') {
-    prompt += `\n- Has ${accessory} accessory`;
+    accessoryDesc = accessory === 'monocle' ? 'wearing a monocle' :
+                   accessory === 'eyepatch' ? 'wearing an eyepatch' :
+                   accessory === 'scar' ? 'with a scar across the face' :
+                   accessory === 'sunglasses' ? 'wearing cool sunglasses' : '';
   }
 
-  prompt += `\n\nBackground: ${background} themed background`;
-
-  prompt += `\n\nStyle requirements:
-- Pixel art style, 512x512 resolution
-- Clean, vibrant colors
-- Sharp pixel edges, no anti-aliasing blur
-- Centered composition
-- Profile picture format (character takes up most of frame)
-- Retro game aesthetic
-- Make it look like a collectible NFT PFP
-
-CRITICAL: Plankton has ONE EYE ONLY - a single large cyclops eye in the center. Do NOT give him two eyes.`;
+  const prompt = `Half-body portrait of a small ${bodyColor} plankton villain character, 1930s rubber hose cartoon style like Cuphead and Fleischer Studios. ONE large ${eyeColor} cyclops eye, two antennae with ball tips, white gloved hands${hatDesc ? ', ' + hatDesc : ''}. ${accessoryDesc ? accessoryDesc + '. ' : ''}${expression} expression. Thick black outlines, muted vintage palette, dark vignette background with film grain. Circular portrait composition, looking at viewer.`;
 
   return prompt;
 }
@@ -65,38 +127,57 @@ CRITICAL: Plankton has ONE EYE ONLY - a single large cyclops eye in the center. 
 export async function generateVillainImage(traits?: VillainTraits): Promise<{
   imageBuffer: Buffer;
   traits: VillainTraits;
+  rarityScore: number;
 }> {
   const villainTraits = traits || generateRandomTraits();
   const prompt = buildPrompt(villainTraits);
+  const rarityScore = calculateRarityScore(villainTraits);
 
-  console.log('[GEMINI] Generating villain with traits:', villainTraits);
+  console.log('[IMAGEN] Generating villain with traits:', villainTraits);
+  console.log('[IMAGEN] Rarity score:', rarityScore);
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${process.env.GEMINI_API_KEY}`;
+    
+    const payload = {
+      instances: [{ prompt }],
+      parameters: {
+        sampleCount: 1,
+        aspectRatio: "1:1"
+      }
+    };
 
-    const result = await model.generateContent([prompt]);
-    const response = result.response;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
 
-    // Gemini 2.0 Flash returns image in parts
-    const imagePart = response.candidates?.[0]?.content?.parts?.find(
-      (part: any) => part.inlineData?.mimeType?.startsWith('image/')
-    );
+    if (!response.ok) {
+      throw new Error(`Imagen API failed: ${response.status} ${response.statusText}`);
+    }
 
-    if (!imagePart || !imagePart.inlineData) {
-      throw new Error('No image generated by Gemini');
+    const data: any = await response.json();
+
+    if (!data.predictions || !data.predictions[0] || !data.predictions[0].bytesBase64Encoded) {
+      throw new Error('No image generated by Imagen 4.0');
     }
 
     // Convert base64 to buffer
-    const imageBuffer = Buffer.from(imagePart.inlineData.data, 'base64');
+    const imageBase64 = data.predictions[0].bytesBase64Encoded;
+    const imageBuffer = Buffer.from(imageBase64, 'base64');
 
-    console.log('[GEMINI] Image generated successfully, size:', imageBuffer.length, 'bytes');
+    console.log('[IMAGEN] Image generated successfully, size:', imageBuffer.length, 'bytes');
 
     return {
       imageBuffer,
       traits: villainTraits,
+      rarityScore,
     };
   } catch (error) {
-    console.error('[GEMINI] Image generation failed:', error);
+    console.error('[IMAGEN] Image generation failed:', error);
     throw new Error(`Failed to generate villain image: ${error}`);
   }
 }

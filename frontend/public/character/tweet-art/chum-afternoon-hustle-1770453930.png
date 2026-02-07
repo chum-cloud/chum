@@ -1,0 +1,20 @@
+{
+  "error": {
+    "code": 400,
+    "message": "Invalid JSON payload received. Unknown name \"prompt\": Cannot find field.\nInvalid JSON payload received. Unknown name \"aspectRatio\": Cannot find field.",
+    "status": "INVALID_ARGUMENT",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.BadRequest",
+        "fieldViolations": [
+          {
+            "description": "Invalid JSON payload received. Unknown name \"prompt\": Cannot find field."
+          },
+          {
+            "description": "Invalid JSON payload received. Unknown name \"aspectRatio\": Cannot find field."
+          }
+        ]
+      }
+    ]
+  }
+}
