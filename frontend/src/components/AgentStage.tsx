@@ -32,36 +32,10 @@ interface ConversationMessage {
   created_at: string;
 }
 
-interface AgentState {
-  x: number;
-  y: number;
-  offsetX: number;
-  offsetY: number;
-  bubble: string | null;
-  talkingTo: string | null;
-}
-
 export default function AgentStage() {
   const [conversations, setConversations] = useState<ConversationMessage[]>([]);
-  const [agentStates, setAgentStates] = useState<Record<string, AgentState>>({});
   const [tick, setTick] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Initialize agent states
-  useEffect(() => {
-    const states: Record<string, AgentState> = {};
-    for (const [id, pos] of Object.entries(AGENT_POSITIONS)) {
-      states[id] = {
-        x: pos.x,
-        y: pos.y,
-        offsetX: 0,
-        offsetY: 0,
-        bubble: null,
-        talkingTo: null,
-      };
-    }
-    setAgentStates(states);
-  }, []);
 
   // Fetch conversations
   useEffect(() => {
