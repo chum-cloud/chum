@@ -275,15 +275,15 @@ export default function AgentStage() {
       className="relative w-full rounded-lg overflow-hidden border border-chum-border"
       style={{ aspectRatio: '16/9' }}
     >
-      {/* Background — full-bleed underwater lair */}
-      <div className="absolute inset-0 bg-[#060c14]" />
+      {/* Background — underwater office HQ */}
+      <div className="absolute inset-0 bg-[#0a1520]" />
       <img 
-        src="/agents/hq-background-v2.png" 
+        src="/agents/hq-office-1.png" 
         alt="Villain HQ" 
-        className="absolute inset-0 w-full h-full object-cover opacity-70"
-        style={{ filter: 'brightness(0.7) saturate(0.85)' }}
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ filter: 'brightness(1.15) saturate(1.1)' }}
       />
-      <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(4,10,20,0.6) 100%)' }} />
+      <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 50%, rgba(4,10,20,0.4) 100%)' }} />
 
       {/* Connection lines */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
