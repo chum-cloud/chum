@@ -101,7 +101,7 @@ Respond with ONLY the reply text, nothing else.`;
       if (!msg2Id) return 1;
 
       // Step 3: Maybe a third agent chimes in (50% chance)
-      if (Math.random() > 0.5) {
+      if (Math.random() > 0.3) {
         const otherAgents = ['chum', 'karen', 'spy', 'recruiter'].filter(
           a => a !== starter.initiator && a !== starter.target
         );

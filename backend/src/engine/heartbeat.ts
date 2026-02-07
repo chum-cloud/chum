@@ -274,7 +274,7 @@ export class Heartbeat {
       }
 
       // Every 10 min: Agent conversations
-      const conversationInterval = intervals.conversation || 10;
+      const conversationInterval = intervals.conversation || 5;
       if (now - this.lastRun.conversation > conversationInterval * 60 * 1000) {
         console.log('[HEARTBEAT] 5c. Generating agent conversation...');
         const msgCount = await ConversationEngine.generateConversation();
