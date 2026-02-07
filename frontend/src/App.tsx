@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import VisualNovelScene from './components/VisualNovelScene';
 import StatsGrid from './components/StatsGrid';
+import AgentChat from './components/AgentChat';
 import LatestTweet from './components/LatestTweet';
 import CloudPreview from './components/CloudPreview';
 import KeepAlive from './components/KeepAlive';
@@ -166,6 +167,7 @@ export default function App() {
           triggerMap={triggerMap}
         />
         <StatsGrid chum={chum} />
+        <AgentChat />
         <WarChest />
         <KeepAlive />
         {/* CHUM Cloud with live preview */}
