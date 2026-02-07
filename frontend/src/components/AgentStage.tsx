@@ -4,15 +4,15 @@ const API = import.meta.env.VITE_API_URL || '';
 
 // ─── Home positions for each agent (% based, matching rooms on the top-down HQ map) ───
 const AGENT_HOMES: Record<string, { x: number; y: number; zone: string }> = {
-  chum:       { x: 28, y: 18, zone: 'Command Center' },
-  karen:      { x: 15, y: 50, zone: 'Surveillance' },
-  spy:        { x: 72, y: 18, zone: 'Vault' },
-  recruiter:  { x: 18, y: 82, zone: 'Comms' },
-  henchman:   { x: 82, y: 82, zone: 'Workshop' },
-  treasurer:  { x: 82, y: 18, zone: 'Treasury' },
+  chum:       { x: 48, y: 52, zone: 'War Table' },         // Center table
+  karen:      { x: 18, y: 42, zone: 'Surveillance' },      // Left monitors
+  spy:        { x: 55, y: 22, zone: 'Vault' },             // Upper area near vault
+  recruiter:  { x: 25, y: 72, zone: 'Comms' },             // Lower-left comms desk
+  henchman:   { x: 68, y: 72, zone: 'Workshop' },          // Lower-right workshop
+  treasurer:  { x: 80, y: 35, zone: 'Treasury' },          // Right side treasury desk
 };
 
-const MEETING_POINT = { x: 50, y: 55 };
+const MEETING_POINT = { x: 48, y: 50 };
 
 const AGENT_CONFIG: Record<string, { name: string; color: string }> = {
   chum:       { name: 'CHUM',       color: '#4ade80' },
@@ -275,13 +275,15 @@ export default function AgentStage() {
       className="relative w-full rounded-lg overflow-hidden border border-chum-border"
       style={{ aspectRatio: '16/9' }}
     >
-      {/* Background */}
+      {/* Background — deep ocean overlay */}
+      <div className="absolute inset-0 bg-[#050a12]" />
       <img 
         src="/agents/hq-background.png" 
         alt="Villain HQ" 
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 w-full h-full object-cover opacity-40"
+        style={{ filter: 'saturate(0.7) brightness(0.5) hue-rotate(10deg)' }}
       />
-      <div className="absolute inset-0 bg-black/10" />
+      <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 30%, rgba(2,8,20,0.85) 100%)' }} />
 
       {/* Connection lines */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
