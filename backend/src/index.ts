@@ -9,6 +9,7 @@ import villainRouter from './routes/villain';
 import cloudRouter from './routes/cloud';
 import skillRouter from './routes/skill';
 import webhookRouter from './routes/webhook';
+import agentsRouter from './routes/agents';
 import { startBalanceCheck } from './cron/balanceCheck';
 import { startBrainAgent } from './cron/brainAgent';
 import { startPriceMonitor } from './cron/priceMonitor';
@@ -18,6 +19,8 @@ import verifyRouter from './routes/verify';
 import tradingRouter from './routes/trading';
 import chatRouter from './routes/chat';
 import { startEventThoughtListener } from './services/eventThoughts';
+import { Heartbeat } from './engine/heartbeat';
+import { seedAgentSystem, checkSeedingNeeded } from './engine/seed';
 
 const app = express();
 
@@ -44,11 +47,36 @@ app.use('/api', roomRouter);
 app.use('/api/verify', verifyRouter);
 app.use('/api/trading', tradingRouter);
 app.use('/api', chatRouter);
+app.use('/api/agents', agentsRouter);
 
-app.listen(config.port, () => {
+app.listen(config.port, async () => {
   console.log(`[CHUM] Server running on port ${config.port}`);
+  
+  // Start existing cron jobs
   startBalanceCheck();
   startEventThoughtListener();
   startBrainAgent();
   startPriceMonitor();
+  
+  // Initialize agent system
+  try {
+    console.log('[CHUM] Initializing agent system...');
+    
+    // Check if seeding is needed and seed if necessary
+    if (await checkSeedingNeeded()) {
+      console.log('[CHUM] Seeding agent system...');
+      await seedAgentSystem();
+    } else {
+      console.log('[CHUM] Agent system already seeded');
+    }
+    
+    // Start the heartbeat orchestrator
+    console.log('[CHUM] Starting agent heartbeat...');
+    Heartbeat.startHeartbeat();
+    
+    console.log('[CHUM] ✅ Agent system initialized successfully');
+    
+  } catch (error) {
+    console.error('[CHUM] ❌ Failed to initialize agent system:', error);
+  }
 });
