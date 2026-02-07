@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import AgentStage from '../components/AgentStage';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -841,6 +842,11 @@ export default function WarRoom() {
           </div>
         </div>
       )}
+      
+      {/* Agent Stage Map */}
+      <div className="max-w-7xl mx-auto w-full px-4 py-4">
+        <AgentStage />
+      </div>
       
       {/* Tabs */}
       <nav className="bg-chum-surface border-b border-chum-border px-4">
