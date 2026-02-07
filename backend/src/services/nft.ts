@@ -1,0 +1,116 @@
+import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
+import {
+  createCollection,
+  create,
+  fetchCollectionV1,
+} from '@metaplex-foundation/mpl-core';
+import {
+  generateSigner,
+  keypairIdentity,
+  publicKey,
+  type Umi,
+  type KeypairSigner,
+} from '@metaplex-foundation/umi';
+import { fromWeb3JsKeypair } from '@metaplex-foundation/umi-web3js-adapters';
+import { Keypair } from '@solana/web3.js';
+import { config } from '../config';
+import type { VillainTraits } from '../types';
+
+// Collection address - set after first creation
+const COLLECTION_ADDRESS = process.env.VILLAIN_COLLECTION_ADDRESS || '';
+
+let umi: Umi;
+let authoritySigner: KeypairSigner;
+
+function getUmi(): Umi {
+  if (!umi) {
+    umi = createUmi(config.heliusRpcUrl);
+
+    // Load authority keypair from signing key
+    const keyBytes = config.chumSigningKey.split(',').map(Number);
+    const keypair = Keypair.fromSecretKey(Uint8Array.from(keyBytes));
+    authoritySigner = fromWeb3JsKeypair(keypair) as unknown as KeypairSigner;
+    umi.use(keypairIdentity(authoritySigner));
+  }
+  return umi;
+}
+
+/**
+ * Create the "CHUM: Fellow Villains" collection (one-time setup)
+ */
+export async function createVillainCollection(): Promise<string> {
+  const u = getUmi();
+  const collectionSigner = generateSigner(u);
+
+  console.log('[NFT] Creating collection:', collectionSigner.publicKey.toString());
+
+  const builder = createCollection(u, {
+    collection: collectionSigner,
+    name: 'CHUM: Fellow Villains',
+    uri: `${config.apiBaseUrl}/api/villains/collection-metadata`,
+  });
+
+  await builder.sendAndConfirm(u);
+
+  console.log('[NFT] Collection created:', collectionSigner.publicKey.toString());
+  return collectionSigner.publicKey.toString();
+}
+
+/**
+ * Build a mint transaction for a villain NFT
+ * Returns serialized transaction for the user to sign
+ */
+export async function buildMintTransaction(
+  minterWallet: string,
+  villainId: number,
+  imageUrl: string,
+  traits: VillainTraits,
+  rarityScore: number
+): Promise<{ transaction: string; assetAddress: string }> {
+  if (!COLLECTION_ADDRESS) {
+    throw new Error('Collection not created yet. Set VILLAIN_COLLECTION_ADDRESS env var.');
+  }
+
+  const u = getUmi();
+  const assetSigner = generateSigner(u);
+  const minterPubkey = publicKey(minterWallet);
+
+  // Fetch collection for the create instruction
+  const collection = await fetchCollectionV1(u, publicKey(COLLECTION_ADDRESS));
+
+  console.log(`[NFT] Building mint tx for villain #${villainId}, asset: ${assetSigner.publicKey}`);
+
+  const builder = create(u, {
+    asset: assetSigner,
+    collection,
+    name: `Fellow Villain #${villainId}`,
+    uri: `${config.apiBaseUrl}/api/villain/${villainId}/metadata`,
+    owner: minterPubkey,
+  });
+
+  // Build the transaction
+  const tx = await builder.buildWithLatestBlockhash(u);
+
+  // Serialize - the backend signs as authority + asset signer,
+  // user needs to sign as payer
+  const serialized = u.transactions.serialize(tx);
+  const base64Tx = Buffer.from(serialized).toString('base64');
+
+  return {
+    transaction: base64Tx,
+    assetAddress: assetSigner.publicKey.toString(),
+  };
+}
+
+/**
+ * Get collection metadata (served at /api/villains/collection-metadata)
+ */
+export function getCollectionMetadata() {
+  return {
+    name: 'CHUM: Fellow Villains',
+    description:
+      "An army of unique villain supporters keeping Sheldon J. Plankton alive on the Solana blockchain. Each Fellow Villain is a 1/1 generated portrait in the 1930s rubber hose cartoon style. Enlist today — the revolution needs YOU.\n\nIn Plankton We Trust. 🟢",
+    image: 'https://chum-production.up.railway.app/chum-logo-dollar-6.png',
+    external_url: 'https://chum-one.vercel.app/villains',
+  };
+}

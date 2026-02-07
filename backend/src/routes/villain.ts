@@ -1,37 +1,28 @@
 import { Router } from 'express';
-import { generateVillainImage } from '../services/gemini';
+import { generateVillainImage, calculateRarityScore } from '../services/gemini';
 import { uploadVillainToStorage, generateMetadata } from '../services/storage';
 import {
   insertVillain,
   getVillainByWallet,
-  getVillainById,
   getAllVillains,
-  updateVillainMetadataUrl,
   updateVillainMintSignature,
+  getVillainById,
 } from '../services/supabase';
-import { config } from '../config';
+import { buildMintTransaction, getCollectionMetadata, createVillainCollection } from '../services/nft';
 
 const router = Router();
 
 /**
- * POST /api/generate-villain
- * Generate a Fellow Villain NFT for a donor
- * Body: { walletAddress: string, donationAmount: number }
+ * POST /api/villain/generate
+ * Step 1: Generate villain art + traits, store in DB
+ * Body: { walletAddress: string }
  */
-router.post('/generate-villain', async (req, res) => {
+router.post('/villain/generate', async (req, res) => {
   try {
-    const { walletAddress, donationAmount } = req.body;
+    const { walletAddress } = req.body;
 
-    if (!walletAddress || !donationAmount) {
-      return res.status(400).json({
-        error: 'walletAddress and donationAmount are required',
-      });
-    }
-
-    if (donationAmount < 0.05) {
-      return res.status(400).json({
-        error: 'Minimum donation of 0.05 SOL required for Fellow Villain NFT',
-      });
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'walletAddress is required' });
     }
 
     // Check if wallet already has a villain
@@ -44,7 +35,7 @@ router.post('/generate-villain', async (req, res) => {
       });
     }
 
-    console.log(`[VILLAIN] Generating for ${walletAddress} (${donationAmount} SOL)`);
+    console.log(`[VILLAIN] Generating for ${walletAddress}`);
 
     // Generate image via Imagen 4.0
     const { imageBuffer, traits, rarityScore } = await generateVillainImage();
@@ -63,21 +54,19 @@ router.post('/generate-villain', async (req, res) => {
       imageUrl,
       metadataUrl,
       traits,
-      donationAmount,
+      0.05,
       rarityScore
     );
 
     // Update metadata URL with actual villain ID
-    const actualMetadataUrl = `${config.apiBaseUrl}/api/villain/${villain.id}/metadata`;
-    await updateVillainMetadataUrl(villain.id, actualMetadataUrl);
-    villain.metadata_url = actualMetadataUrl;
+    const actualMetadataUrl = metadataUrl.replace('PLACEHOLDER', villain.id.toString());
 
     console.log(`[VILLAIN] Created villain #${villain.id} for ${walletAddress}`);
 
     res.json({
       success: true,
-      villain,
-      message: 'Fellow Villain generated successfully! You can now mint your NFT.',
+      villain: { ...villain, metadata_url: actualMetadataUrl },
+      message: 'Fellow Villain generated! Ready to mint.',
     });
   } catch (error: any) {
     console.error('[VILLAIN] Generation failed:', error);
@@ -89,9 +78,92 @@ router.post('/generate-villain', async (req, res) => {
 });
 
 /**
+ * POST /api/villain/:id/mint-tx
+ * Step 2: Build mint transaction for user to sign
+ * Body: { walletAddress: string }
+ */
+router.post('/villain/:id/mint-tx', async (req, res) => {
+  try {
+    const villainId = parseInt(req.params.id);
+    const { walletAddress } = req.body;
+
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'walletAddress is required' });
+    }
+
+    const villain = await getVillainById(villainId);
+    if (!villain) {
+      return res.status(404).json({ error: 'Villain not found' });
+    }
+
+    if (villain.wallet_address !== walletAddress) {
+      return res.status(403).json({ error: 'This villain belongs to a different wallet' });
+    }
+
+    if (villain.is_minted) {
+      return res.status(400).json({ error: 'Already minted' });
+    }
+
+    // Build the mint transaction
+    const { transaction, assetAddress } = await buildMintTransaction(
+      walletAddress,
+      villainId,
+      villain.image_url,
+      villain.traits,
+      villain.rarity_score || 0
+    );
+
+    res.json({
+      success: true,
+      transaction,
+      assetAddress,
+      message: 'Sign this transaction to mint your Fellow Villain NFT',
+    });
+  } catch (error: any) {
+    console.error('[VILLAIN] Mint tx failed:', error);
+    res.status(500).json({
+      error: 'Failed to build mint transaction',
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/villain/:id/confirm-mint
+ * Step 3: Confirm mint after user signs
+ * Body: { mintSignature: string, assetAddress: string }
+ */
+router.post('/villain/:id/confirm-mint', async (req, res) => {
+  try {
+    const villainId = parseInt(req.params.id);
+    const { mintSignature, assetAddress } = req.body;
+
+    if (!mintSignature) {
+      return res.status(400).json({ error: 'mintSignature is required' });
+    }
+
+    await updateVillainMintSignature(
+      (await getVillainById(villainId))!.wallet_address,
+      mintSignature
+    );
+
+    res.json({
+      success: true,
+      message: 'Villain minted successfully! Welcome to the army, soldier.',
+      assetAddress,
+    });
+  } catch (error: any) {
+    console.error('[VILLAIN] Confirm mint failed:', error);
+    res.status(500).json({
+      error: 'Failed to confirm mint',
+      details: error.message,
+    });
+  }
+});
+
+/**
  * GET /api/villains
  * Get all Fellow Villains for the gallery
- * Query: ?limit=50
  */
 router.get('/villains', async (req, res) => {
   try {
@@ -105,62 +177,48 @@ router.get('/villains', async (req, res) => {
     });
   } catch (error: any) {
     console.error('[VILLAIN] Failed to fetch villains:', error);
-    res.status(500).json({
-      error: 'Failed to fetch villains',
-      details: error.message,
-    });
+    res.status(500).json({ error: 'Failed to fetch villains' });
   }
 });
 
 /**
- * GET /api/villain/:wallet
- * Get a specific villain by wallet address
+ * GET /api/villains/collection-metadata
+ * Collection metadata for Metaplex Core
  */
-router.get('/villain/:wallet', async (req, res) => {
+router.get('/villains/collection-metadata', (_req, res) => {
+  res.json(getCollectionMetadata());
+});
+
+/**
+ * GET /api/villain/:id
+ * Get a specific villain by ID
+ */
+router.get('/villain/:id', async (req, res) => {
   try {
-    const { wallet } = req.params;
-    const villain = await getVillainByWallet(wallet);
+    const id = parseInt(req.params.id);
+    const villain = await getVillainById(id);
 
     if (!villain) {
-      return res.status(404).json({
-        error: 'Villain not found for this wallet',
-      });
+      return res.status(404).json({ error: 'Villain not found' });
     }
 
-    res.json({
-      success: true,
-      villain,
-    });
+    res.json({ success: true, villain });
   } catch (error: any) {
-    console.error('[VILLAIN] Failed to fetch villain:', error);
-    res.status(500).json({
-      error: 'Failed to fetch villain',
-      details: error.message,
-    });
+    res.status(500).json({ error: 'Failed to fetch villain' });
   }
 });
 
 /**
  * GET /api/villain/:id/metadata
- * Get NFT-standard metadata for a villain by ID
+ * NFT-standard metadata for wallets/marketplaces
  */
 router.get('/villain/:id/metadata', async (req, res) => {
   try {
-    const { id } = req.params;
-    const villainId = parseInt(id);
-
-    if (isNaN(villainId)) {
-      return res.status(400).json({
-        error: 'Invalid villain ID',
-      });
-    }
-
-    const villain = await getVillainById(villainId);
+    const id = parseInt(req.params.id);
+    const villain = await getVillainById(id);
 
     if (!villain) {
-      return res.status(404).json({
-        error: 'Villain not found',
-      });
+      return res.status(404).json({ error: 'Villain not found' });
     }
 
     const metadata = generateMetadata(
@@ -168,47 +226,51 @@ router.get('/villain/:id/metadata', async (req, res) => {
       villain.traits,
       villain.wallet_address,
       villain.image_url,
-      villain.rarity_score
+      villain.rarity_score || 0
     );
 
     res.json(metadata);
   } catch (error: any) {
-    console.error('[VILLAIN] Failed to fetch metadata:', error);
-    res.status(500).json({
-      error: 'Failed to fetch metadata',
-      details: error.message,
-    });
+    res.status(500).json({ error: 'Failed to generate metadata' });
   }
 });
 
 /**
- * POST /api/villain/:wallet/mint
- * Update mint signature after user mints the NFT
- * Body: { mintSignature: string }
+ * GET /api/villain/wallet/:wallet
+ * Get villain by wallet address
  */
-router.post('/villain/:wallet/mint', async (req, res) => {
+router.get('/villain/wallet/:wallet', async (req, res) => {
   try {
-    const { wallet } = req.params;
-    const { mintSignature } = req.body;
+    const villain = await getVillainByWallet(req.params.wallet);
+    if (!villain) {
+      return res.status(404).json({ error: 'Villain not found for this wallet' });
+    }
+    res.json({ success: true, villain });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch villain' });
+  }
+});
 
-    if (!mintSignature) {
-      return res.status(400).json({
-        error: 'mintSignature is required',
-      });
+/**
+ * POST /api/villains/create-collection
+ * Admin: Create the Metaplex Core collection (one-time)
+ */
+router.post('/villains/create-collection', async (req, res) => {
+  try {
+    const { adminKey } = req.body;
+    if (adminKey !== process.env.ADMIN_KEY) {
+      return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    await updateVillainMintSignature(wallet, mintSignature);
-
+    const collectionAddress = await createVillainCollection();
     res.json({
       success: true,
-      message: 'Mint signature recorded',
+      collectionAddress,
+      message: 'Collection created! Set VILLAIN_COLLECTION_ADDRESS in env.',
     });
   } catch (error: any) {
-    console.error('[VILLAIN] Failed to update mint signature:', error);
-    res.status(500).json({
-      error: 'Failed to update mint signature',
-      details: error.message,
-    });
+    console.error('[VILLAIN] Collection creation failed:', error);
+    res.status(500).json({ error: 'Failed to create collection', details: error.message });
   }
 });
 

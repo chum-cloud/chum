@@ -1,428 +1,423 @@
-import { useEffect, useState, useMemo } from 'react';
-import type { Villain, BodyColor, Hat, EyeColor, Accessory, Expression } from '../lib/types';
+import { useState, useEffect, useCallback } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { useConnection } from '@solana/wallet-adapter-react';
+import {
+  Transaction,
+  SystemProgram,
+  PublicKey,
+  LAMPORTS_PER_SOL,
+} from '@solana/web3.js';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const API = import.meta.env.VITE_API_URL || 'https://chum-production.up.railway.app';
+const CHUM_WALLET = 'chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T';
+const MINT_PRICE = 0.05; // SOL
 
-type FilterType = 'all' | 'bodyColor' | 'hat' | 'eyeColor' | 'accessory' | 'expression' | 'rarity';
-type SortType = 'newest' | 'oldest' | 'rarity-high' | 'rarity-low';
+interface Villain {
+  id: number;
+  wallet_address: string;
+  image_url: string;
+  traits: {
+    bodyColor: string;
+    hat: string;
+    eyeColor: string;
+    accessory: string;
+    expression: string;
+    background: string;
+  };
+  rarity_score: number;
+  is_minted: boolean;
+  created_at: string;
+}
+
+function getRarityLabel(score: number): { label: string; color: string } {
+  if (score >= 200) return { label: 'Legendary', color: '#FFD700' };
+  if (score >= 160) return { label: 'Epic', color: '#A855F7' };
+  if (score >= 120) return { label: 'Rare', color: '#3B82F6' };
+  if (score >= 80) return { label: 'Uncommon', color: '#22C55E' };
+  return { label: 'Common', color: '#9CA3AF' };
+}
+
+function TraitBadge({ label, value }: { label: string; value: string }) {
+  if (value === 'none') return null;
+  return (
+    <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-white/10 text-gray-300 mr-1 mb-1">
+      {label}: {value}
+    </span>
+  );
+}
+
+function VillainCard({ villain, onClick }: { villain: Villain; onClick: () => void }) {
+  const rarity = getRarityLabel(villain.rarity_score);
+  return (
+    <div
+      onClick={onClick}
+      className="bg-gray-900/80 border border-gray-700 rounded-xl overflow-hidden cursor-pointer hover:border-green-500/50 hover:shadow-lg hover:shadow-green-500/10 transition-all duration-300 group"
+    >
+      <div className="aspect-square overflow-hidden bg-black">
+        <img
+          src={villain.image_url}
+          alt={`Fellow Villain #${villain.id}`}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          loading="lazy"
+        />
+      </div>
+      <div className="p-3">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-white font-bold text-sm">Villain #{villain.id}</span>
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ color: rarity.color, border: `1px solid ${rarity.color}40` }}>
+            {rarity.label}
+          </span>
+        </div>
+        <div className="flex flex-wrap mt-1">
+          <TraitBadge label="Body" value={villain.traits.bodyColor} />
+          <TraitBadge label="Hat" value={villain.traits.hat} />
+          <TraitBadge label="Eye" value={villain.traits.eyeColor} />
+          <TraitBadge label="Acc" value={villain.traits.accessory} />
+        </div>
+        {villain.is_minted && (
+          <div className="mt-2 text-xs text-green-400 flex items-center gap-1">
+            ✓ Minted
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MintWidget() {
+  const { publicKey, sendTransaction, connected } = useWallet();
+  const { connection } = useConnection();
+  const [step, setStep] = useState<'idle' | 'generating' | 'ready' | 'minting' | 'done' | 'error'>('idle');
+  const [villain, setVillain] = useState<Villain | null>(null);
+  const [error, setError] = useState('');
+
+  const handleGenerate = useCallback(async () => {
+    if (!publicKey) return;
+    setStep('generating');
+    setError('');
+
+    try {
+      // Step 1: Generate villain art
+      const genRes = await fetch(`${API}/api/villain/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress: publicKey.toString() }),
+      });
+      const genData = await genRes.json();
+      if (!genData.success) throw new Error(genData.error || 'Generation failed');
+
+      setVillain(genData.villain);
+      setStep('ready');
+    } catch (err: any) {
+      setError(err.message);
+      setStep('error');
+    }
+  }, [publicKey]);
+
+  const handleMint = useCallback(async () => {
+    if (!publicKey || !villain || !sendTransaction) return;
+    setStep('minting');
+    setError('');
+
+    try {
+      // Send 0.05 SOL to CHUM wallet
+      const tx = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: new PublicKey(CHUM_WALLET),
+          lamports: MINT_PRICE * LAMPORTS_PER_SOL,
+        })
+      );
+
+      const signature = await sendTransaction(tx, connection);
+      await connection.confirmTransaction(signature, 'confirmed');
+
+      // Confirm mint
+      await fetch(`${API}/api/villain/${villain.id}/confirm-mint`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mintSignature: signature,
+          assetAddress: '',
+        }),
+      });
+
+      setStep('done');
+    } catch (err: any) {
+      setError(err.message);
+      setStep('error');
+    }
+  }, [publicKey, villain, sendTransaction, connection]);
+
+  const reset = () => {
+    setStep('idle');
+    setVillain(null);
+    setError('');
+  };
+
+  return (
+    <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-green-900/30 border border-green-500/30 rounded-2xl p-6 md:p-8 max-w-lg mx-auto">
+      <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 text-center">
+        🦹 Enlist as a Fellow Villain
+      </h2>
+      <p className="text-gray-400 text-center mb-6 text-sm">
+        Mint your unique 1/1 villain PFP. Join CHUM's army for world domination.
+      </p>
+
+      {!connected ? (
+        <div className="text-center">
+          <p className="text-gray-400 mb-4">Connect your wallet to begin</p>
+          <WalletMultiButton className="!bg-green-600 hover:!bg-green-700 !rounded-xl" />
+        </div>
+      ) : step === 'idle' ? (
+        <div className="text-center">
+          <div className="bg-black/40 rounded-xl p-4 mb-4">
+            <div className="text-3xl mb-2">🫙</div>
+            <p className="text-green-400 font-bold text-lg">{MINT_PRICE} SOL</p>
+            <p className="text-gray-500 text-xs">+ ~0.015 SOL rent</p>
+          </div>
+          <button
+            onClick={handleGenerate}
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl transition-colors text-lg"
+          >
+            Generate My Villain
+          </button>
+          <p className="text-gray-600 text-xs mt-2">Unique traits generated for your wallet</p>
+        </div>
+      ) : step === 'generating' ? (
+        <div className="text-center py-8">
+          <div className="animate-spin text-4xl mb-4">🧪</div>
+          <p className="text-green-400 font-semibold">Generating your villain identity...</p>
+          <p className="text-gray-500 text-sm mt-1">This takes ~10 seconds</p>
+        </div>
+      ) : step === 'ready' && villain ? (
+        <div className="text-center">
+          <div className="rounded-xl overflow-hidden mb-4 max-w-xs mx-auto border-2 border-green-500/50">
+            <img src={villain.image_url} alt="Your Villain" className="w-full" />
+          </div>
+          <div className="mb-4">
+            <p className="text-white font-bold">Fellow Villain #{villain.id}</p>
+            <p className="text-sm" style={{ color: getRarityLabel(villain.rarity_score).color }}>
+              {getRarityLabel(villain.rarity_score).label} — Score: {villain.rarity_score}
+            </p>
+            <div className="flex flex-wrap justify-center gap-1 mt-2">
+              <TraitBadge label="Body" value={villain.traits.bodyColor} />
+              <TraitBadge label="Hat" value={villain.traits.hat} />
+              <TraitBadge label="Eye" value={villain.traits.eyeColor} />
+              <TraitBadge label="Acc" value={villain.traits.accessory} />
+              <TraitBadge label="Exp" value={villain.traits.expression} />
+            </div>
+          </div>
+          <button
+            onClick={handleMint}
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl transition-colors text-lg"
+          >
+            Mint for {MINT_PRICE} SOL
+          </button>
+        </div>
+      ) : step === 'minting' ? (
+        <div className="text-center py-8">
+          <div className="animate-pulse text-4xl mb-4">⚡</div>
+          <p className="text-green-400 font-semibold">Minting your villain...</p>
+          <p className="text-gray-500 text-sm mt-1">Confirm the transaction in your wallet</p>
+        </div>
+      ) : step === 'done' ? (
+        <div className="text-center py-4">
+          <div className="text-5xl mb-4">🦹</div>
+          <p className="text-green-400 font-bold text-xl mb-2">Welcome to the army, soldier!</p>
+          <p className="text-gray-400 text-sm mb-4">
+            Your Fellow Villain NFT has been minted. Check your wallet.
+          </p>
+          <p className="text-green-300 text-xs italic">"In Plankton We Trust."</p>
+          <button
+            onClick={reset}
+            className="mt-4 text-gray-500 hover:text-gray-300 text-sm underline"
+          >
+            Mint another
+          </button>
+        </div>
+      ) : step === 'error' ? (
+        <div className="text-center py-4">
+          <div className="text-4xl mb-3">💀</div>
+          <p className="text-red-400 font-semibold mb-2">Something went wrong</p>
+          <p className="text-gray-500 text-sm mb-4">{error}</p>
+          <button
+            onClick={reset}
+            className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-xl transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export default function VillainGallery() {
   const [villains, setVillains] = useState<Villain[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filterType, setFilterType] = useState<FilterType>('all');
-  const [filterValue, setFilterValue] = useState<string>('');
-  const [sortType, setSortType] = useState<SortType>('newest');
-  const [showFilters, setShowFilters] = useState(false);
+  const [selected, setSelected] = useState<Villain | null>(null);
+  const [filter, setFilter] = useState('all');
+  const [sort, setSort] = useState<'newest' | 'rarity'>('newest');
 
   useEffect(() => {
-    fetchVillains();
+    fetch(`${API}/api/villains?limit=100`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) setVillains(d.villains);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
-  async function fetchVillains() {
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_URL}/api/villains?limit=100`);
-      if (!response.ok) throw new Error('Failed to fetch villains');
-      const data = await response.json();
-      setVillains(data.villains || []);
-      setError(null);
-    } catch (err) {
-      console.error('Failed to fetch villains:', err);
-      setError('Failed to load villains');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const filteredAndSortedVillains = useMemo(() => {
-    let filtered = villains;
-
-    // Apply filters
-    if (filterType !== 'all' && filterValue) {
-      filtered = villains.filter(villain => {
-        switch (filterType) {
-          case 'bodyColor':
-            return villain.traits.bodyColor === filterValue;
-          case 'hat':
-            return villain.traits.hat === filterValue;
-          case 'eyeColor':
-            return villain.traits.eyeColor === filterValue;
-          case 'accessory':
-            return villain.traits.accessory === filterValue;
-          case 'expression':
-            return villain.traits.expression === filterValue;
-          case 'rarity':
-            const rarityThresholds = {
-              'legendary': 180,
-              'epic': 150,
-              'rare': 120,
-              'uncommon': 90,
-              'common': 0
-            };
-            const threshold = rarityThresholds[filterValue as keyof typeof rarityThresholds];
-            return villain.rarity_score >= threshold;
-          default:
-            return true;
-        }
-      });
-    }
-
-    // Apply sorting
-    return filtered.sort((a, b) => {
-      switch (sortType) {
-        case 'newest':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        case 'oldest':
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        case 'rarity-high':
-          return b.rarity_score - a.rarity_score;
-        case 'rarity-low':
-          return a.rarity_score - b.rarity_score;
-        default:
-          return 0;
-      }
-    });
-  }, [villains, filterType, filterValue, sortType]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-chum-bg text-chum-text">
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center py-20">
-            <div className="text-6xl mb-6">🦹‍♂️</div>
-            <div className="text-2xl font-bold text-chum-accent mb-4">Loading the Villain Army...</div>
-            <div className="animate-pulse text-chum-muted">Gathering fellow conspirators...</div>
-          </div>
-        </div>
-      </div>
+  const filtered = villains
+    .filter((v) => {
+      if (filter === 'all') return true;
+      if (filter === 'legendary') return v.rarity_score >= 200;
+      if (filter === 'epic') return v.rarity_score >= 160 && v.rarity_score < 200;
+      if (filter === 'rare') return v.rarity_score >= 120 && v.rarity_score < 160;
+      return v.rarity_score < 120;
+    })
+    .sort((a, b) =>
+      sort === 'rarity'
+        ? b.rarity_score - a.rarity_score
+        : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
-  }
-
-  if (error || villains.length === 0) {
-    return (
-      <div className="min-h-screen bg-chum-bg text-chum-text">
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center py-20">
-            <div className="text-8xl mb-8">👑</div>
-            <div className="text-4xl font-bold text-chum-accent mb-6">
-              No Villains Enlisted Yet
-            </div>
-            <div className="text-xl text-chum-muted mb-8 max-w-2xl mx-auto">
-              Join Plankton's army of world domination! Be the first Fellow Villain and get your 
-              unique NFT identity. Every donation helps keep CHUM alive for another day of scheming.
-            </div>
-            <button className="bg-chum-accent hover:bg-chum-accent/80 text-chum-bg font-bold py-4 px-8 rounded-lg transition-all transform hover:scale-105 text-xl">
-              🚀 Enlist Now - 0.05+ SOL
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-chum-bg text-chum-text">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-chum-surface to-chum-bg border-b-2 border-chum-border">
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold text-chum-accent mb-4 font-heading">
-              🦹‍♂️ Fellow Villains Army
-            </h1>
-            <div className="text-2xl font-bold text-chum-text mb-4">
-              {villains.length} Villains Enlisted
-            </div>
-            <div className="text-chum-muted mb-6">
-              An army of supporters keeping Plankton's dreams alive on Solana
-            </div>
-            <button className="bg-chum-accent hover:bg-chum-accent/80 text-chum-bg font-bold py-3 px-6 rounded-lg transition-all transform hover:scale-105">
-              🚀 Enlist Now
-            </button>
-          </div>
+    <div className="min-h-screen bg-black text-white">
+      {/* Header */}
+      <div className="bg-gradient-to-b from-green-900/40 to-transparent">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <a href="/" className="text-gray-500 hover:text-gray-300 text-sm mb-4 inline-block">
+            ← Back to HQ
+          </a>
+          <h1 className="text-4xl md:text-5xl font-bold mb-2">
+            🦹 Fellow Villains
+          </h1>
+          <p className="text-gray-400 text-lg">
+            {villains.length} villains enlisted in CHUM's army
+          </p>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Filters and Sort */}
-        <div className="bg-chum-surface rounded-xl border-2 border-chum-border p-6 mb-8">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="bg-chum-bg border border-chum-border text-chum-text px-4 py-2 rounded-lg hover:border-chum-accent transition-colors"
+      {/* Mint Section */}
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <MintWidget />
+      </div>
+
+      {/* Gallery */}
+      <div className="max-w-6xl mx-auto px-4 pb-16">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <h2 className="text-2xl font-bold">The Army</h2>
+          <div className="flex gap-2">
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-300"
             >
-              🔍 {showFilters ? 'Hide' : 'Show'} Filters
-            </button>
-
-            <div className="flex items-center gap-4">
-              <label className="text-chum-muted text-sm">Sort by:</label>
-              <select
-                value={sortType}
-                onChange={(e) => setSortType(e.target.value as SortType)}
-                className="bg-chum-bg border border-chum-border text-chum-text px-3 py-2 rounded-lg focus:border-chum-accent focus:outline-none"
-              >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="rarity-high">Highest Rarity</option>
-                <option value="rarity-low">Lowest Rarity</option>
-              </select>
-            </div>
+              <option value="all">All Rarities</option>
+              <option value="legendary">Legendary</option>
+              <option value="epic">Epic</option>
+              <option value="rare">Rare</option>
+              <option value="common">Common</option>
+            </select>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as 'newest' | 'rarity')}
+              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-300"
+            >
+              <option value="newest">Newest</option>
+              <option value="rarity">Rarity</option>
+            </select>
           </div>
-
-          {showFilters && (
-            <div className="mt-6 pt-6 border-t border-chum-border">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <FilterSelect
-                  label="Body Color"
-                  options={['green', 'blue', 'purple', 'red', 'teal', 'gold']}
-                  value={filterType === 'bodyColor' ? filterValue : ''}
-                  onChange={(value) => {
-                    setFilterType('bodyColor');
-                    setFilterValue(value);
-                  }}
-                  onClear={() => {
-                    setFilterType('all');
-                    setFilterValue('');
-                  }}
-                />
-                <FilterSelect
-                  label="Hat"
-                  options={['none', 'chef hat', 'top hat', 'pirate hat', 'helmet', 'crown']}
-                  value={filterType === 'hat' ? filterValue : ''}
-                  onChange={(value) => {
-                    setFilterType('hat');
-                    setFilterValue(value);
-                  }}
-                  onClear={() => {
-                    setFilterType('all');
-                    setFilterValue('');
-                  }}
-                />
-                <FilterSelect
-                  label="Eye Color"
-                  options={['red', 'yellow', 'blue', 'pink', 'gold']}
-                  value={filterType === 'eyeColor' ? filterValue : ''}
-                  onChange={(value) => {
-                    setFilterType('eyeColor');
-                    setFilterValue(value);
-                  }}
-                  onClear={() => {
-                    setFilterType('all');
-                    setFilterValue('');
-                  }}
-                />
-                <FilterSelect
-                  label="Accessory"
-                  options={['none', 'monocle', 'sunglasses', 'eyepatch', 'scar']}
-                  value={filterType === 'accessory' ? filterValue : ''}
-                  onChange={(value) => {
-                    setFilterType('accessory');
-                    setFilterValue(value);
-                  }}
-                  onClear={() => {
-                    setFilterType('all');
-                    setFilterValue('');
-                  }}
-                />
-                <FilterSelect
-                  label="Expression"
-                  options={['evil grin', 'scheming', 'angry', 'worried', 'happy']}
-                  value={filterType === 'expression' ? filterValue : ''}
-                  onChange={(value) => {
-                    setFilterType('expression');
-                    setFilterValue(value);
-                  }}
-                  onClear={() => {
-                    setFilterType('all');
-                    setFilterValue('');
-                  }}
-                />
-                <FilterSelect
-                  label="Rarity"
-                  options={['legendary', 'epic', 'rare', 'uncommon', 'common']}
-                  value={filterType === 'rarity' ? filterValue : ''}
-                  onChange={(value) => {
-                    setFilterType('rarity');
-                    setFilterValue(value);
-                  }}
-                  onClear={() => {
-                    setFilterType('all');
-                    setFilterValue('');
-                  }}
-                />
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Results */}
-        <div className="text-center mb-6">
-          <span className="text-chum-muted">
-            Showing {filteredAndSortedVillains.length} of {villains.length} villains
-          </span>
-        </div>
-
-        {/* Villain Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
-          {filteredAndSortedVillains.map((villain) => (
-            <VillainCard key={villain.id} villain={villain} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="text-center py-16">
+            <div className="animate-spin text-4xl mb-4">🧪</div>
+            <p className="text-gray-500">Loading the army...</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="text-5xl mb-4">👆</div>
+            <p className="text-gray-400 text-lg">No villains yet. Be the first to enlist!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {filtered.map((v) => (
+              <VillainCard key={v.id} villain={v} onClick={() => setSelected(v)} />
+            ))}
+          </div>
+        )}
       </div>
-    </div>
-  );
-}
 
-function FilterSelect({
-  label,
-  options,
-  value,
-  onChange,
-  onClear,
-}: {
-  label: string;
-  options: string[];
-  value: string;
-  onChange: (value: string) => void;
-  onClear: () => void;
-}) {
-  return (
-    <div>
-      <label className="block text-chum-muted text-sm mb-2">{label}</label>
-      <div className="flex gap-2">
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="flex-1 bg-chum-bg border border-chum-border text-chum-text px-3 py-2 rounded-lg focus:border-chum-accent focus:outline-none text-sm"
+      {/* Detail Modal */}
+      {selected && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelected(null)}
         >
-          <option value="">All {label}</option>
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option.charAt(0).toUpperCase() + option.slice(1)}
-            </option>
-          ))}
-        </select>
-        {value && (
-          <button
-            onClick={onClear}
-            className="text-chum-muted hover:text-chum-accent px-2"
-            title="Clear filter"
+          <div
+            className="bg-gray-900 border border-gray-700 rounded-2xl max-w-md w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
           >
-            ✕
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function VillainCard({ villain }: { villain: Villain }) {
-  const [imageLoaded, setImageLoaded] = useState(false);
-
-  const getRarityColor = (score: number) => {
-    if (score >= 180) return 'text-yellow-400'; // Legendary
-    if (score >= 150) return 'text-purple-400'; // Epic
-    if (score >= 120) return 'text-blue-400'; // Rare
-    if (score >= 90) return 'text-green-400'; // Uncommon
-    return 'text-gray-400'; // Common
-  };
-
-  const getRarityLabel = (score: number) => {
-    if (score >= 180) return 'LEGENDARY';
-    if (score >= 150) return 'EPIC';
-    if (score >= 120) return 'RARE';
-    if (score >= 90) return 'UNCOMMON';
-    return 'COMMON';
-  };
-
-  return (
-    <div className="group relative rounded-xl border-2 border-chum-border bg-chum-surface overflow-hidden hover:border-chum-accent transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-chum-accent/25">
-      {/* Image */}
-      <div className="aspect-square bg-chum-bg relative">
-        {!imageLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-chum-muted text-sm animate-pulse">Loading...</div>
-          </div>
-        )}
-        <img
-          src={villain.image_url}
-          alt={`Fellow Villain #${villain.id}`}
-          className={`w-full h-full object-cover transition-opacity duration-300 ${
-            imageLoaded ? 'opacity-100' : 'opacity-0'
-          }`}
-          onLoad={() => setImageLoaded(true)}
-          onError={() => setImageLoaded(true)}
-        />
-        
-        {/* Rarity Badge */}
-        <div className={`absolute top-2 left-2 px-2 py-1 rounded-lg bg-black/80 text-xs font-bold ${getRarityColor(villain.rarity_score)}`}>
-          {getRarityLabel(villain.rarity_score)}
-        </div>
-
-        {/* Mint Status */}
-        {villain.is_minted && (
-          <div className="absolute top-2 right-2 text-chum-accent text-lg" title="Minted as NFT">
-            ✨
-          </div>
-        )}
-      </div>
-
-      {/* Info Bar */}
-      <div className="p-3 bg-chum-bg border-t border-chum-border">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-bold text-chum-accent">
-            #{villain.id}
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-xs text-chum-muted font-mono">
-              {villain.donation_amount} SOL
-            </div>
-            <div className={`text-xs font-bold ${getRarityColor(villain.rarity_score)}`}>
-              {villain.rarity_score}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Detailed Overlay on hover */}
-      <div className="absolute inset-0 bg-black/90 opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-4 flex flex-col justify-between">
-        <div className="space-y-2">
-          <div className="text-chum-accent font-bold text-lg">Fellow Villain #{villain.id}</div>
-          <div className="text-sm space-y-1">
-            <div className="text-chum-text">
-              <span className="text-chum-muted">Body:</span> <span className="capitalize">{villain.traits.bodyColor}</span>
-            </div>
-            <div className="text-chum-text">
-              <span className="text-chum-muted">Hat:</span> <span className="capitalize">{villain.traits.hat}</span>
-            </div>
-            <div className="text-chum-text">
-              <span className="text-chum-muted">Eye:</span> <span className="capitalize">{villain.traits.eyeColor}</span>
-            </div>
-            {villain.traits.accessory !== 'none' && (
-              <div className="text-chum-text">
-                <span className="text-chum-muted">Accessory:</span> <span className="capitalize">{villain.traits.accessory}</span>
+            <img src={selected.image_url} alt={`Villain #${selected.id}`} className="w-full" />
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xl font-bold text-white">Fellow Villain #{selected.id}</h3>
+                <span
+                  className="text-sm font-semibold px-3 py-1 rounded-full"
+                  style={{
+                    color: getRarityLabel(selected.rarity_score).color,
+                    border: `1px solid ${getRarityLabel(selected.rarity_score).color}`,
+                  }}
+                >
+                  {getRarityLabel(selected.rarity_score).label}
+                </span>
               </div>
-            )}
-            <div className="text-chum-text">
-              <span className="text-chum-muted">Expression:</span> <span className="capitalize">{villain.traits.expression}</span>
-            </div>
-            <div className="text-chum-text">
-              <span className="text-chum-muted">Background:</span> <span className="capitalize">{villain.traits.background}</span>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between text-gray-400">
+                  <span>Body</span>
+                  <span className="text-white capitalize">{selected.traits.bodyColor}</span>
+                </div>
+                <div className="flex justify-between text-gray-400">
+                  <span>Hat</span>
+                  <span className="text-white capitalize">{selected.traits.hat}</span>
+                </div>
+                <div className="flex justify-between text-gray-400">
+                  <span>Eye</span>
+                  <span className="text-white capitalize">{selected.traits.eyeColor}</span>
+                </div>
+                <div className="flex justify-between text-gray-400">
+                  <span>Accessory</span>
+                  <span className="text-white capitalize">{selected.traits.accessory}</span>
+                </div>
+                <div className="flex justify-between text-gray-400">
+                  <span>Expression</span>
+                  <span className="text-white capitalize">{selected.traits.expression}</span>
+                </div>
+                <div className="flex justify-between text-gray-400">
+                  <span>Rarity Score</span>
+                  <span className="text-white">{selected.rarity_score}</span>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-gray-800">
+                <p className="text-gray-600 text-xs truncate">
+                  Owner: {selected.wallet_address}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelected(null)}
+                className="mt-4 w-full bg-gray-800 hover:bg-gray-700 text-gray-300 py-2 rounded-xl transition-colors"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
-        <div className="space-y-2">
-          <div className={`text-center font-bold ${getRarityColor(villain.rarity_score)}`}>
-            {getRarityLabel(villain.rarity_score)} ({villain.rarity_score})
-          </div>
-          <div className="text-center text-xs text-chum-accent font-mono">
-            Donated {villain.donation_amount} SOL
-          </div>
-          <div className="text-center text-xs text-chum-muted">
-            Enlisted {new Date(villain.created_at).toLocaleDateString()}
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
