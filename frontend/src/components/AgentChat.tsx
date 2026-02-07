@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 
 interface AgentEvent {
   id: number;
-  agent: string;
+  agent_id: string;
   event_type: string;
   data: Record<string, unknown>;
+  tags: string[];
   created_at: string;
 }
 
@@ -66,8 +67,9 @@ function timeAgo(dateStr: string): string {
 }
 
 function formatEventMessage(event: AgentEvent): string {
-  const agent = AGENT_CONFIG[event.agent as keyof typeof AGENT_CONFIG];
-  const agentName = agent?.name || event.agent;
+  const agentKey = event.agent_id?.toUpperCase() || 'CHUM';
+  const agent = AGENT_CONFIG[agentKey as keyof typeof AGENT_CONFIG];
+  const agentName = agent?.name || event.agent_id;
 
   try {
     const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
@@ -160,13 +162,15 @@ export default function AgentChat() {
 
         // Process events
         if (eventsRes.ok) {
-          const events: AgentEvent[] = await eventsRes.json();
+          const eventsBody = await eventsRes.json();
+          const events: AgentEvent[] = eventsBody.events || eventsBody || [];
           for (const event of events) {
-            const agent = AGENT_CONFIG[event.agent as keyof typeof AGENT_CONFIG];
+            const agentKey = event.agent_id?.toUpperCase() || '';
+            const agent = AGENT_CONFIG[agentKey as keyof typeof AGENT_CONFIG];
             if (agent) {
               allMessages.push({
                 id: `event-${event.id}`,
-                agent: event.agent,
+                agent: agentKey,
                 content: formatEventMessage(event),
                 timestamp: event.created_at,
                 type: 'event'
@@ -177,7 +181,8 @@ export default function AgentChat() {
 
         // Process schemes
         if (schemesRes.ok) {
-          const schemes: Scheme[] = await schemesRes.json();
+          const schemesBody = await schemesRes.json();
+          const schemes: Scheme[] = schemesBody.schemes || schemesBody || [];
           for (const scheme of schemes) {
             allMessages.push({
               id: `scheme-${scheme.id}`,
