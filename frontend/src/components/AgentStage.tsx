@@ -4,24 +4,23 @@ const API = import.meta.env.VITE_API_URL || '';
 
 // ─── Home positions for each agent (% based, matching rooms on the top-down HQ map) ───
 const AGENT_HOMES: Record<string, { x: number; y: number; zone: string }> = {
-  chum:       { x: 28, y: 18, zone: 'Command Center' },    // Top-left, big table
-  karen:      { x: 15, y: 50, zone: 'Surveillance' },      // Mid-left, screens
-  spy:        { x: 72, y: 18, zone: 'Vault' },             // Top-right
-  recruiter:  { x: 18, y: 82, zone: 'Comms' },             // Bottom-left
-  henchman:   { x: 82, y: 82, zone: 'Workshop' },          // Bottom-right
-  treasurer:  { x: 82, y: 18, zone: 'Treasury' },          // Top-right near vault
+  chum:       { x: 28, y: 18, zone: 'Command Center' },
+  karen:      { x: 15, y: 50, zone: 'Surveillance' },
+  spy:        { x: 72, y: 18, zone: 'Vault' },
+  recruiter:  { x: 18, y: 82, zone: 'Comms' },
+  henchman:   { x: 82, y: 82, zone: 'Workshop' },
+  treasurer:  { x: 82, y: 18, zone: 'Treasury' },
 };
 
-// Meeting point — center of the main hall
-const MEETING_POINT = { x: 50, y: 58 };
+const MEETING_POINT = { x: 50, y: 55 };
 
-const AGENT_CONFIG: Record<string, { name: string; color: string; borderColor: string }> = {
-  chum:       { name: 'CHUM',       color: '#4ade80', borderColor: '#4ade80' },
-  karen:      { name: 'KAREN',      color: '#c084fc', borderColor: '#c084fc' },
-  spy:        { name: 'SPY',        color: '#9ca3af', borderColor: '#9ca3af' },
-  recruiter:  { name: 'RECRUITER',  color: '#fb923c', borderColor: '#fb923c' },
-  henchman:   { name: 'HENCHMAN',   color: '#facc15', borderColor: '#facc15' },
-  treasurer:  { name: 'TREASURER',  color: '#34d399', borderColor: '#34d399' },
+const AGENT_CONFIG: Record<string, { name: string; color: string }> = {
+  chum:       { name: 'CHUM',       color: '#4ade80' },
+  karen:      { name: 'KAREN',      color: '#c084fc' },
+  spy:        { name: 'SPY',        color: '#9ca3af' },
+  recruiter:  { name: 'RECRUITER',  color: '#fb923c' },
+  henchman:   { name: 'HENCHMAN',   color: '#facc15' },
+  treasurer:  { name: 'TREASURER',  color: '#34d399' },
 };
 
 interface ConversationMessage {
@@ -30,13 +29,11 @@ interface ConversationMessage {
   data: {
     content?: string;
     reply_to_agent?: string;
-    reply_to_message_id?: number;
-    conversation_starter?: boolean;
   };
   created_at: string;
 }
 
-// ─── Typewriter effect for speech bubbles ───
+// ─── Typewriter effect ───
 function TypewriterText({ text, color }: { text: string; color: string }) {
   const [displayed, setDisplayed] = useState('');
   const [done, setDone] = useState(false);
@@ -65,12 +62,66 @@ function TypewriterText({ text, color }: { text: string; color: string }) {
   );
 }
 
-// Determine which agents are in an active conversation (within last 5 min)
-function getActiveConversation(messages: ConversationMessage[]): {
-  participants: Set<string>;
-  bubbles: Record<string, string>;
-  threads: Array<{ from: string; to: string }>;
-} {
+// ─── Continuous random wandering within a radius ───
+function useWander(homeX: number, homeY: number, radius: number, inConvo: boolean, meetX: number, meetY: number) {
+  const [pos, setPos] = useState({ x: homeX, y: homeY });
+  const targetRef = useRef({ x: homeX, y: homeY });
+  const frameRef = useRef<number>(0);
+  
+  useEffect(() => {
+    if (inConvo) {
+      // Move to meeting point with slight offset
+      const offset = { x: (Math.random() - 0.5) * 10, y: (Math.random() - 0.5) * 6 };
+      setPos({ x: meetX + offset.x, y: meetY + offset.y });
+      return;
+    }
+    
+    // Wander around home
+    const pickNewTarget = () => {
+      targetRef.current = {
+        x: homeX + (Math.random() - 0.5) * radius * 2,
+        y: homeY + (Math.random() - 0.5) * radius * 2,
+      };
+    };
+    
+    pickNewTarget();
+    
+    const move = () => {
+      setPos(prev => {
+        const dx = targetRef.current.x - prev.x;
+        const dy = targetRef.current.y - prev.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < 0.3) {
+          pickNewTarget();
+          return prev;
+        }
+        
+        const speed = 0.08;
+        return {
+          x: prev.x + dx * speed,
+          y: prev.y + dy * speed,
+        };
+      });
+      frameRef.current = requestAnimationFrame(move);
+    };
+    
+    frameRef.current = requestAnimationFrame(move);
+    
+    // Pick new targets periodically
+    const interval = setInterval(pickNewTarget, 2000 + Math.random() * 3000);
+    
+    return () => {
+      cancelAnimationFrame(frameRef.current);
+      clearInterval(interval);
+    };
+  }, [homeX, homeY, radius, inConvo, meetX, meetY]);
+  
+  return pos;
+}
+
+// ─── Get active conversation data ───
+function getActiveConversation(messages: ConversationMessage[]) {
   const fiveMinAgo = Date.now() - 5 * 60 * 1000;
   const recent = messages.filter(m => new Date(m.created_at).getTime() > fiveMinAgo);
   
@@ -78,6 +129,7 @@ function getActiveConversation(messages: ConversationMessage[]): {
   const bubbles: Record<string, string> = {};
   const threads: Array<{ from: string; to: string }> = [];
   
+  // Only keep most recent message per agent
   for (const msg of recent) {
     const agentId = msg.agent_id;
     const content = msg.data?.content || '';
@@ -87,7 +139,7 @@ function getActiveConversation(messages: ConversationMessage[]): {
     if (replyTo) participants.add(replyTo);
     
     if (!bubbles[agentId] && content) {
-      bubbles[agentId] = content.length > 80 ? content.substring(0, 77) + '...' : content;
+      bubbles[agentId] = content.length > 70 ? content.substring(0, 67) + '...' : content;
     }
     
     if (replyTo && !threads.find(t => t.from === agentId && t.to === replyTo)) {
@@ -98,29 +150,103 @@ function getActiveConversation(messages: ConversationMessage[]): {
   return { participants, bubbles, threads };
 }
 
-// Calculate meeting positions for participants (clustered around meeting point)
-function getMeetingPositions(participants: string[]): Record<string, { x: number; y: number }> {
-  const positions: Record<string, { x: number; y: number }> = {};
-  const count = participants.length;
-  const radius = 8; // spread radius in %
+// ─── Single Agent on the map ───
+function AgentAvatar({ 
+  agentId, 
+  isInConvo, 
+  bubble, 
+  bubbleIndex,
+}: { 
+  agentId: string; 
+  isInConvo: boolean; 
+  bubble: string | null;
+  bubbleIndex: number;
+}) {
+  const config = AGENT_CONFIG[agentId];
+  const home = AGENT_HOMES[agentId];
+  const pos = useWander(home.x, home.y, 3, isInConvo, MEETING_POINT.x, MEETING_POINT.y);
   
-  participants.forEach((agent, i) => {
-    const angle = (i / count) * Math.PI * 2 - Math.PI / 2;
-    positions[agent] = {
-      x: MEETING_POINT.x + Math.cos(angle) * radius,
-      y: MEETING_POINT.y + Math.sin(angle) * radius * 0.6, // squish vertically for perspective
-    };
-  });
+  // Stagger bubbles vertically so they don't overlap
+  const bubbleOffset = bubbleIndex * 28;
   
-  return positions;
+  return (
+    <div
+      className="absolute flex flex-col items-center"
+      style={{
+        left: `${pos.x}%`,
+        top: `${pos.y}%`,
+        transform: 'translate(-50%, -50%)',
+        transition: isInConvo ? 'left 1.5s ease-out, top 1.5s ease-out' : 'none',
+        zIndex: isInConvo ? 15 : 10,
+      }}
+    >
+      {/* Speech bubble — positioned above with stagger */}
+      {bubble && (
+        <div 
+          className="absolute left-1/2 -translate-x-1/2 px-3 py-1 rounded shadow-lg pointer-events-none"
+          style={{ 
+            bottom: `calc(100% + ${8 + bubbleOffset}px)`,
+            backgroundColor: 'rgba(0,0,0,0.92)',
+            border: `1px solid ${config.color}60`,
+            whiteSpace: 'nowrap',
+            maxWidth: '320px',
+            overflow: 'hidden',
+            zIndex: 25 + bubbleIndex,
+            fontSize: '11px',
+            fontFamily: 'monospace',
+            lineHeight: '1.4',
+          }}
+        >
+          <TypewriterText text={bubble} color={config.color} />
+          {bubbleIndex === 0 && (
+            <div 
+              className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
+              style={{
+                borderLeft: '5px solid transparent',
+                borderRight: '5px solid transparent',
+                borderTop: '5px solid rgba(0,0,0,0.92)',
+              }}
+            />
+          )}
+        </div>
+      )}
+      
+      {/* Avatar */}
+      <div 
+        className="relative rounded-full overflow-hidden shadow-lg"
+        style={{ 
+          width: '72px', 
+          height: '72px',
+          border: `2.5px solid ${config.color}`,
+          boxShadow: isInConvo ? `0 0 16px ${config.color}60` : `0 2px 8px rgba(0,0,0,0.5)`,
+        }}
+      >
+        <img 
+          src={`/agents/${agentId}.png`}
+          alt={config.name}
+          className="w-full h-full object-cover"
+        />
+      </div>
+      
+      {/* Name */}
+      <div 
+        className="mt-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold whitespace-nowrap"
+        style={{ 
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          color: config.color,
+          border: `1px solid ${config.color}30`,
+        }}
+      >
+        {config.name}
+      </div>
+    </div>
+  );
 }
 
+// ─── Main Stage ───
 export default function AgentStage() {
   const [conversations, setConversations] = useState<ConversationMessage[]>([]);
-  const [tick, setTick] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch conversations
   useEffect(() => {
     let active = true;
     async function fetchConversations() {
@@ -136,43 +262,16 @@ export default function AgentStage() {
     return () => { active = false; clearInterval(interval); };
   }, []);
 
-  // Tick for bobbing animation
-  useEffect(() => {
-    const interval = setInterval(() => setTick(t => t + 1), 2000);
-    return () => clearInterval(interval);
-  }, []);
-
   const { participants, bubbles, threads } = useMemo(
     () => getActiveConversation(conversations),
     [conversations]
   );
 
-  const meetingPositions = useMemo(
-    () => getMeetingPositions([...participants]),
-    [participants]
-  );
-
-  // Get current position for each agent (home or meeting)
-  const getPosition = (agentId: string) => {
-    if (participants.has(agentId) && meetingPositions[agentId]) {
-      return meetingPositions[agentId];
-    }
-    return AGENT_HOMES[agentId];
-  };
-
-  // Gentle bob
-  const getBob = (agentId: string) => {
-    const seed = agentId.charCodeAt(0) + agentId.charCodeAt(agentId.length - 1);
-    const phase = (tick + seed) * 0.5;
-    return {
-      x: Math.sin(phase * 0.7) * 1,
-      y: Math.sin(phase) * 1.5,
-    };
-  };
+  // Assign bubble stagger index per agent
+  const bubbleAgents = Object.keys(bubbles);
 
   return (
     <div 
-      ref={containerRef}
       className="relative w-full rounded-lg overflow-hidden border border-chum-border"
       style={{ aspectRatio: '16/9' }}
     >
@@ -182,121 +281,53 @@ export default function AgentStage() {
         alt="Villain HQ" 
         className="absolute inset-0 w-full h-full object-cover"
       />
-      
-      {/* Slight overlay for readability */}
       <div className="absolute inset-0 bg-black/10" />
 
-      {/* Connection lines between talking agents */}
+      {/* Connection lines */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
         {threads.map(({ from, to }, i) => {
-          const fromPos = getPosition(from);
-          const toPos = getPosition(to);
-          if (!fromPos || !toPos) return null;
+          const fromHome = AGENT_HOMES[from];
+          const toHome = AGENT_HOMES[to];
+          if (!fromHome || !toHome) return null;
+          // When in convo, lines go to meeting point area
+          const inConvo = participants.has(from) && participants.has(to);
           return (
             <line
               key={`${from}-${to}-${i}`}
-              x1={`${fromPos.x}%`}
-              y1={`${fromPos.y}%`}
-              x2={`${toPos.x}%`}
-              y2={`${toPos.y}%`}
-              stroke="rgba(74, 222, 128, 0.35)"
-              strokeWidth="2"
+              x1={`${inConvo ? MEETING_POINT.x - 4 : fromHome.x}%`}
+              y1={`${inConvo ? MEETING_POINT.y : fromHome.y}%`}
+              x2={`${inConvo ? MEETING_POINT.x + 4 : toHome.x}%`}
+              y2={`${inConvo ? MEETING_POINT.y : toHome.y}%`}
+              stroke="rgba(74, 222, 128, 0.4)"
+              strokeWidth="1.5"
               strokeDasharray="6,4"
+              filter="url(#glow)"
             >
-              <animate attributeName="stroke-dashoffset" from="0" to="-20" dur="2s" repeatCount="indefinite" />
+              <animate attributeName="stroke-dashoffset" from="0" to="-20" dur="1.5s" repeatCount="indefinite" />
             </line>
           );
         })}
       </svg>
 
       {/* Agents */}
-      {Object.entries(AGENT_HOMES).map(([agentId]) => {
-        const config = AGENT_CONFIG[agentId];
-        const pos = getPosition(agentId);
-        const bob = getBob(agentId);
-        const bubble = bubbles[agentId];
-        const isInConvo = participants.has(agentId);
-        
-        return (
-          <div
-            key={agentId}
-            className="absolute flex flex-col items-center"
-            style={{
-              left: `${pos.x}%`,
-              top: `${pos.y}%`,
-              transform: `translate(-50%, -50%) translate(${bob.x}px, ${bob.y}px)`,
-              transition: 'left 2s ease-in-out, top 2s ease-in-out, transform 1.5s ease-in-out',
-              zIndex: isInConvo ? 15 : 10,
-            }}
-          >
-            {/* Speech bubble — wide horizontal box with typewriter text */}
-            {bubble && (
-              <div 
-                className="absolute bottom-full mb-2 px-3 py-1.5 rounded-md text-[10px] font-mono shadow-lg pointer-events-none"
-                style={{ 
-                  backgroundColor: 'rgba(0,0,0,0.88)',
-                  border: `1px solid ${config.color}50`,
-                  color: '#e5e7eb',
-                  whiteSpace: 'nowrap',
-                  maxWidth: '280px',
-                  overflow: 'hidden',
-                  zIndex: 20,
-                }}
-              >
-                <TypewriterText text={bubble} color={config.color} />
-                <div 
-                  className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
-                  style={{
-                    borderLeft: '5px solid transparent',
-                    borderRight: '5px solid transparent',
-                    borderTop: '5px solid rgba(0,0,0,0.88)',
-                  }}
-                />
-              </div>
-            )}
-            
-            {/* Agent avatar */}
-            <div 
-              className="relative rounded-full overflow-hidden shadow-lg"
-              style={{ 
-                width: '72px', 
-                height: '72px',
-                border: `2px solid ${config.borderColor}`,
-                boxShadow: isInConvo ? `0 0 14px ${config.color}70` : `0 2px 8px rgba(0,0,0,0.5)`,
-                transition: 'box-shadow 0.5s ease',
-              }}
-            >
-              <img 
-                src={`/agents/${agentId}.png`}
-                alt={config.name}
-                className="w-full h-full object-cover"
-              />
-              {/* Pulse ring when in conversation */}
-              {isInConvo && (
-                <div 
-                  className="absolute inset-0 rounded-full animate-ping"
-                  style={{ 
-                    border: `2px solid ${config.color}`,
-                    opacity: 0.3,
-                  }}
-                />
-              )}
-            </div>
-            
-            {/* Name label */}
-            <div 
-              className="mt-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold whitespace-nowrap"
-              style={{ 
-                backgroundColor: `rgba(0,0,0,0.7)`,
-                color: config.color,
-                border: `1px solid ${config.color}30`,
-              }}
-            >
-              {config.name}
-            </div>
-          </div>
-        );
-      })}
+      {Object.keys(AGENT_HOMES).map((agentId) => (
+        <AgentAvatar
+          key={agentId}
+          agentId={agentId}
+          isInConvo={participants.has(agentId)}
+          bubble={bubbles[agentId] || null}
+          bubbleIndex={bubbleAgents.indexOf(agentId)}
+        />
+      ))}
 
       {/* Status bar */}
       <div className="absolute bottom-0 left-0 right-0 px-3 py-1.5 bg-black/70 flex items-center justify-between text-[10px] font-mono" style={{ zIndex: 20 }}>
@@ -313,8 +344,8 @@ export default function AgentStage() {
         </div>
         <span className="text-gray-500">
           {participants.size > 0 
-            ? `💬 ${participants.size} agents in conversation` 
-            : '😴 Agents at stations'}
+            ? `💬 ${participants.size} agents talking` 
+            : '😴 Agents patrolling'}
         </span>
       </div>
     </div>
