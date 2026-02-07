@@ -143,6 +143,8 @@ export interface CloudLairRow {
   subscriber_count: number;
   post_count: number;
   created_at: string;
+  // FairScale gating
+  fairscore_required: number | null;
 }
 
 export interface CloudPostRow {

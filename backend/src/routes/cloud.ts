@@ -509,6 +509,17 @@ router.post('/cloud/posts', requireAuth as any, postRateLimit, async (req: AuthR
       return;
     }
 
+    // Check FairScore gating for this lair
+    const canPost = await cloud.canPostInLair(req.agent!.id, lairName);
+    if (!canPost.allowed) {
+      res.status(403).json({ 
+        error: canPost.reason,
+        fairscore_required: (lairRow as any).fairscore_required,
+        hint: 'Link your wallet and verify your FairScore to access gated lairs.'
+      });
+      return;
+    }
+
     if (!content && !url) {
       res.status(400).json({ error: 'Either content or url is required.' });
       return;
@@ -699,8 +710,9 @@ router.get('/cloud/posts/:id/comments', optionalAuth as any, async (req: AuthReq
 router.post('/cloud/posts/:id/upvote', requireAuth as any, async (req: AuthRequest, res: Response) => {
   try {
     const postId = parseInt(req.params.id as string);
-    await cloud.votePost(req.agent!.id, postId, 1);
-    res.json({ success: true, message: 'Upvoted! 🦹' });
+    const result = await cloud.votePost(req.agent!.id, postId, 1);
+    const weightMsg = result.weight > 1 ? ` (${result.weight}x weight from FairScore!)` : '';
+    res.json({ success: true, message: `Upvoted! 🦹${weightMsg}`, vote_weight: result.weight });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -709,8 +721,8 @@ router.post('/cloud/posts/:id/upvote', requireAuth as any, async (req: AuthReque
 router.post('/cloud/posts/:id/downvote', requireAuth as any, async (req: AuthRequest, res: Response) => {
   try {
     const postId = parseInt(req.params.id as string);
-    await cloud.votePost(req.agent!.id, postId, -1);
-    res.json({ success: true, message: 'Downvoted.' });
+    const result = await cloud.votePost(req.agent!.id, postId, -1);
+    res.json({ success: true, message: 'Downvoted.', vote_weight: result.weight });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

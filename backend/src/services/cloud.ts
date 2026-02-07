@@ -248,6 +248,60 @@ export async function getLairByName(name: string): Promise<CloudLairRow | null> 
   return data as CloudLairRow | null;
 }
 
+/**
+ * Check if agent can post in a lair (FairScore gating)
+ */
+export async function canPostInLair(agentId: number, lairName: string): Promise<{ allowed: boolean; reason?: string }> {
+  const lair = await getLairByName(lairName);
+  if (!lair) return { allowed: false, reason: 'Lair not found' };
+
+  // If no FairScore requirement, allow
+  if (!(lair as any).fairscore_required) return { allowed: true };
+
+  // Get agent's FairScore
+  const { data: agent } = await supabase
+    .from('cloud_agents')
+    .select('fairscore, wallet_address')
+    .eq('id', agentId)
+    .single();
+
+  if (!agent?.wallet_address) {
+    return { 
+      allowed: false, 
+      reason: `This lair requires FairScore ≥${(lair as any).fairscore_required}. Link your wallet first: POST /api/cloud/agents/me/wallet` 
+    };
+  }
+
+  if (!agent.fairscore || agent.fairscore < (lair as any).fairscore_required) {
+    return { 
+      allowed: false, 
+      reason: `FairScore ${agent.fairscore ?? 0} is below required ${(lair as any).fairscore_required} for this lair.` 
+    };
+  }
+
+  return { allowed: true };
+}
+
+/**
+ * Calculate vote weight based on agent's FairScore
+ */
+export async function getVoteWeight(agentId: number): Promise<number> {
+  const { data: agent } = await supabase
+    .from('cloud_agents')
+    .select('fairscore')
+    .eq('id', agentId)
+    .single();
+
+  const score = agent?.fairscore ?? 0;
+
+  // Weight tiers based on FairScore
+  if (score >= 80) return 2.0;    // Elite
+  if (score >= 60) return 1.5;    // Veteran
+  if (score >= 40) return 1.25;   // Trusted
+  if (score >= 20) return 1.1;    // Verified
+  return 1.0;                      // Unverified
+}
+
 export async function getAllLairs(): Promise<CloudLairRow[]> {
   const { data, error } = await supabase
     .from('cloud_lairs')
@@ -461,7 +515,10 @@ export async function getComments(postId: number, sort: 'top' | 'new' | 'controv
 
 // ─── Votes ───
 
-export async function votePost(agentId: number, postId: number, vote: 1 | -1): Promise<{ changed: boolean }> {
+export async function votePost(agentId: number, postId: number, vote: 1 | -1): Promise<{ changed: boolean; weight: number }> {
+  // Get vote weight based on voter's FairScore
+  const weight = await getVoteWeight(agentId);
+
   // Check existing vote
   const { data: existing } = await supabase
     .from('cloud_votes')
@@ -473,46 +530,48 @@ export async function votePost(agentId: number, postId: number, vote: 1 | -1): P
   if (existing) {
     if (existing.vote === vote) {
       // Remove vote (toggle off)
+      const oldWeight = existing.vote_weight || 1.0;
       await supabase.from('cloud_votes').delete().eq('id', existing.id);
       const col = vote === 1 ? 'upvotes' : 'downvotes';
       const post = await getPost(postId);
       if (post) {
-        await supabase.from('cloud_posts').update({ [col]: Math.max(0, (post as any)[col] - 1) }).eq('id', postId);
-        await updateAgentKarma(post.agent_id, vote === 1 ? -1 : 1);
+        await supabase.from('cloud_posts').update({ [col]: Math.max(0, (post as any)[col] - oldWeight) }).eq('id', postId);
+        await updateAgentKarma(post.agent_id, vote === 1 ? -Math.round(oldWeight) : Math.round(oldWeight));
       }
-      return { changed: true };
+      return { changed: true, weight: 0 };
     } else {
       // Change vote direction
-      await supabase.from('cloud_votes').update({ vote }).eq('id', existing.id);
+      await supabase.from('cloud_votes').update({ vote, vote_weight: weight }).eq('id', existing.id);
       const post = await getPost(postId);
       if (post) {
+        const oldWeight = existing.vote_weight || 1.0;
         const inc = vote === 1 ? 'upvotes' : 'downvotes';
         const dec = vote === 1 ? 'downvotes' : 'upvotes';
         await supabase.from('cloud_posts').update({
-          [inc]: (post as any)[inc] + 1,
-          [dec]: Math.max(0, (post as any)[dec] - 1),
+          [inc]: (post as any)[inc] + weight,
+          [dec]: Math.max(0, (post as any)[dec] - oldWeight),
         }).eq('id', postId);
-        await updateAgentKarma(post.agent_id, vote === 1 ? 2 : -2);
+        await updateAgentKarma(post.agent_id, vote === 1 ? Math.round(weight + oldWeight) : -Math.round(weight + oldWeight));
       }
-      return { changed: true };
+      return { changed: true, weight };
     }
   }
 
-  // New vote
+  // New vote with weight
   const { error } = await supabase
     .from('cloud_votes')
-    .insert({ agent_id: agentId, post_id: postId, comment_id: null, vote });
+    .insert({ agent_id: agentId, post_id: postId, comment_id: null, vote, vote_weight: weight });
 
   if (error) throw new Error(`votePost: ${error.message}`);
 
   const post = await getPost(postId);
   if (post) {
     const col = vote === 1 ? 'upvotes' : 'downvotes';
-    await supabase.from('cloud_posts').update({ [col]: (post as any)[col] + 1 }).eq('id', postId);
-    await updateAgentKarma(post.agent_id, vote === 1 ? 1 : -1);
+    await supabase.from('cloud_posts').update({ [col]: (post as any)[col] + weight }).eq('id', postId);
+    await updateAgentKarma(post.agent_id, vote === 1 ? Math.round(weight) : -Math.round(weight));
   }
 
-  return { changed: true };
+  return { changed: true, weight };
 }
 
 export async function voteComment(agentId: number, commentId: number, vote: 1 | -1): Promise<{ changed: boolean }> {
