@@ -13,6 +13,8 @@ import {
 } from '@metaplex-foundation/umi';
 import { fromWeb3JsKeypair } from '@metaplex-foundation/umi-web3js-adapters';
 import { Keypair } from '@solana/web3.js';
+import { readFileSync } from 'fs';
+import path from 'path';
 import { config } from '../config';
 import type { VillainTraits } from '../types';
 
@@ -26,11 +28,14 @@ function getUmi(): Umi {
   if (!umi) {
     umi = createUmi(config.heliusRpcUrl);
 
-    // Load authority keypair from signing key
-    const keyBytes = config.chumSigningKey.split(',').map(Number);
+    // Load survival wallet keypair (chumAA7...) as collection authority
+    const walletPath = path.join(__dirname, '../../../chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T.json');
+    const keyBytes = JSON.parse(readFileSync(walletPath, 'utf-8'));
     const keypair = Keypair.fromSecretKey(Uint8Array.from(keyBytes));
     authoritySigner = fromWeb3JsKeypair(keypair) as unknown as KeypairSigner;
     umi.use(keypairIdentity(authoritySigner));
+
+    console.log('[NFT] Authority wallet:', keypair.publicKey.toString());
   }
   return umi;
 }
