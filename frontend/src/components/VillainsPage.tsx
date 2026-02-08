@@ -218,7 +218,6 @@ export default function VillainsPage() {
               </a>
             </div>
           </div>
-          </div>
 
           {/* Right: Villain showcase */}
           <div className="hidden md:flex items-center justify-center">
