@@ -509,4 +509,57 @@ router.post('/villains/pool/refill', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/villains/sync
+ * Sync on-chain mints to DB (marks is_minted=true for confirmed mints)
+ */
+router.post('/villains/sync', async (req, res) => {
+  try {
+    const { Connection, PublicKey } = await import('@solana/web3.js');
+    const { createUmi } = await import('@metaplex-foundation/umi-bundle-defaults');
+    const { fetchAssetV1 } = await import('@metaplex-foundation/mpl-core');
+    const { publicKey } = await import('@metaplex-foundation/umi');
+
+    const conn = new Connection(process.env.HELIUS_API_KEY
+      ? `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`
+      : 'https://api.mainnet-beta.solana.com');
+    const umi = createUmi(conn.rpcEndpoint);
+    const collectionAddr = process.env.VILLAIN_COLLECTION_ADDRESS || '';
+
+    const sigs = await conn.getSignaturesForAddress(
+      new PublicKey('chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T'),
+      { limit: 50 }
+    );
+
+    let synced = 0;
+    for (const s of sigs) {
+      if (s.err) continue;
+      const tx = await conn.getTransaction(s.signature, { maxSupportedTransactionVersion: 0 });
+      if (!tx?.meta?.logMessages?.some((l: string) => l.includes('CreateV2'))) continue;
+
+      const assetId = tx.transaction.message.staticAccountKeys[1].toString();
+      try {
+        const asset = await fetchAssetV1(umi, publicKey(assetId));
+        const match = asset.name.match(/#(\d+)/);
+        if (!match) continue;
+        const villainId = parseInt(match[1]);
+        const owner = asset.owner.toString();
+
+        await updateVillainWallet(villainId, owner);
+        await updateVillainMintSignature(owner, s.signature);
+        synced++;
+      } catch (e) {
+        // Asset doesn't exist (failed tx)
+      }
+    }
+
+    const count = await getMintedCount();
+    console.log(`[SYNC] Synced ${synced} mints, total: ${count}`);
+    res.json({ synced, total: count });
+  } catch (error: any) {
+    console.error('[SYNC] Failed:', error);
+    res.status(500).json({ error: 'Sync failed', details: error.message });
+  }
+});
+
 export default router;

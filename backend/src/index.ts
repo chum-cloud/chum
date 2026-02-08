@@ -59,6 +59,17 @@ app.listen(config.port, async () => {
   startEventThoughtListener();
   startBrainAgent();
   startPriceMonitor();
+
+  // Sync on-chain mints every 2 minutes
+  setInterval(async () => {
+    try {
+      const resp = await fetch(`http://localhost:${config.port}/api/villains/sync`, { method: 'POST' });
+      const data = await resp.json() as { synced: number; total: number };
+      if (data.synced > 0) console.log(`[SYNC] Auto-synced ${data.synced} mints, total: ${data.total}`);
+    } catch (e) {
+      // Ignore sync errors
+    }
+  }, 2 * 60 * 1000); // every 2 min
   
   // Initialize agent system
   try {
