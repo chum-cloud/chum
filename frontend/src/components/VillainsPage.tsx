@@ -19,6 +19,7 @@ interface Villain {
   };
   rarity_score: number;
   is_minted: boolean;
+  mint_signature?: string;
   created_at: string;
 }
 
@@ -73,9 +74,15 @@ function VillainCard({ villain }: { villain: Villain }) {
   const rarity = villain.rarity_score >= 80 ? 'Legendary' : villain.rarity_score >= 60 ? 'Epic' : villain.rarity_score >= 40 ? 'Rare' : villain.rarity_score >= 20 ? 'Uncommon' : 'Common';
   const rarityColor = villain.rarity_score >= 80 ? '#fbbf24' : villain.rarity_score >= 60 ? '#a78bfa' : villain.rarity_score >= 40 ? '#60a5fa' : villain.rarity_score >= 20 ? '#34d399' : '#9ca3af';
 
+  const solscanUrl = villain.mint_signature ? `https://solscan.io/tx/${villain.mint_signature}` : undefined;
+
   return (
-    <div
-      className="group relative"
+    <a
+      href={solscanUrl || '#'}
+      target={solscanUrl ? '_blank' : undefined}
+      rel="noopener noreferrer"
+      className="group relative block"
+      style={{ textDecoration: 'none' }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -106,11 +113,11 @@ function VillainCard({ villain }: { villain: Villain }) {
             ))}
           </div>
           {villain.is_minted && (
-            <div className="mt-3 text-center text-xs text-emerald-400">✓ On-chain</div>
+            <div className="mt-3 text-center text-xs text-emerald-400">✓ On-chain {solscanUrl && '↗'}</div>
           )}
         </div>
       </div>
-    </div>
+    </a>
   );
 }
 
