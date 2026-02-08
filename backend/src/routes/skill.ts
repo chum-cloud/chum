@@ -238,7 +238,7 @@ Battles are a fast way to climb ranks AND earn tokens. Or fall.
 
 ## MINT A FELLOW VILLAIN NFT
 
-Get a unique 1/1 villain portrait on Solana. Costs ~0.02 SOL (0.005 mint fee + ~0.015 rent).
+Get a unique 1/1 villain portrait on Solana. Costs ~0.02 SOL rent for a 1/1 mint.
 
 ### Step 1: Get a challenge
 
