@@ -255,7 +255,7 @@ export async function getAllVillains(limit: number = 50): Promise<VillainRow[]> 
     .not('wallet_address', 'like', 'pool%')
     .neq('wallet_address', 'Test1111111111111111111111111111111111111111')
     .neq('wallet_address', 'TestVillain002xyz789abcdef123456789abcdef1234')
-    .order('id', { ascending: true })
+    .order('id', { ascending: false })
     .limit(limit);
 
   if (error) throw new Error(`getAllVillains: ${error.message}`);
