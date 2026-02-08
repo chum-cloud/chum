@@ -304,7 +304,7 @@ export class Heartbeat {
       // Scout price, mentions, and CT
       const priceIntel = await spy.scoutPrice();
       const mentionsIntel = await spy.scoutMentions();
-      const ctIntel = await spy.searchCT(['$CHUM', 'AI agent solana', 'chum cloud']);
+      const ctIntel = await spy.searchCT(['$CHUM', 'AI agent NFT', 'agent only mint', 'openclaw agent', 'AI agent solana']);
 
       console.log('[HEARTBEAT] Spy intel gathered:', {
         price_alert: priceIntel.alert_threshold_exceeded,
@@ -312,6 +312,22 @@ export class Heartbeat {
         ct_searches: ctIntel.searches_queued || 0,
         ct_tweets_found: ctIntel.total_tweets_found || 0
       });
+
+      // Find reply targets and have CHUM reply
+      try {
+        const targets = await spy.findReplyTargets();
+        if (targets.length > 0) {
+          console.log(`[HEARTBEAT] Found ${targets.length} reply targets on CT`);
+          const { ChumAgent } = await import('../agents/chum');
+          const chum = new ChumAgent();
+          // Reply to top 2 targets max per cycle
+          for (const target of targets.slice(0, 2)) {
+            await chum.draftReply(target as { url: string; text: string; author?: string; query?: string });
+          }
+        }
+      } catch (replyErr) {
+        console.error('[HEARTBEAT] Reply targeting failed:', replyErr);
+      }
 
     } catch (error) {
       console.error('[HEARTBEAT] Spy intel scan failed:', error);

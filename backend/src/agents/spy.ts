@@ -266,7 +266,7 @@ Provide a brief tactical assessment using spy terminology. End with a recommenda
   /**
    * Search Crypto Twitter for relevant topics
    */
-  async searchCT(queries: string[] = ['$CHUM', 'AI agent solana', 'chum cloud']): Promise<Record<string, unknown>> {
+  async searchCT(queries: string[] = ['$CHUM', 'AI agent NFT', 'agent only mint', 'openclaw agent', 'AI agent solana']): Promise<Record<string, unknown>> {
     const { queueTask, getTaskResults } = await import('../services/agent-tasks');
     
     // Queue search tasks

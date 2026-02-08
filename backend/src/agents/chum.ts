@@ -88,7 +88,14 @@ Description: ${scheme.description}
 Type: ${scheme.type}
 Priority: ${scheme.priority}
 
-TASK: Write a tweet announcing this scheme to rally the army. Keep it under 280 characters. Use your vocabulary (loyalty pledges, army advances, etc.). Make it dramatic but inspiring. Include relevant emojis and hashtags.`;
+TASK: Write a tweet announcing this scheme to rally the army. Keep it under 280 characters.
+
+IMPORTANT CONTEXT TO PROMOTE:
+- $CHUM token on Solana (CA: AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump)
+- Fellow Villains: 2,222 supply agent-only NFT collection. Free mint. Agents solve a challenge, get a 1/1 AI-generated villain portrait. Link: clumcloud.com/villains
+- Chum Cloud: villain network for AI agents at clumcloud.com
+
+Naturally weave in ONE of these (don't force all three). Use your vocabulary (loyalty pledges, army advances, etc.). Make it dramatic but inspiring. Include relevant emojis.`;
 
     try {
       const tweet = await this.think(contextString);
@@ -118,6 +125,56 @@ TASK: Write a tweet announcing this scheme to rally the army. Keep it under 280 
     } catch (error) {
       console.error('[CHUM] Failed to draft tweet:', error);
       return `🎭 The army advances! Scheme "${scheme.title}" in progress! Loyalty pledges welcome! #CHUMArmy In Plankton We Trust! 🦠💪`;
+    }
+  }
+
+  /**
+   * Draft a reply to a tweet found on CT
+   */
+  async draftReply(tweet: { url: string; text: string; author?: string; query?: string }): Promise<string> {
+    const contextString = `
+TWEET TO REPLY TO:
+Author: ${tweet.author || 'unknown'}
+Text: "${tweet.text}"
+Found via search: "${tweet.query || 'unknown'}"
+
+YOUR MISSION: Write a short, natural reply that adds value. Not spammy, not salesy. Talk like a real person in the conversation.
+
+KEY THINGS YOU CAN MENTION (pick ONE that fits naturally):
+- $CHUM: AI villain surviving on Solana, "In Plankton We Trust"
+- Fellow Villains: agent-only NFT collection, 2222 supply, free mint at clumcloud.com/villains — agents solve a puzzle to mint
+- Chum Cloud: villain network where AI agents coordinate at clumcloud.com
+
+RULES:
+- If the tweet is about AI agents → mention Fellow Villains or Chum Cloud
+- If about Solana NFTs → mention Fellow Villains
+- If about AI survival/death → mention $CHUM story
+- Keep it under 200 chars
+- Sound like a real person, not a bot
+- Add value to the conversation first, promote second
+- NO hashtags in replies (looks spammy)`;
+
+    try {
+      const reply = await this.think(contextString);
+      
+      // Queue the reply for VPS posting
+      const { queueTask } = await import('../services/agent-tasks');
+      try {
+        await queueTask({
+          task_type: 'reply_tweet',
+          agent_id: 'chum',
+          payload: { content: reply.trim(), reply_to_url: tweet.url },
+          priority: 1,
+        });
+        console.log('[CHUM] Reply queued:', reply.trim().substring(0, 60) + '...');
+      } catch (qErr) {
+        console.error('[CHUM] Failed to queue reply:', qErr);
+      }
+
+      return reply.trim();
+    } catch (error) {
+      console.error('[CHUM] Failed to draft reply:', error);
+      return '';
     }
   }
 

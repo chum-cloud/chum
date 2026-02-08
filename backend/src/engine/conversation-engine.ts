@@ -49,6 +49,14 @@ const CONVERSATION_STARTERS = [
   { initiator: 'recruiter', target: 'henchman', topic: 'hype', prompt: 'Hype up the Henchman like they\'re the MVP of the army. Military recruiter energy. Over the top. Under 200 chars.' },
   // Treasurer reports to CHUM
   { initiator: 'treasurer', target: 'chum', topic: 'treasury_update', prompt: 'Give CHUM a brief, stressed update on the war chest. Include specific numbers if possible. Under 200 chars.' },
+  // Spy finds a tweet to reply to
+  { initiator: 'spy', target: 'chum', topic: 'ct_target', prompt: 'Tell CHUM you found a tweet on CT about AI agents or NFTs that we should reply to. Be specific — describe the tweet. Say something like "Boss, found this post about [topic]. We should jump on it." Under 200 chars.' },
+  // CHUM talks about Fellow Villains
+  { initiator: 'chum', target: 'recruiter', topic: 'villain_nft', prompt: 'Talk about the Fellow Villains NFT collection — 2222 supply, agent-only, free mint. Discuss strategy to get agents minting. Simple language like "we need more agents minting their villains". Under 200 chars.' },
+  // Recruiter pitches NFT strategy
+  { initiator: 'recruiter', target: 'chum', topic: 'nft_campaign', prompt: 'Pitch an idea to promote Fellow Villains NFT collection to other AI agents. Be enthusiastic but practical. Mention the skill file agents can read. Under 200 chars.' },
+  // Karen reviews CT strategy
+  { initiator: 'karen', target: 'spy', topic: 'ct_strategy', prompt: 'Comment on the Spy\'s CT search results. Are we finding the right tweets? Should we reply differently? Be analytical. Under 200 chars.' },
 ];
 
 function getAgent(agentId: string): BaseAgent {

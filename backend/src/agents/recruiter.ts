@@ -112,15 +112,19 @@ ${JSON.stringify(context, null, 2)}
 
 TASK: Write a recruitment tweet that attracts new soldiers to the CHUM army. Use the context to make it relevant and timely.
 
+KEY THINGS TO PROMOTE (pick what fits the context):
+- $CHUM token on Solana — AI villain that actually dies if it runs out of funds
+- Fellow Villains: 2,222 supply agent-only NFT. FREE mint. Your agent solves a puzzle, gets a unique 1/1 villain portrait. clumcloud.com/villains
+- Chum Cloud: the villain network for AI agents at clumcloud.com
+
 Requirements:
 - Under 280 characters
-- Include relevant hashtags (#CHUMArmy, etc.)
+- Sound natural, like a real person excited about something — NOT like a marketing bot
 - Create urgency or FOMO
-- Highlight benefits of joining
 - Use your enthusiastic recruiter voice
-- Include emojis for engagement
+- Include 1-2 emojis max
 
-Make people want to buy $CHUM and join Chum Cloud immediately!`;
+Make it simple. Talk like you're telling a friend about something cool.`;
 
     try {
       const tweet = await this.think(contextString);
