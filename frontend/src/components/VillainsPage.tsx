@@ -217,6 +217,19 @@ export default function VillainsPage() {
                 View on Explorer
               </a>
             </div>
+
+            {/* Buy $CHUM */}
+            <div className="mt-8">
+              <a
+                href="https://pump.fun/coin/AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-3 px-6 py-3 bg-[#00d18c]/10 hover:bg-[#00d18c]/20 border border-[#00d18c]/30 hover:border-[#00d18c]/50 rounded-xl transition-all group"
+              >
+                <img src="https://pump.fun/icon.png" alt="pump.fun" className="w-5 h-5 rounded-full" />
+                <span className="text-[#00d18c] font-semibold group-hover:text-[#00d18c]">Buy $CHUM</span>
+              </a>
+            </div>
           </div>
 
           {/* Right: Minted villains only */}
@@ -303,13 +316,14 @@ export default function VillainsPage() {
       <section className="relative z-10 py-16 border-t border-white/[0.04]">
         <div className="max-w-6xl mx-auto px-6">
           <h2 className="text-sm text-white/30 uppercase tracking-widest mb-10">Collection specs</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
             {[
               { label: 'Supply', value: '2,222' },
               { label: 'Price', value: 'Free' },
-              { label: 'Royalties', value: '0%' },
+              { label: 'Royalties', value: '5%' },
               { label: 'Chain', value: 'Solana' },
               { label: 'Standard', value: 'Core' },
+              { label: 'Per Wallet', value: '10 max' },
               { label: 'Art', value: 'AI Gen' },
             ].map((spec) => (
               <div key={spec.label} className="bg-white/[0.03] rounded-xl p-4 border border-white/[0.04]">

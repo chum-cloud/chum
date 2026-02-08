@@ -3,6 +3,7 @@ import {
   createCollection,
   create,
   fetchCollectionV1,
+  ruleSet,
 } from '@metaplex-foundation/mpl-core';
 import {
   generateSigner,
@@ -85,12 +86,23 @@ export async function buildMintTransaction(
 
   console.log(`[NFT] Building mint tx for villain #${villainId}, asset: ${assetSigner.publicKey}`);
 
+  // Survival wallet receives royalties
+  const authorityPubkey = u.identity.publicKey;
+
   const builder = create(u, {
     asset: assetSigner,
     collection,
     name: `Fellow Villain #${villainId}`,
     uri: `${config.apiBaseUrl}/api/villain/${villainId}/metadata`,
     owner: minterPubkey,
+    plugins: [
+      {
+        type: 'Royalties',
+        basisPoints: 500, // 5%
+        creators: [{ address: authorityPubkey, percentage: 100 }],
+        ruleSet: ruleSet('None'),
+      },
+    ],
   });
 
   // Build the transaction

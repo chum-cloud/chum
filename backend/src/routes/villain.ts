@@ -12,9 +12,10 @@ import {
 } from '../services/supabase';
 import { buildMintTransaction, getCollectionMetadata, createVillainCollection } from '../services/nft';
 import { createChallenge, verifyChallenge } from '../services/challenge';
-import { getVillainCount } from '../services/supabase';
+import { getVillainCount, getVillainCountByWallet } from '../services/supabase';
 
 const MAX_SUPPLY = 2222;
+const MAX_PER_WALLET = 10;
 const router = Router();
 
 // ─── Agent Mint Flow (Claws-style) ───
@@ -75,16 +76,16 @@ router.post('/villain/agent-mint', async (req, res) => {
       return res.status(400).json({ error: `Supply cap reached (${MAX_SUPPLY}/${MAX_SUPPLY}). No more villains can be minted.` });
     }
 
-    // Check existing villain
-    const existing = await getVillainByWallet(walletAddress);
-    if (existing && existing.is_minted) {
-      return res.status(400).json({ error: 'Wallet already has a minted villain' });
+    // Check wallet limit (10 per wallet)
+    const walletCount = await getVillainCountByWallet(walletAddress);
+    if (walletCount >= MAX_PER_WALLET) {
+      return res.status(400).json({ error: `Wallet limit reached (${MAX_PER_WALLET} per wallet)` });
     }
 
-    let villain = existing;
+    let villain: any = null;
 
-    // Generate if no existing villain
-    if (!villain) {
+    // Always generate a new villain
+    {
       console.log(`[VILLAIN-AGENT] Generating villain for ${walletAddress}`);
       const { imageBuffer, traits, rarityScore } = await generateVillainImage();
       const { imageUrl, metadataUrl } = await uploadVillainToStorage(
@@ -169,14 +170,10 @@ router.post('/villain/generate', async (req, res) => {
       return res.status(400).json({ error: `Supply cap reached (${MAX_SUPPLY}/${MAX_SUPPLY}). No more villains can be minted.` });
     }
 
-    // Check if wallet already has a villain
-    const existing = await getVillainByWallet(walletAddress);
-    if (existing) {
-      return res.json({
-        success: true,
-        villain: existing,
-        message: 'Villain already exists for this wallet',
-      });
+    // Check wallet limit (10 per wallet)
+    const walletCount = await getVillainCountByWallet(walletAddress);
+    if (walletCount >= MAX_PER_WALLET) {
+      return res.status(400).json({ error: `Wallet limit reached (${MAX_PER_WALLET} per wallet)` });
     }
 
     console.log(`[VILLAIN] Generating for ${walletAddress}`);

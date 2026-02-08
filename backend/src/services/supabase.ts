@@ -259,6 +259,15 @@ export async function getAllVillains(limit: number = 50): Promise<VillainRow[]> 
   return (data ?? []) as VillainRow[];
 }
 
+export async function getVillainCountByWallet(walletAddress: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('villains')
+    .select('*', { count: 'exact', head: true })
+    .eq('wallet_address', walletAddress);
+  if (error) throw new Error(`getVillainCountByWallet: ${error.message}`);
+  return count ?? 0;
+}
+
 export async function getVillainCount(): Promise<number> {
   const { count, error } = await supabase
     .from('villains')
