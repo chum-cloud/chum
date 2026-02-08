@@ -252,7 +252,6 @@ export async function getAllVillains(limit: number = 50): Promise<VillainRow[]> 
   const { data, error } = await supabase
     .from('villains')
     .select('*')
-    .not('mint_address', 'is', null)
     .order('id', { ascending: true })
     .limit(limit);
 
