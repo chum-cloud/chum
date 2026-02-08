@@ -74,9 +74,9 @@ const SPEC_CARDS = [
   { label: 'STANDARD', value: 'METAPLEX CORE' },
 ];
 
-function CornerBrackets({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+function CornerBrackets({ children, className = '', style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
-    <div className={`villain-panel relative ${className}`}>
+    <div className={`villain-panel relative ${className}`} style={style}>
       <div className="corner-bracket corner-tl" />
       <div className="corner-bracket corner-tr" />
       <div className="corner-bracket corner-bl" />
@@ -157,8 +157,6 @@ export default function VillainsPage() {
     }
     fetchVillains();
   }, []);
-
-  const mintedCount = villains.filter(v => v.is_minted).length;
 
   return (
     <div className="villains-page min-h-screen">
