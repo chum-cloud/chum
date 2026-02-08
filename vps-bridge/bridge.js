@@ -75,11 +75,19 @@ function checkRateLimit() {
 async function postTweet(page, content) {
   console.log(`[bridge] Posting tweet: "${content.substring(0, 50)}..."`);
   
-  await page.goto('https://x.com/compose/post', { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await sleep(2000);
+  await page.goto('https://x.com/compose/post', { waitUntil: 'networkidle2', timeout: 60000 });
+  await sleep(5000);
 
-  // Type into the compose box
-  const editor = await page.waitForSelector('[data-testid="tweetTextarea_0"]', { timeout: 10000 });
+  // Debug: screenshot if selector not found quickly
+  let editor;
+  try {
+    editor = await page.waitForSelector('[data-testid="tweetTextarea_0"]', { timeout: 15000 });
+  } catch (e) {
+    // Try alternate: the contenteditable div
+    console.log('[bridge] Primary selector failed, trying alternate...');
+    await page.screenshot({ path: '/root/chum-bridge/debug-compose.png' });
+    editor = await page.waitForSelector('div[contenteditable="true"][role="textbox"]', { timeout: 10000 });
+  }
   await editor.click();
   await sleep(500);
   
@@ -89,16 +97,21 @@ async function postTweet(page, content) {
   }
   await sleep(1000);
 
-  // Click post button
-  const postBtn = await page.waitForSelector('[data-testid="tweetButton"]', { timeout: 5000 });
-  await postBtn.click();
-  await sleep(3000);
-
-  // Try to get the posted tweet URL
-  const currentUrl = page.url();
-  tweetsThisHour++;
+  // Use Ctrl+Enter to post (most reliable method — avoids selector issues with Post button)
+  console.log('[bridge] Submitting tweet via Ctrl+Enter...');
+  await page.keyboard.down('Control');
+  await page.keyboard.press('Enter');
+  await page.keyboard.up('Control');
+  await sleep(5000);
   
-  return { success: true, url: currentUrl, postedAt: new Date().toISOString() };
+  // Take post-submit screenshot
+  await page.screenshot({ path: '/root/chum-bridge/debug-post-submit.png' });
+  
+  const finalUrl = page.url();
+  tweetsThisHour++;
+  console.log(`[bridge] Post complete. Final URL: ${finalUrl}`);
+  
+  return { success: true, url: finalUrl, postedAt: new Date().toISOString() };
 }
 
 async function replyToTweet(page, replyToUrl, content) {
