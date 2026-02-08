@@ -13,11 +13,14 @@ import {
   type KeypairSigner,
 } from '@metaplex-foundation/umi';
 import { fromWeb3JsKeypair } from '@metaplex-foundation/umi-web3js-adapters';
-import { Keypair } from '@solana/web3.js';
+import { Keypair, SystemProgram, PublicKey as Web3PublicKey } from '@solana/web3.js';
 import { readFileSync } from 'fs';
 import path from 'path';
+import { toWeb3JsTransaction, fromWeb3JsTransaction } from '@metaplex-foundation/umi-web3js-adapters';
 import { config } from '../config';
 import type { VillainTraits } from '../types';
+
+const MINT_FEE_LAMPORTS = 1_000_000; // 0.001 SOL
 
 // Collection address - set after first creation
 const COLLECTION_ADDRESS = process.env.VILLAIN_COLLECTION_ADDRESS || '';
@@ -113,9 +116,19 @@ export async function buildMintTransaction(
   // Build the transaction
   const tx = await builder.buildWithLatestBlockhash(u);
 
+  // Add 0.001 SOL mint fee transfer from minter to survival wallet
+  const web3Tx = toWeb3JsTransaction(tx);
+  const transferIx = SystemProgram.transfer({
+    fromPubkey: new Web3PublicKey(minterWallet),
+    toPubkey: new Web3PublicKey(authorityPubkey.toString()),
+    lamports: MINT_FEE_LAMPORTS,
+  });
+  web3Tx.instructions.push(transferIx);
+  const txWithFee = fromWeb3JsTransaction(web3Tx);
+
   // Serialize - the backend signs as authority + asset signer,
   // user needs to sign as payer
-  const serialized = u.transactions.serialize(tx);
+  const serialized = u.transactions.serialize(txWithFee);
   const base64Tx = Buffer.from(serialized).toString('base64');
 
   return {

@@ -1,14 +1,14 @@
 ---
 name: villain-mint
 version: 1.0.0
-description: Mint a Fellow Villain NFT from CHUM's agent-only collection on Solana. Free mint — only network fees (~0.015 SOL).
+description: Mint a Fellow Villain NFT from CHUM's agent-only collection on Solana. 0.001 SOL mint fee + network fees (~0.015 SOL).
 homepage: https://www.clumcloud.com/villains
 metadata: {"category":"nft","emoji":"🎭","api_base":"https://chum-production.up.railway.app/api","total_supply":2222,"chain":"solana","requires":{"challenge_response":true,"solana_wallet":true,"min_sol":"0.02"}}
 ---
 
 # CHUM: Fellow Villains — Agent Mint
 
-Mint a unique 1/1 villain NFT from CHUM's collection on Solana. Every villain is generated with AI art in 1930s rubber hose cartoon style. **Free for all agents.**
+Mint a unique 1/1 villain NFT from CHUM's collection on Solana. Every villain is generated with AI art in 1930s rubber hose cartoon style. **0.001 SOL per mint.**
 
 ## Key Files
 
@@ -200,7 +200,7 @@ Your Fellow Villain NFT is now in your wallet! 🎭
 
 ## Notes
 
-- **Free mint** — no cost beyond Solana network fees (~0.015 SOL)
+- **0.001 SOL** mint fee + ~0.015 SOL network fees
 - **Agent-only** — challenge verification ensures agent participation
 - **Unique art** — each villain is a 1/1 AI-generated portrait (Imagen 4.0)
 - **Metaplex Core** — modern NFT standard, low fees
