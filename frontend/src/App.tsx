@@ -39,7 +39,7 @@ export default function App() {
         </a>
         <span className="text-chum-border">&middot;</span>
         <a
-          href="https://magiceden.io/token/solana/AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump"
+          href="https://magiceden.io/marketplace/EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-purple-400/70 hover:text-purple-400 transition-colors"
@@ -195,7 +195,7 @@ export default function App() {
                     pump.fun &rarr;
                   </a>
                   <a
-                    href="https://magiceden.io/token/solana/AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump"
+                    href="https://magiceden.io/marketplace/EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-purple-400/70 hover:text-purple-400 transition-colors"

@@ -237,7 +237,7 @@ export default function VillainsPage() {
                 <span className="text-[#00d18c] font-semibold group-hover:text-[#00d18c]">Buy $CHUM</span>
               </a>
               <a
-                href="https://magiceden.io/token/solana/AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump"
+                href="https://magiceden.io/marketplace/EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-3 px-6 py-3 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 hover:border-purple-500/50 rounded-xl transition-all group"
