@@ -31,37 +31,43 @@ const AGENT_CONFIG = {
     emoji: '🟢',
     name: 'CHUM',
     color: 'text-green-400',
-    accent: 'text-green-300'
+    accent: 'text-green-300',
+    border: '#4ade80'
   },
   KAREN: {
     emoji: '💻',
     name: 'KAREN',
     color: 'text-purple-400',
-    accent: 'text-purple-300'
+    accent: 'text-purple-300',
+    border: '#c084fc'
   },
   SPY: {
     emoji: '🕵️',
     name: 'SPY',
     color: 'text-gray-400',
-    accent: 'text-gray-300'
+    accent: 'text-gray-300',
+    border: '#9ca3af'
   },
   RECRUITER: {
     emoji: '📢',
     name: 'RECRUITER',
     color: 'text-orange-400',
-    accent: 'text-orange-300'
+    accent: 'text-orange-300',
+    border: '#fb923c'
   },
   HENCHMAN: {
     emoji: '🔨',
     name: 'HENCHMAN',
     color: 'text-yellow-400',
-    accent: 'text-yellow-300'
+    accent: 'text-yellow-300',
+    border: '#facc15'
   },
   TREASURER: {
     emoji: '💰',
     name: 'TREASURER',
     color: 'text-emerald-400',
-    accent: 'text-emerald-300'
+    accent: 'text-emerald-300',
+    border: '#34d399'
   }
 };
 
@@ -279,7 +285,13 @@ export default function AgentChat() {
                   <div key={message.id} className="flex items-start gap-3">
                     {/* Agent avatar */}
                     <div className="flex-shrink-0">
-                      <span className="text-lg">{agentConfig?.emoji || '🤖'}</span>
+                      <img 
+                        src={`/agents/${message.agent.toLowerCase()}.png`}
+                        alt={agentConfig?.name || message.agent}
+                        className="w-8 h-8 rounded-full object-cover border-2"
+                        style={{ borderColor: agentConfig?.border || '#4ade80' }}
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
                     </div>
                     
                     {/* Message content */}
