@@ -12,6 +12,7 @@ interface Villain {
   rarity_score: number;
   wallet_address: string;
   is_minted: boolean;
+  mint_signature?: string;
 }
 
 const TRAIT_CATEGORIES = [
@@ -254,11 +255,19 @@ export default function VillainGallery() {
           {villains.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {villains.map(v => (
-                <div key={v.id} className="group border overflow-hidden transition-all duration-300 hover:border-[#14F195]"
-                  style={{ borderColor: 'var(--vp-border-dim)', background: 'var(--vp-bg-panel)' }}>
+                <a key={v.id} href={v.mint_signature ? `https://solscan.io/tx/${v.mint_signature}` : '#'}
+                  target="_blank" rel="noopener noreferrer"
+                  className="group border overflow-hidden transition-all duration-300 hover:border-[#14F195] block"
+                  style={{ borderColor: 'var(--vp-border-dim)', background: 'var(--vp-bg-panel)', textDecoration: 'none' }}>
                   <div className="relative aspect-square">
                     <img src={v.image_url} alt={`Villain #${v.id}`} className="absolute inset-0 w-full h-full object-cover" />
                     <div className="absolute inset-0" style={{ background: 'repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.08) 3px,rgba(0,0,0,0.08) 4px)' }} />
+                    {v.mint_signature && (
+                      <div className="absolute top-2 right-2 px-1.5 py-0.5 text-[8px] font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ background: 'rgba(20,241,149,0.9)', color: '#000' }}>
+                        VIEW ON SOLSCAN ↗
+                      </div>
+                    )}
                   </div>
                   <div className="p-3 border-t" style={{ borderColor: 'var(--vp-border-dim)' }}>
                     <div className="text-xs font-bold mb-2">Villain #{v.id}</div>
@@ -271,7 +280,7 @@ export default function VillainGallery() {
                       ))}
                     </div>
                   </div>
-                </div>
+                </a>
               ))}
             </div>
           ) : (
