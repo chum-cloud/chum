@@ -172,7 +172,18 @@ export async function generateVillainImage(traits?: VillainTraits): Promise<{
   console.log('[IMAGEN] Rarity score:', rarityScore);
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${process.env.GEMINI_API_KEY}`;
+    // Use Vertex AI endpoint (no RPD cap with billing)
+    const { GoogleAuth } = await import('google-auth-library');
+    const saKey = JSON.parse(process.env.VERTEX_SA_KEY || '{}');
+    const auth = new GoogleAuth({
+      credentials: saKey,
+      scopes: ['https://www.googleapis.com/auth/cloud-platform']
+    });
+    const client = await auth.getClient();
+    const token = await client.getAccessToken();
+    
+    const projectId = saKey.project_id || 'gen-lang-client-0281408352';
+    const url = `https://us-central1-aiplatform.googleapis.com/v1/projects/${projectId}/locations/us-central1/publishers/google/models/imagen-4.0-generate-001:predict`;
     
     const payload = {
       instances: [{ prompt }],
@@ -186,6 +197,7 @@ export async function generateVillainImage(traits?: VillainTraits): Promise<{
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${(token as any).token || token}`,
       },
       body: JSON.stringify(payload)
     });
