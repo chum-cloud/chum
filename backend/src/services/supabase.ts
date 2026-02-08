@@ -252,7 +252,8 @@ export async function getAllVillains(limit: number = 50): Promise<VillainRow[]> 
   const { data, error } = await supabase
     .from('villains')
     .select('*')
-    .order('created_at', { ascending: false })
+    .eq('is_minted', true)
+    .order('id', { ascending: true })
     .limit(limit);
 
   if (error) throw new Error(`getAllVillains: ${error.message}`);
