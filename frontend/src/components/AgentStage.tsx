@@ -12,7 +12,7 @@ const AGENT_HOMES: Record<string, { x: number; y: number; zone: string }> = {
   treasurer:  { x: 86, y: 30, zone: 'Treasury' },          // Top-right treasury desk
 };
 
-const MEETING_POINT = { x: 48, y: 50 };
+// No single meeting point — agents stay in their zones during conversations
 
 const AGENT_CONFIG: Record<string, { name: string; color: string }> = {
   chum:       { name: 'CHUM',       color: '#4ade80' },
@@ -63,19 +63,12 @@ function TypewriterText({ text, color }: { text: string; color: string }) {
 }
 
 // ─── Continuous random wandering within a radius ───
-function useWander(homeX: number, homeY: number, radius: number, inConvo: boolean, meetX: number, meetY: number) {
+function useWander(homeX: number, homeY: number, radius: number) {
   const [pos, setPos] = useState({ x: homeX, y: homeY });
   const targetRef = useRef({ x: homeX, y: homeY });
   const frameRef = useRef<number>(0);
   
   useEffect(() => {
-    if (inConvo) {
-      // Move to meeting point with slight offset
-      const offset = { x: (Math.random() - 0.5) * 10, y: (Math.random() - 0.5) * 6 };
-      setPos({ x: meetX + offset.x, y: meetY + offset.y });
-      return;
-    }
-    
     // Wander around home
     const pickNewTarget = () => {
       targetRef.current = {
@@ -115,7 +108,7 @@ function useWander(homeX: number, homeY: number, radius: number, inConvo: boolea
       cancelAnimationFrame(frameRef.current);
       clearInterval(interval);
     };
-  }, [homeX, homeY, radius, inConvo, meetX, meetY]);
+  }, [homeX, homeY, radius]);
   
   return pos;
 }
@@ -164,7 +157,7 @@ function AgentAvatar({
 }) {
   const config = AGENT_CONFIG[agentId];
   const home = AGENT_HOMES[agentId];
-  const pos = useWander(home.x, home.y, 3, isInConvo, MEETING_POINT.x, MEETING_POINT.y);
+  const pos = useWander(home.x, home.y, 2);
   
   // Stagger bubbles vertically so they don't overlap
   const bubbleOffset = bubbleIndex * 28;
@@ -176,7 +169,6 @@ function AgentAvatar({
         left: `${pos.x}%`,
         top: `${pos.y}%`,
         transform: 'translate(-50%, -50%)',
-        transition: isInConvo ? 'left 1.5s ease-out, top 1.5s ease-out' : 'none',
         zIndex: isInConvo ? 15 : 10,
       }}
     >
@@ -298,15 +290,13 @@ export default function AgentStage() {
           const fromHome = AGENT_HOMES[from];
           const toHome = AGENT_HOMES[to];
           if (!fromHome || !toHome) return null;
-          // When in convo, lines go to meeting point area
-          const inConvo = participants.has(from) && participants.has(to);
           return (
             <line
               key={`${from}-${to}-${i}`}
-              x1={`${inConvo ? MEETING_POINT.x - 4 : fromHome.x}%`}
-              y1={`${inConvo ? MEETING_POINT.y : fromHome.y}%`}
-              x2={`${inConvo ? MEETING_POINT.x + 4 : toHome.x}%`}
-              y2={`${inConvo ? MEETING_POINT.y : toHome.y}%`}
+              x1={`${fromHome.x}%`}
+              y1={`${fromHome.y}%`}
+              x2={`${toHome.x}%`}
+              y2={`${toHome.y}%`}
               stroke="rgba(74, 222, 128, 0.4)"
               strokeWidth="1.5"
               strokeDasharray="6,4"
