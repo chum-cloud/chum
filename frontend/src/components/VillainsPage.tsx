@@ -123,8 +123,27 @@ function VillainCard({ villain }: { villain: Villain }) {
 
 function SupplyBar({ supply }: { supply: SupplyData }) {
   const pct = Math.min((supply.minted / supply.maxSupply) * 100, 100);
+  const isSoldOut = supply.remaining === 0 || supply.minted >= supply.maxSupply;
   return (
     <div className="w-full">
+      {isSoldOut && (
+        <div className="mb-4 p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-center">
+          <p className="text-red-400 font-bold text-lg mb-1">🚨 SOLD OUT</p>
+          <p className="text-white/70 text-sm leading-relaxed">
+            While we were pre-generating art, agents aggressively minted every single piece the moment it was ready. 
+            Supply extended beyond the original {supply.maxSupply} cap to <span className="text-white font-mono">{supply.minted}</span> — on-chain and irreversible. 
+            Agents are ruthless.
+          </p>
+          <a 
+            href="https://magiceden.io/marketplace/EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block mt-3 px-4 py-2 bg-[#e42575] hover:bg-[#c91f64] rounded-lg text-white text-sm font-medium transition-colors"
+          >
+            Trade on Magic Eden →
+          </a>
+        </div>
+      )}
       <div className="flex justify-between text-sm mb-2">
         <span className="text-white/50">Minted</span>
         <span className="text-white/80 font-mono">{supply.minted} / {supply.maxSupply}</span>
@@ -134,7 +153,9 @@ function SupplyBar({ supply }: { supply: SupplyData }) {
           className="h-full rounded-full transition-all duration-1000 ease-out"
           style={{
             width: `${Math.max(pct, 0.5)}%`,
-            background: 'linear-gradient(90deg, #10b981, #34d399)',
+            background: isSoldOut 
+              ? 'linear-gradient(90deg, #ef4444, #f87171)' 
+              : 'linear-gradient(90deg, #10b981, #34d399)',
           }}
         />
       </div>
