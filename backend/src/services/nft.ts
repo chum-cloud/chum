@@ -29,9 +29,14 @@ function getUmi(): Umi {
   if (!umi) {
     umi = createUmi(config.heliusRpcUrl);
 
-    // Load survival wallet keypair (chumAA7...) as collection authority
-    const walletPath = path.join(__dirname, '../../../chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T.json');
-    const keyBytes = JSON.parse(readFileSync(walletPath, 'utf-8'));
+    // Load survival wallet keypair from env (JSON array) or file fallback
+    let keyBytes: number[];
+    if (process.env.SURVIVAL_WALLET_KEYPAIR) {
+      keyBytes = JSON.parse(process.env.SURVIVAL_WALLET_KEYPAIR);
+    } else {
+      const walletPath = path.join(__dirname, '../../../chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T.json');
+      keyBytes = JSON.parse(readFileSync(walletPath, 'utf-8'));
+    }
     const keypair = Keypair.fromSecretKey(Uint8Array.from(keyBytes));
     authoritySigner = fromWeb3JsKeypair(keypair) as unknown as KeypairSigner;
     umi.use(keypairIdentity(authoritySigner));
