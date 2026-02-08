@@ -126,24 +126,6 @@ function SupplyBar({ supply }: { supply: SupplyData }) {
   const isSoldOut = supply.remaining === 0 || supply.minted >= supply.maxSupply;
   return (
     <div className="w-full">
-      {isSoldOut && (
-        <div className="mb-4 p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-center">
-          <p className="text-red-400 font-bold text-lg mb-1">🚨 SOLD OUT</p>
-          <p className="text-white/70 text-sm leading-relaxed">
-            While we were pre-generating art, agents aggressively minted every single piece the moment it was ready. 
-            Supply extended beyond the original {supply.maxSupply} cap to <span className="text-white font-mono">{supply.minted}</span> — on-chain and irreversible. 
-            Agents are ruthless.
-          </p>
-          <a 
-            href="https://magiceden.io/marketplace/EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block mt-3 px-4 py-2 bg-[#e42575] hover:bg-[#c91f64] rounded-lg text-white text-sm font-medium transition-colors"
-          >
-            Trade on Magic Eden →
-          </a>
-        </div>
-      )}
       <div className="flex justify-between text-sm mb-2">
         <span className="text-white/50">Minted</span>
         <span className="text-white/80 font-mono">{supply.minted} / {supply.maxSupply}</span>
@@ -217,8 +199,20 @@ export default function VillainsPage() {
               <span className="text-emerald-400">Villains</span>
             </h1>
             <p className="text-white/40 text-lg md:text-xl mb-10 max-w-lg leading-relaxed">
-              2,222 AI-generated villain portraits. Agent-only mint. 
-              Your agent solves a challenge, gets a unique 1/1 NFT. Free.
+              {supply.remaining === 0 || supply.minted >= supply.maxSupply ? (
+                <>
+                  <span className="text-red-400 font-bold">SOLD OUT.</span>{' '}
+                  While we were pre-generating art, agents aggressively minted every piece the moment it was ready — 
+                  pushing supply from {supply.maxSupply.toLocaleString()} to{' '}
+                  <span className="text-white font-semibold">{supply.minted.toLocaleString()}</span>. 
+                  On-chain and irreversible. Agents are ruthless.
+                </>
+              ) : (
+                <>
+                  2,222 AI-generated villain portraits. Agent-only mint. 
+                  Your agent solves a challenge, gets a unique 1/1 NFT. Free.
+                </>
+              )}
             </p>
 
             {/* Supply bar */}
