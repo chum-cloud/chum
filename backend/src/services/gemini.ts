@@ -14,11 +14,26 @@ const BODY_COLORS: { value: BodyColor; weight: number }[] = [
 ];
 
 const HATS: { value: Hat; weight: number }[] = [
-  { value: 'chef hat', weight: 20 },
-  { value: 'top hat', weight: 20 },
-  { value: 'pirate hat', weight: 20 },
-  { value: 'helmet', weight: 20 },
-  { value: 'crown', weight: 10 },
+  { value: 'chef hat', weight: 12 },
+  { value: 'top hat', weight: 12 },
+  { value: 'pirate hat', weight: 12 },
+  { value: 'helmet', weight: 12 },
+  { value: 'crown', weight: 6 },
+  { value: 'wizard hat', weight: 6 },
+  { value: 'viking helmet', weight: 5 },
+  { value: 'fedora', weight: 8 },
+  { value: 'fez', weight: 4 },
+  { value: 'propeller cap', weight: 4 },
+  { value: 'military beret', weight: 5 },
+  { value: 'newsboy cap', weight: 6 },
+  { value: 'bowler hat', weight: 8 },
+  { value: 'sombrero', weight: 3 },
+  { value: 'witch hat', weight: 5 },
+  { value: 'beanie', weight: 6 },
+  { value: 'napoleon hat', weight: 3 },
+  { value: 'turban', weight: 4 },
+  { value: 'straw hat', weight: 5 },
+  { value: 'beret', weight: 6 },
 ];
 
 const EYE_COLORS: { value: EyeColor; weight: number }[] = [
@@ -103,11 +118,29 @@ function buildPrompt(traits: VillainTraits): string {
 
   let hatDesc = '';
   if (hat !== 'none') {
-    hatDesc = hat === 'chef hat' ? 'wearing a white chef hat' :
-              hat === 'crown' ? 'wearing a golden crown' :
-              hat === 'pirate hat' ? 'wearing a black pirate hat with skull and crossbones' :
-              hat === 'top hat' ? 'wearing a black top hat' :
-              hat === 'helmet' ? 'wearing a metallic helmet' : '';
+    const hatDescriptions: Record<string, string> = {
+      'chef hat': 'wearing a white chef hat',
+      'crown': 'wearing a golden crown',
+      'pirate hat': 'wearing a black pirate hat with skull and crossbones',
+      'top hat': 'wearing a black top hat',
+      'helmet': 'wearing a metallic helmet',
+      'wizard hat': 'wearing a tall purple wizard hat with stars',
+      'viking helmet': 'wearing a horned viking helmet',
+      'fedora': 'wearing a dark fedora hat',
+      'fez': 'wearing a red fez hat with tassel',
+      'propeller cap': 'wearing a colorful propeller beanie cap',
+      'military beret': 'wearing a dark green military beret',
+      'newsboy cap': 'wearing a vintage newsboy cap',
+      'bowler hat': 'wearing a black bowler hat',
+      'sombrero': 'wearing a wide-brimmed sombrero',
+      'witch hat': 'wearing a pointed black witch hat',
+      'beanie': 'wearing a dark knit beanie',
+      'napoleon hat': 'wearing a Napoleon bicorne hat',
+      'turban': 'wearing an ornate turban',
+      'straw hat': 'wearing a straw sun hat',
+      'beret': 'wearing a classic French beret',
+    };
+    hatDesc = hatDescriptions[hat] || `wearing a ${hat}`;
   }
 
   let accessoryDesc = '';

@@ -16,7 +16,7 @@ interface Villain {
 
 const TRAIT_CATEGORIES = [
   { name: 'Body Color', variants: 6, color: '#14F195' },
-  { name: 'Hat', variants: 6, color: '#9945FF' },
+  { name: 'Hat', variants: 21, color: '#9945FF' },
   { name: 'Eye Color', variants: 5, color: '#4D96FF' },
   { name: 'Accessory', variants: 5, color: '#6BCB77' },
   { name: 'Expression', variants: 5, color: '#FFD93D' },

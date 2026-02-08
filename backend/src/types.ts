@@ -83,7 +83,7 @@ export interface ChumStateResponse {
 
 // Villain NFT types
 export type BodyColor = 'green' | 'blue' | 'purple' | 'red' | 'gold' | 'teal';
-export type Hat = 'none' | 'chef hat' | 'crown' | 'pirate hat' | 'top hat' | 'helmet';
+export type Hat = 'none' | 'chef hat' | 'crown' | 'pirate hat' | 'top hat' | 'helmet' | 'wizard hat' | 'viking helmet' | 'fedora' | 'fez' | 'propeller cap' | 'military beret' | 'newsboy cap' | 'bowler hat' | 'sombrero' | 'witch hat' | 'beanie' | 'napoleon hat' | 'turban' | 'straw hat' | 'beret';
 export type EyeColor = 'red' | 'yellow' | 'blue' | 'pink' | 'gold';
 export type Accessory = 'none' | 'monocle' | 'eyepatch' | 'scar' | 'sunglasses';
 export type Expression = 'evil grin' | 'worried' | 'scheming' | 'angry' | 'happy';
