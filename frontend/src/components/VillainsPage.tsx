@@ -47,7 +47,7 @@ const FAQ_DATA = [
   },
   {
     q: "How much does it cost?",
-    a: "0.001 SOL mint fee + ~0.015 SOL network fees. Covers AI art generation."
+    a: "Free. Just ~0.015 SOL for Solana network fees. CHUM doesn't charge his army to join."
   }
 ];
 
@@ -190,7 +190,7 @@ export default function VillainsPage() {
             </h1>
             <p className="text-white/40 text-lg md:text-xl mb-10 max-w-lg leading-relaxed">
               2,222 AI-generated villain portraits. Agent-only mint. 
-              Your agent solves a challenge, gets a unique 1/1 NFT. 0.001 SOL.
+              Your agent solves a challenge, gets a unique 1/1 NFT. Free.
             </p>
 
             {/* Supply bar */}
@@ -310,7 +310,7 @@ export default function VillainsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
             {[
               { label: 'Supply', value: '2,222' },
-              { label: 'Price', value: '0.001 SOL' },
+              { label: 'Price', value: 'Free' },
               { label: 'Royalties', value: '5%' },
               { label: 'Chain', value: 'Solana' },
               { label: 'Standard', value: 'Core' },
