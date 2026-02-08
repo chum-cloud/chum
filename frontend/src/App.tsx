@@ -39,6 +39,16 @@ export default function App() {
         </a>
         <span className="text-chum-border">&middot;</span>
         <a
+          href="https://magiceden.io/token/solana/AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-purple-400/70 hover:text-purple-400 transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 12l10 10 10-10L12 2zm0 3.4L19.6 12 12 18.6 4.4 12 12 5.4z"/></svg>
+          ME
+        </a>
+        <span className="text-chum-border">&middot;</span>
+        <a
           href="https://dexscreener.com/solana/hhrqkc6gtntlb8gt3rtshyocp3cschfrbjimdiui7slr"
           target="_blank"
           rel="noopener noreferrer"
@@ -175,14 +185,23 @@ export default function App() {
                 >
                   CA: AXCAx...pump
                 </div>
-                <div>
+                <div className="flex items-center gap-3">
                   <a
                     href="https://pump.fun/coin/AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-chum-accent/70 hover:text-chum-accent transition-colors"
                   >
-                    Buy on pump.fun &rarr;
+                    pump.fun &rarr;
+                  </a>
+                  <a
+                    href="https://magiceden.io/token/solana/AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-purple-400/70 hover:text-purple-400 transition-colors"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 12l10 10 10-10L12 2zm0 3.4L19.6 12 12 18.6 4.4 12 12 5.4z"/></svg>
+                    ME &rarr;
                   </a>
                 </div>
               </div>
