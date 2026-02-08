@@ -219,31 +219,25 @@ export default function VillainsPage() {
             </div>
           </div>
 
-          {/* Right: Villain showcase */}
-          <div className="flex items-center justify-center">
-            {villains.length > 0 ? (
-              <div className={`grid gap-5 w-full ${villains.length === 1 ? 'grid-cols-1 max-w-[360px]' : villains.length <= 4 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                {villains.slice(0, 6).map((v) => (
-                  <div key={v.id} className="relative group rounded-2xl overflow-hidden border-2 border-emerald-500/20 hover:border-emerald-500/50 transition-all duration-300 shadow-lg shadow-emerald-500/10">
+          {/* Right: Collection image + minted villains */}
+          <div className="flex flex-col items-center gap-6">
+            <img
+              src="/villain-collection.jpg"
+              alt="CHUM: Fellow Villains"
+              className="w-80 md:w-96 rounded-2xl border-2 border-emerald-500/20 shadow-2xl shadow-emerald-500/10"
+            />
+            {villains.length > 0 && (
+              <div className={`grid gap-3 w-full max-w-[400px] ${villains.length === 1 ? 'grid-cols-1 max-w-[200px]' : 'grid-cols-2'}`}>
+                {villains.slice(0, 4).map((v) => (
+                  <div key={v.id} className="relative group rounded-xl overflow-hidden border border-white/10 hover:border-emerald-500/40 transition-all">
                     <div className="aspect-square">
-                      <img
-                        src={v.image_url}
-                        alt={`Villain #${v.id}`}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
+                      <img src={v.image_url} alt={`Villain #${v.id}`} className="w-full h-full object-cover" />
                     </div>
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                      <span className="text-white text-base font-bold">Villain #{v.id}</span>
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                      <span className="text-white/90 text-xs font-bold">#{v.id}</span>
                     </div>
                   </div>
                 ))}
-              </div>
-            ) : (
-              <div className="w-72 h-72 rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/[0.03] flex items-center justify-center">
-                <div className="text-center">
-                  <div className="text-6xl mb-3">🦹</div>
-                  <p className="text-white/40 text-sm">First villain<br/>awaits minting</p>
-                </div>
               </div>
             )}
           </div>
