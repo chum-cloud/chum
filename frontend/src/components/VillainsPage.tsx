@@ -241,9 +241,6 @@ export default function VillainsPage() {
                     <div className="aspect-square">
                       <img src={v.image_url} alt={`Villain #${v.id}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                     </div>
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                      <span className="text-white text-base font-bold">Villain #{v.id}</span>
-                    </div>
                   </div>
                 ))}
               </div>
