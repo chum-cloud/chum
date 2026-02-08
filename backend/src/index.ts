@@ -22,6 +22,9 @@ import tasksRouter from './routes/tasks';
 import { startEventThoughtListener } from './services/eventThoughts';
 import { Heartbeat } from './engine/heartbeat';
 import { seedAgentSystem, checkSeedingNeeded } from './engine/seed';
+import { generateVillainImageVertexOnly, generateVillainImageGeminiFal } from './services/gemini';
+import { uploadVillainToStorage } from './services/storage';
+import { insertVillain, getPoolCount } from './services/supabase';
 
 const app = express();
 
@@ -71,6 +74,57 @@ app.listen(config.port, async () => {
     }
   }, 2 * 60 * 1000); // every 2 min
   
+  // Pool manager: Vertex drip (1/min) + burst refill when pool < 30
+  const POOL_TARGET = 60;
+  const POOL_HALF = POOL_TARGET / 2;
+  let poolBurstRunning = false;
+
+  // Vertex AI steady drip — 1 villain per minute, always
+  setInterval(async () => {
+    try {
+      const { imageBuffer, traits, rarityScore } = await generateVillainImageVertexOnly();
+      const poolAddr = `pool-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const { imageUrl } = await uploadVillainToStorage(imageBuffer, traits, poolAddr, rarityScore);
+      await insertVillain(poolAddr, imageUrl, '', traits, 0, rarityScore);
+      const count = await getPoolCount();
+      console.log(`[POOL-VERTEX] +1 villain, pool: ${count}`);
+    } catch (err: any) {
+      console.warn(`[POOL-VERTEX] Failed: ${err.message}`);
+    }
+  }, 60 * 1000); // every 1 min
+
+  // Burst refill check — every 30s, triggers when pool < half
+  setInterval(async () => {
+    if (poolBurstRunning) return;
+    try {
+      const current = await getPoolCount();
+      if (current >= POOL_HALF) return;
+
+      poolBurstRunning = true;
+      console.log(`[POOL-BURST] Pool at ${current}/${POOL_TARGET}, starting burst refill...`);
+      const needed = POOL_TARGET - current;
+      let generated = 0;
+
+      for (let i = 0; i < needed; i++) {
+        try {
+          const { imageBuffer, traits, rarityScore } = await generateVillainImageGeminiFal();
+          const poolAddr = `pool-burst-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          const { imageUrl } = await uploadVillainToStorage(imageBuffer, traits, poolAddr, rarityScore);
+          await insertVillain(poolAddr, imageUrl, '', traits, 0, rarityScore);
+          generated++;
+        } catch (err: any) {
+          console.warn(`[POOL-BURST] Failed at ${generated}/${needed}: ${err.message}`);
+          break; // Rate limited, stop burst
+        }
+      }
+      console.log(`[POOL-BURST] Refilled ${generated} villains`);
+    } catch (err: any) {
+      console.warn(`[POOL-BURST] Check failed: ${err.message}`);
+    } finally {
+      poolBurstRunning = false;
+    }
+  }, 30 * 1000); // check every 30s
+
   // Initialize agent system
   try {
     console.log('[CHUM] Initializing agent system...');

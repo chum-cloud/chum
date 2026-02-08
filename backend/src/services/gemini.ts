@@ -333,3 +333,115 @@ export async function generateVillainImage(traits?: VillainTraits): Promise<{
     throw new Error(`Failed to generate villain image: ${error}`);
   }
 }
+
+/**
+ * Generate villain using ONLY Vertex AI (steady drip, 1/min)
+ */
+export async function generateVillainImageVertexOnly(): Promise<{
+  imageBuffer: Buffer;
+  traits: VillainTraits;
+  rarityScore: number;
+}> {
+  const villainTraits = generateRandomTraits();
+  const prompt = buildPrompt(villainTraits);
+  const rarityScore = calculateRarityScore(villainTraits);
+
+  const vertexRaw = (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || process.env.VERTEX_SA_KEY)?.trim();
+  if (!vertexRaw) throw new Error('No Vertex AI credentials configured');
+
+  const { GoogleAuth } = await import('google-auth-library');
+  let saKey: any;
+  if (vertexRaw.startsWith('{')) {
+    saKey = JSON.parse(vertexRaw);
+  } else {
+    saKey = JSON.parse(Buffer.from(vertexRaw, 'base64').toString('utf8'));
+  }
+  const auth = new GoogleAuth({ credentials: saKey, scopes: ['https://www.googleapis.com/auth/cloud-platform'] });
+  const client = await auth.getClient();
+  const token = await client.getAccessToken();
+  const projectId = saKey.project_id || 'gen-lang-client-0281408352';
+  const url = `https://us-central1-aiplatform.googleapis.com/v1/projects/${projectId}/locations/us-central1/publishers/google/models/imagen-4.0-generate-001:predict`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${(token as any).token || token}` },
+    body: JSON.stringify({ instances: [{ prompt }], parameters: { sampleCount: 1, aspectRatio: '1:1' } }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Vertex AI failed: ${response.status} - ${errText.slice(0, 200)}`);
+  }
+
+  const data: any = await response.json();
+  if (!data.predictions?.[0]?.bytesBase64Encoded) throw new Error('No image from Vertex AI');
+
+  const imageBuffer = Buffer.from(data.predictions[0].bytesBase64Encoded, 'base64');
+  console.log(`[POOL-VERTEX] Generated villain, size: ${imageBuffer.length} bytes`);
+  return { imageBuffer, traits: villainTraits, rarityScore };
+}
+
+/**
+ * Generate villain using Gemini API keys → fal.ai (burst refill, no Vertex)
+ */
+export async function generateVillainImageGeminiFal(): Promise<{
+  imageBuffer: Buffer;
+  traits: VillainTraits;
+  rarityScore: number;
+}> {
+  const villainTraits = generateRandomTraits();
+  const prompt = buildPrompt(villainTraits);
+  const rarityScore = calculateRarityScore(villainTraits);
+
+  const payload = { instances: [{ prompt }], parameters: { sampleCount: 1, aspectRatio: '1:1' } };
+
+  const apiKeys = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3,
+  ].filter(Boolean) as string[];
+
+  let imageBuffer: Buffer | null = null;
+  let lastError: Error | null = null;
+
+  // Try Gemini keys
+  for (const key of apiKeys) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${key}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
+      );
+      if (!response.ok) throw new Error(`Gemini ${key.slice(-6)} failed: ${response.status}`);
+      const data: any = await response.json();
+      if (!data.predictions?.[0]?.bytesBase64Encoded) throw new Error('No image');
+      imageBuffer = Buffer.from(data.predictions[0].bytesBase64Encoded, 'base64');
+      console.log(`[POOL-BURST] Generated via Gemini (${key.slice(-6)}), size: ${imageBuffer.length}`);
+      break;
+    } catch (err) {
+      lastError = err as Error;
+      continue;
+    }
+  }
+
+  // fal.ai fallback
+  if (!imageBuffer && process.env.FAL_KEY) {
+    try {
+      const { fal } = await import('@fal-ai/client');
+      fal.config({ credentials: process.env.FAL_KEY });
+      const result = await fal.subscribe('fal-ai/imagen4/preview', {
+        input: { prompt, num_images: 1, aspect_ratio: '1:1', output_format: 'png' },
+      }) as any;
+      const imageUrl = result.data?.images?.[0]?.url;
+      if (!imageUrl) throw new Error('No fal.ai image URL');
+      const imgResp = await fetch(imageUrl);
+      if (!imgResp.ok) throw new Error(`fal.ai download failed: ${imgResp.status}`);
+      imageBuffer = Buffer.from(await imgResp.arrayBuffer());
+      console.log(`[POOL-BURST] Generated via fal.ai, size: ${imageBuffer.length}`);
+    } catch (falErr) {
+      lastError = falErr as Error;
+    }
+  }
+
+  if (!imageBuffer) throw lastError || new Error('All Gemini/fal options exhausted');
+  return { imageBuffer, traits: villainTraits, rarityScore };
+}
