@@ -306,14 +306,11 @@ export class MissionWorker {
   }
 
   private static async handleDraftTweet(step: MissionStepRow): Promise<Record<string, unknown>> {
-    const chum = new ChumAgent();
-    const scheme = await this.getSchemeForStep(step);
-    const tweet = await chum.draftTweet(scheme as any);
-    
+    // Tweets are ONLY posted via heartbeat (4/day). Mission worker no longer posts tweets.
+    console.log('[MISSION] draft_tweet step skipped — tweets controlled by heartbeat only');
     return {
-      tweet_content: tweet,
-      character_count: tweet.length,
-      agent: 'chum',
+      skipped: true,
+      reason: 'Tweets are posted via heartbeat system (4/day), not mission pipeline',
       timestamp: new Date().toISOString()
     };
   }
