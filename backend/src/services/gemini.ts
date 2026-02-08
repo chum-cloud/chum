@@ -14,11 +14,10 @@ const BODY_COLORS: { value: BodyColor; weight: number }[] = [
 ];
 
 const HATS: { value: Hat; weight: number }[] = [
-  { value: 'none', weight: 30 },
-  { value: 'chef hat', weight: 15 },
-  { value: 'top hat', weight: 15 },
-  { value: 'pirate hat', weight: 15 },
-  { value: 'helmet', weight: 15 },
+  { value: 'chef hat', weight: 20 },
+  { value: 'top hat', weight: 20 },
+  { value: 'pirate hat', weight: 20 },
+  { value: 'helmet', weight: 20 },
   { value: 'crown', weight: 10 },
 ];
 
@@ -31,11 +30,10 @@ const EYE_COLORS: { value: EyeColor; weight: number }[] = [
 ];
 
 const ACCESSORIES: { value: Accessory; weight: number }[] = [
-  { value: 'none', weight: 35 },
   { value: 'monocle', weight: 20 },
-  { value: 'sunglasses', weight: 15 },
-  { value: 'eyepatch', weight: 15 },
-  { value: 'scar', weight: 15 },
+  { value: 'sunglasses', weight: 20 },
+  { value: 'eyepatch', weight: 20 },
+  { value: 'scar', weight: 20 },
 ];
 
 const EXPRESSIONS: { value: Expression; weight: number }[] = [
@@ -119,6 +117,18 @@ function buildPrompt(traits: VillainTraits): string {
                    accessory === 'sunglasses' ? 'wearing cool sunglasses' : '';
   }
 
+  const outfits = [
+    'wearing a villain cape',
+    'wearing a lab coat',
+    'wearing a leather jacket',
+    'wearing a military uniform with medals',
+    'wearing a tuxedo with bow tie',
+    'wearing a trench coat',
+    'wearing a striped prison outfit',
+    'wearing a fancy vest and dress shirt',
+  ];
+  const outfit = outfits[Math.floor(Math.random() * outfits.length)];
+
   const poses = [
     'three-quarter view, looking at viewer with a sly grin',
     'leaning forward menacingly, hands rubbing together',
@@ -135,7 +145,7 @@ function buildPrompt(traits: VillainTraits): string {
   ];
   const pose = poses[Math.floor(Math.random() * poses.length)];
 
-  const prompt = `Half-body portrait of a small ${bodyColor} plankton villain character, 1930s rubber hose cartoon style like Cuphead and Fleischer Studios. ONE large ${eyeColor} cyclops eye, two antennae with ball tips, white gloved hands${hatDesc ? ', ' + hatDesc : ''}. ${accessoryDesc ? accessoryDesc + '. ' : ''}${expression} expression. ${pose}. Thick black outlines, muted vintage palette, dark vignette background with film grain. Circular portrait composition.`;
+  const prompt = `Half-body portrait of a small ${bodyColor} plankton villain character, 1930s rubber hose cartoon style like Cuphead and Fleischer Studios. ONE large ${eyeColor} cyclops eye, two antennae with ball tips, white gloved hands, ${hatDesc}, ${outfit}. ${accessoryDesc ? accessoryDesc + '. ' : ''}${expression} expression. ${pose}. Thick black outlines, muted vintage palette, dark vignette background with film grain. Circular portrait composition.`;
 
   return prompt;
 }
