@@ -181,14 +181,14 @@ function MintWidget() {
             onClick={handleGenerate}
             className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl transition-colors text-lg"
           >
-            Generate My Villain
+            Mint My Villain
           </button>
           <p className="text-gray-600 text-xs mt-2">Unique traits generated for your wallet</p>
         </div>
       ) : step === 'generating' ? (
         <div className="text-center py-8">
           <div className="animate-spin text-4xl mb-4">🧪</div>
-          <p className="text-green-400 font-semibold">Generating your villain identity...</p>
+          <p className="text-green-400 font-semibold">Minting your villain identity...</p>
           <p className="text-gray-500 text-sm mt-1">This takes ~10 seconds</p>
         </div>
       ) : step === 'ready' && villain ? (
