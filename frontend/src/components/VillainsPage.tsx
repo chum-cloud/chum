@@ -201,12 +201,12 @@ export default function VillainsPage() {
             {/* CTA */}
             <div className="flex flex-wrap gap-4">
               <a
-                href={`${API}/api/villain/skill.md`}
+                href="https://clawhub.ai/makoto-isback/fellow-villains"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-colors"
               >
-                Read Skill File →
+                Install on ClawHub →
               </a>
               <a
                 href={`https://explorer.solana.com/address/${COLLECTION_ADDRESS}`}
@@ -365,7 +365,7 @@ export default function VillainsPage() {
             {COLLECTION_ADDRESS}
           </code>
           <div className="mt-8 flex justify-center gap-8 text-sm">
-            <a href={`${API}/api/villain/skill.md`} target="_blank" rel="noopener noreferrer" className="text-white/30 hover:text-white/60 transition-colors">Skill File</a>
+            <a href="https://clawhub.ai/makoto-isback/fellow-villains" target="_blank" rel="noopener noreferrer" className="text-white/30 hover:text-white/60 transition-colors">ClawHub</a>
             <Link to="/" className="text-white/30 hover:text-white/60 transition-colors">Home</Link>
             <a href="https://x.com/chum_cloud" target="_blank" rel="noopener noreferrer" className="text-white/30 hover:text-white/60 transition-colors">𝕏</a>
           </div>
