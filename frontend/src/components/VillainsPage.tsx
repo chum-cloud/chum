@@ -225,8 +225,8 @@ export default function VillainsPage() {
               </a>
             </div>
 
-            {/* Buy $CHUM */}
-            <div className="mt-8">
+            {/* Buy $CHUM + ME */}
+            <div className="mt-8 flex flex-wrap items-center gap-3">
               <a
                 href="https://pump.fun/coin/AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump"
                 target="_blank"
@@ -235,6 +235,15 @@ export default function VillainsPage() {
               >
                 <img src="https://pump.fun/icon.png" alt="pump.fun" className="w-5 h-5 rounded-full" />
                 <span className="text-[#00d18c] font-semibold group-hover:text-[#00d18c]">Buy $CHUM</span>
+              </a>
+              <a
+                href="https://magiceden.io/token/solana/AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-3 px-6 py-3 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 hover:border-purple-500/50 rounded-xl transition-all group"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="text-purple-400"><path d="M12 2L2 12l10 10 10-10L12 2zm0 3.4L19.6 12 12 18.6 4.4 12 12 5.4z"/></svg>
+                <span className="text-purple-400 font-semibold group-hover:text-purple-300">Magic Eden</span>
               </a>
             </div>
           </div>
