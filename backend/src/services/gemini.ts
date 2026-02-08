@@ -220,32 +220,7 @@ export async function generateVillainImage(traits?: VillainTraits): Promise<{
     let url: string;
     let headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
-    // Vertex SA is deleted (invalid_grant), skip entirely — use Gemini API keys + fal.ai
-    const vertexRaw: string | undefined = undefined; // was: (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || process.env.VERTEX_SA_KEY)?.trim();
-    if (vertexRaw) {
-      // Use Vertex AI endpoint (no RPD cap with billing)
-      const { GoogleAuth } = await import('google-auth-library');
-      let saKey: any;
-      const raw = vertexRaw;
-      if (raw.startsWith('{')) {
-        saKey = JSON.parse(raw);
-      } else {
-        // Base64-encoded JSON (safer for Railway env vars)
-        saKey = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
-      }
-      const auth = new GoogleAuth({ credentials: saKey, scopes: ['https://www.googleapis.com/auth/cloud-platform'] });
-      const client = await auth.getClient();
-      const token = await client.getAccessToken();
-      const projectId = saKey.project_id || 'gen-lang-client-0281408352';
-      url = `https://us-central1-aiplatform.googleapis.com/v1/projects/${projectId}/locations/us-central1/publishers/google/models/imagen-4.0-generate-001:predict`;
-      headers['Authorization'] = `Bearer ${(token as any).token || token}`;
-      console.log('[IMAGEN] Using Vertex AI');
-    } else {
-      // Fallback to Gemini API
-      url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${process.env.GEMINI_API_KEY}`;
-      console.log('[IMAGEN] Using Gemini API');
-    }
-
+    // Vertex SA deleted — skip entirely, use Gemini API keys + fal.ai
     const payload = {
       instances: [{ prompt }],
       parameters: {
@@ -254,7 +229,6 @@ export async function generateVillainImage(traits?: VillainTraits): Promise<{
       }
     };
 
-    // Try primary key, then fallback to secondary
     const apiKeys = [
       process.env.GEMINI_API_KEY,
       process.env.GEMINI_API_KEY_2,
@@ -264,12 +238,7 @@ export async function generateVillainImage(traits?: VillainTraits): Promise<{
     let lastError: Error | null = null;
     let imageBuffer: Buffer | null = null;
 
-    // Build list of attempts: Vertex first (if configured), then Gemini API keys
     const attempts: Array<{ label: string; url: string; headers: Record<string, string> }> = [];
-
-    if (vertexRaw) {
-      attempts.push({ label: 'Vertex AI', url, headers: { ...headers } });
-    }
     for (const key of apiKeys) {
       attempts.push({
         label: `Gemini API (${key.slice(-6)})`,
