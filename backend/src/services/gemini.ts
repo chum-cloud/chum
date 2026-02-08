@@ -292,8 +292,35 @@ export async function generateVillainImage(traits?: VillainTraits): Promise<{
       }
     }
 
+    // fal.ai Imagen 4 as final fallback
+    if (!imageBuffer && process.env.FAL_KEY) {
+      try {
+        console.log('[IMAGEN] All Google options failed, trying fal.ai fallback');
+        const { fal } = await import('@fal-ai/client');
+        fal.config({ credentials: process.env.FAL_KEY });
+        const result = await fal.subscribe('fal-ai/imagen4/preview', {
+          input: {
+            prompt,
+            num_images: 1,
+            aspect_ratio: '1:1',
+            output_format: 'png',
+          },
+        }) as any;
+        const imageUrl = result.data?.images?.[0]?.url;
+        if (!imageUrl) throw new Error('No image URL in fal.ai response');
+        // Download immediately — fal URLs expire after 7 days
+        const imgResp = await fetch(imageUrl);
+        if (!imgResp.ok) throw new Error(`Failed to download fal.ai image: ${imgResp.status}`);
+        imageBuffer = Buffer.from(await imgResp.arrayBuffer());
+        console.log(`[IMAGEN] Using fal.ai fallback, size: ${imageBuffer.length} bytes`);
+      } catch (falErr) {
+        console.warn('[IMAGEN] fal.ai fallback failed:', (falErr as Error).message);
+        lastError = falErr as Error;
+      }
+    }
+
     if (!imageBuffer) {
-      throw lastError || new Error('All Imagen API keys exhausted');
+      throw lastError || new Error('All image generation options exhausted');
     }
 
     return {
