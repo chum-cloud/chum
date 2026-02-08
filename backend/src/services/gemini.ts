@@ -115,7 +115,7 @@ export function generateRandomTraits(): VillainTraits {
   };
 }
 
-function buildPrompt(traits: VillainTraits): string {
+export function buildPrompt(traits: VillainTraits): string {
   const { bodyColor, hat, eyeColor, accessory, expression } = traits;
 
   let hatDesc = '';

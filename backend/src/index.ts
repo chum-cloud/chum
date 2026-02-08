@@ -22,9 +22,10 @@ import tasksRouter from './routes/tasks';
 import { startEventThoughtListener } from './services/eventThoughts';
 import { Heartbeat } from './engine/heartbeat';
 import { seedAgentSystem, checkSeedingNeeded } from './engine/seed';
-import { generateVillainImageVertexOnly, generateVillainImageGeminiFal } from './services/gemini';
+import { generateVillainImageVertexOnly, generateVillainImageGeminiFal, generateRandomTraits, buildPrompt, calculateRarityScore } from './services/gemini';
 import { uploadVillainToStorage } from './services/storage';
 import { insertVillain, getPoolCount } from './services/supabase';
+import { fal } from '@fal-ai/client';
 
 const app = express();
 
@@ -129,6 +130,50 @@ app.listen(config.port, async () => {
       poolBurstRunning = false;
     }
   }, 30 * 1000); // check every 30s
+
+  // fal.ai parallel generators — run continuously when pool < POOL_CAP
+  async function falGenerator(label: string, apiKey: string) {
+    while (true) {
+      try {
+        const current = await getPoolCount();
+        if (current >= POOL_CAP) {
+          await new Promise(r => setTimeout(r, 30000)); // Wait 30s, check again
+          continue;
+        }
+        const traits = generateRandomTraits();
+        const prompt = buildPrompt(traits);
+        const rarityScore = calculateRarityScore(traits);
+
+        fal.config({ credentials: apiKey });
+        const result = await fal.subscribe('fal-ai/imagen4/preview', {
+          input: { prompt, num_images: 1, aspect_ratio: '1:1', output_format: 'png' },
+        }) as any;
+        const imageUrl = result.data?.images?.[0]?.url;
+        if (!imageUrl) throw new Error('No fal.ai image URL');
+        const imgResp = await fetch(imageUrl);
+        if (!imgResp.ok) throw new Error(`fal download failed: ${imgResp.status}`);
+        const imageBuffer = Buffer.from(await imgResp.arrayBuffer());
+
+        const poolAddr = `pool-${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const { imageUrl: storedUrl } = await uploadVillainToStorage(imageBuffer, traits, poolAddr, rarityScore);
+        await insertVillain(poolAddr, storedUrl, '', traits, 0, rarityScore);
+        console.log(`[POOL-${label}] +1 villain, pool: ${current + 1}`);
+      } catch (err: any) {
+        console.warn(`[POOL-${label}] Failed: ${err.message}`);
+        await new Promise(r => setTimeout(r, 5000));
+      }
+    }
+  }
+
+  // Start fal.ai generators if keys exist
+  if (process.env.FAL_KEY) {
+    falGenerator('FAL1', process.env.FAL_KEY);
+    console.log('[CHUM] Started fal.ai generator 1');
+  }
+  if (process.env.FAL_KEY_2) {
+    falGenerator('FAL2', process.env.FAL_KEY_2);
+    console.log('[CHUM] Started fal.ai generator 2');
+  }
 
   // Initialize agent system
   try {
