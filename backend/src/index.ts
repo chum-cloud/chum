@@ -166,7 +166,7 @@ app.listen(config.port, async () => {
   }
 
   // Start fal.ai generators — 3 workers per key for max throughput
-  const FAL_WORKERS_PER_KEY = 3;
+  const FAL_WORKERS_PER_KEY = 5;
   const falKeys = [process.env.FAL_KEY, process.env.FAL_KEY_2].filter(Boolean) as string[];
   falKeys.forEach((key, ki) => {
     for (let w = 0; w < FAL_WORKERS_PER_KEY; w++) {
