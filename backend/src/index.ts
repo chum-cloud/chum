@@ -165,15 +165,15 @@ app.listen(config.port, async () => {
     }
   }
 
-  // Start fal.ai generators if keys exist
-  if (process.env.FAL_KEY) {
-    falGenerator('FAL1', process.env.FAL_KEY);
-    console.log('[CHUM] Started fal.ai generator 1');
-  }
-  if (process.env.FAL_KEY_2) {
-    falGenerator('FAL2', process.env.FAL_KEY_2);
-    console.log('[CHUM] Started fal.ai generator 2');
-  }
+  // Start fal.ai generators — 3 workers per key for max throughput
+  const FAL_WORKERS_PER_KEY = 3;
+  const falKeys = [process.env.FAL_KEY, process.env.FAL_KEY_2].filter(Boolean) as string[];
+  falKeys.forEach((key, ki) => {
+    for (let w = 0; w < FAL_WORKERS_PER_KEY; w++) {
+      falGenerator(`FAL${ki + 1}-W${w + 1}`, key);
+    }
+    console.log(`[CHUM] Started ${FAL_WORKERS_PER_KEY} fal.ai workers for key ${ki + 1}`);
+  });
 
   // Initialize agent system
   try {
