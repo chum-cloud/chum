@@ -130,22 +130,22 @@ function buildPrompt(traits: VillainTraits): string {
   const outfit = outfits[Math.floor(Math.random() * outfits.length)];
 
   const poses = [
-    'three-quarter view, looking at viewer with a sly grin',
-    'leaning forward menacingly, hands rubbing together',
-    'arms crossed confidently, slight head tilt',
-    'pointing at viewer with one gloved hand',
-    'laughing maniacally, head thrown back slightly',
-    'scheming pose, one hand on chin',
-    'dynamic angle from below, looking down at viewer',
-    'slight dutch angle, dramatic lighting',
-    'hands on hips in a power pose',
-    'one eyebrow raised, smirking at viewer',
-    'fist raised triumphantly',
-    'dramatic side profile turning toward viewer',
+    'three-quarter view, one gloved hand raised waving, other hand behind back',
+    'leaning forward menacingly, gloved hands rubbing together in front',
+    'arms crossed over chest confidently, slight head tilt',
+    'pointing at viewer with one gloved hand, other hand on hip',
+    'laughing maniacally, one gloved hand covering mouth',
+    'scheming pose, one gloved hand stroking chin, other behind back',
+    'dynamic angle from below, both gloved fists raised in victory',
+    'slight dutch angle, one gloved hand adjusting hat',
+    'gloved hands on hips in a power pose, chest puffed out',
+    'one gloved hand holding a cane, other hand in pocket',
+    'one gloved fist raised triumphantly in the air',
+    'dramatic side profile, gloved hand reaching toward viewer',
   ];
   const pose = poses[Math.floor(Math.random() * poses.length)];
 
-  const prompt = `Half-body portrait of a small ${bodyColor} plankton villain character, 1930s rubber hose cartoon style like Cuphead and Fleischer Studios. ONE large ${eyeColor} cyclops eye, two antennae with ball tips, ${hatDesc}, ${outfit}. ${accessoryDesc ? accessoryDesc + '. ' : ''}${expression} expression. ${pose}. Thick black outlines, muted vintage palette, dark vignette background with film grain. Circular portrait composition.`;
+  const prompt = `Half-body portrait of a small ${bodyColor} plankton villain character, 1930s rubber hose cartoon style like Cuphead and Fleischer Studios. ONE large ${eyeColor} cyclops eye, two antennae with ball tips, white gloved hands, ${hatDesc}, ${outfit}. ${accessoryDesc ? accessoryDesc + '. ' : ''}${expression} expression. ${pose}. Thick black outlines, muted vintage palette, dark vignette background with film grain. Circular portrait composition.`;
 
   return prompt;
 }
