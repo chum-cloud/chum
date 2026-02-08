@@ -264,6 +264,82 @@ Provide a brief tactical assessment using spy terminology. End with a recommenda
   }
 
   /**
+   * Search Crypto Twitter for relevant topics
+   */
+  async searchCT(queries: string[] = ['$CHUM', 'AI agent solana', 'chum cloud']): Promise<Record<string, unknown>> {
+    const { queueTask, getTaskResults } = await import('../services/agent-tasks');
+    
+    // Queue search tasks
+    for (const query of queries) {
+      try {
+        await queueTask({
+          task_type: 'search_ct',
+          agent_id: 'spy',
+          payload: { search_query: query },
+          priority: 0,
+        });
+      } catch (err) {
+        console.error(`[SPY] Failed to queue search for "${query}":`, err);
+      }
+    }
+    console.log(`[SPY] Queued ${queries.length} CT search tasks`);
+
+    // Return recent search results (from previous cycles)
+    try {
+      const results = await getTaskResults('spy', 'search', 5);
+      const allResults = results
+        .filter(r => r.status === 'done' && r.result)
+        .map(r => ({
+          query: r.search_query,
+          results: (r.result as any)?.results || [],
+          count: (r.result as any)?.count || 0,
+          scrapedAt: (r.result as any)?.scrapedAt,
+        }));
+
+      return {
+        searches_queued: queries.length,
+        recent_results: allResults,
+        total_tweets_found: allResults.reduce((sum, r) => sum + r.count, 0),
+      };
+    } catch {
+      return { searches_queued: queries.length, recent_results: [], total_tweets_found: 0 };
+    }
+  }
+
+  /**
+   * Find tweets worth replying to (high engagement, relevant topics)
+   */
+  async findReplyTargets(): Promise<Record<string, unknown>[]> {
+    const { getTaskResults } = await import('../services/agent-tasks');
+    
+    try {
+      const results = await getTaskResults('spy', 'search', 10);
+      const targets: Record<string, unknown>[] = [];
+
+      for (const r of results) {
+        if (r.status !== 'done' || !r.result) continue;
+        const tweets = (r.result as any)?.results || [];
+        
+        for (const tweet of tweets) {
+          // Filter for tweets worth replying to
+          if (tweet.link && tweet.text && tweet.text.length > 20) {
+            targets.push({
+              url: tweet.link,
+              text: tweet.text,
+              author: tweet.author,
+              query: r.search_query,
+            });
+          }
+        }
+      }
+
+      return targets.slice(0, 5); // Top 5 targets
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * Monitor engagement patterns for suspicious activity
    */
   async monitorEngagement(targetEvent: Record<string, unknown>): Promise<string> {

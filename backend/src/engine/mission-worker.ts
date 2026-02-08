@@ -121,6 +121,12 @@ export class MissionWorker {
         case 'celebrate':
           output = await this.handleCelebrate(step);
           break;
+        case 'reply_tweet':
+          output = await this.handleReplyTweet(step);
+          break;
+        case 'search_ct':
+          output = await this.handleSearchCT(step);
+          break;
         default:
           throw new Error(`Unknown step kind: ${step.kind}`);
       }
@@ -416,6 +422,54 @@ export class MissionWorker {
     return {
       celebration_message: celebration,
       agent: 'chum',
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  private static async handleReplyTweet(step: MissionStepRow): Promise<Record<string, unknown>> {
+    const chum = new ChumAgent();
+    const scheme = await this.getSchemeForStep(step);
+    const input = (step as any).input || {};
+    const tweetUrl = input.tweet_url || (scheme as any).reply_to_url;
+    const tweetText = input.tweet_text || '';
+
+    // Generate reply content
+    const replyContent = await chum.think(`
+Write a reply to this tweet as CHUM (Plankton villain). Be witty, on-brand, and engaging.
+Keep under 280 chars. Don't be cringe.
+
+Tweet: "${tweetText}"
+URL: ${tweetUrl}
+
+Reply:`);
+
+    // Queue for VPS browser
+    const { queueTask } = await import('../services/agent-tasks');
+    await queueTask({
+      task_type: 'reply_tweet',
+      agent_id: 'chum',
+      payload: { content: replyContent.trim(), reply_to_url: tweetUrl },
+      priority: 1,
+      scheme_id: (scheme as any)?.id,
+    });
+
+    return {
+      reply_content: replyContent.trim(),
+      reply_to_url: tweetUrl,
+      agent: 'chum',
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  private static async handleSearchCT(step: MissionStepRow): Promise<Record<string, unknown>> {
+    const spy = new SpyAgent();
+    const input = (step as any).input || {};
+    const queries = input.queries || ['$CHUM', 'AI agent solana'];
+    const result = await spy.searchCT(queries);
+
+    return {
+      ...result,
+      agent: 'spy',
       timestamp: new Date().toISOString()
     };
   }

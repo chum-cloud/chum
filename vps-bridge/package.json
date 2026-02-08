@@ -1,0 +1,13 @@
+{
+  "name": "chum-browser-bridge",
+  "version": "1.0.0",
+  "description": "Browser bridge for CHUM agents - posts tweets, reads CT via headless Chrome",
+  "main": "bridge.js",
+  "scripts": {
+    "start": "node bridge.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "^23.0.0",
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}

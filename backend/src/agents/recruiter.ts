@@ -140,6 +140,20 @@ Make people want to buy $CHUM and join Chum Cloud immediately!`;
         context
       }, ['recruitment', 'tweet', 'draft']);
 
+      // Queue tweet for browser execution on VPS
+      try {
+        const { queueTask } = await import('../services/agent-tasks');
+        await queueTask({
+          task_type: 'post_tweet',
+          agent_id: 'recruiter',
+          payload: { content: tweet.trim() },
+          priority: 0,
+        });
+        console.log('[RECRUITER] Tweet queued for posting');
+      } catch (qErr) {
+        console.error('[RECRUITER] Failed to queue tweet:', qErr);
+      }
+
       return tweet.trim();
 
     } catch (error) {

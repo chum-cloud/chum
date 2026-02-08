@@ -301,13 +301,16 @@ export class Heartbeat {
     try {
       const spy = new SpyAgent();
       
-      // Scout price and mentions
+      // Scout price, mentions, and CT
       const priceIntel = await spy.scoutPrice();
       const mentionsIntel = await spy.scoutMentions();
+      const ctIntel = await spy.searchCT(['$CHUM', 'AI agent solana', 'chum cloud']);
 
       console.log('[HEARTBEAT] Spy intel gathered:', {
         price_alert: priceIntel.alert_threshold_exceeded,
-        mentions_count: mentionsIntel.mentions_count || 'unknown'
+        mentions_count: mentionsIntel.mentions_count || 'unknown',
+        ct_searches: ctIntel.searches_queued || 0,
+        ct_tweets_found: ctIntel.total_tweets_found || 0
       });
 
     } catch (error) {
