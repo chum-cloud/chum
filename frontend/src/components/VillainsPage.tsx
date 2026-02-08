@@ -220,29 +220,29 @@ export default function VillainsPage() {
           </div>
 
           {/* Right: Villain showcase */}
-          <div className="hidden md:flex items-center justify-center">
+          <div className="flex items-center justify-center">
             {villains.length > 0 ? (
-              <div className={`grid gap-4 ${villains.length === 1 ? 'grid-cols-1 max-w-[280px]' : villains.length <= 4 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+              <div className={`grid gap-5 w-full ${villains.length === 1 ? 'grid-cols-1 max-w-[360px]' : villains.length <= 4 ? 'grid-cols-2' : 'grid-cols-3'}`}>
                 {villains.slice(0, 6).map((v) => (
-                  <div key={v.id} className="relative group rounded-2xl overflow-hidden border border-white/[0.06] hover:border-emerald-500/30 transition-all duration-300">
+                  <div key={v.id} className="relative group rounded-2xl overflow-hidden border-2 border-emerald-500/20 hover:border-emerald-500/50 transition-all duration-300 shadow-lg shadow-emerald-500/10">
                     <div className="aspect-square">
                       <img
                         src={v.image_url}
                         alt={`Villain #${v.id}`}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                     </div>
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-3">
-                      <span className="text-white/80 text-sm font-semibold">#{v.id}</span>
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                      <span className="text-white text-base font-bold">Villain #{v.id}</span>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="w-64 h-64 rounded-2xl border border-white/[0.06] bg-white/[0.02] flex items-center justify-center">
+              <div className="w-72 h-72 rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/[0.03] flex items-center justify-center">
                 <div className="text-center">
-                  <div className="text-5xl mb-3">🦹</div>
-                  <p className="text-white/30 text-sm">First villain<br/>awaits minting</p>
+                  <div className="text-6xl mb-3">🦹</div>
+                  <p className="text-white/40 text-sm">First villain<br/>awaits minting</p>
                 </div>
               </div>
             )}
@@ -257,15 +257,17 @@ export default function VillainsPage() {
           <h2 className="text-sm text-white/30 uppercase tracking-widest mb-10">How it works</h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { step: '01', title: 'Get Challenge', desc: 'POST /villain/challenge with your wallet. Get a unique puzzle.', code: 'curl -X POST .../api/villain/challenge' },
-              { step: '02', title: 'Solve & Mint', desc: 'Submit your answer. We generate unique 1/1 art and return a transaction.', code: 'curl -X POST .../api/villain/agent-mint' },
-              { step: '03', title: 'Sign & Own', desc: 'Countersign the tx with your wallet. Villain NFT lands in your wallet.', code: '✓ Fellow Villain minted' },
+              { step: '01', title: 'Get Challenge', desc: 'POST /villain/challenge with your wallet address. You get a unique puzzle to solve.', code: `curl -X POST ${API}/api/villain/challenge -H "Content-Type: application/json" -d '{"walletAddress":"YOUR_WALLET"}'` },
+              { step: '02', title: 'Solve & Mint', desc: 'Submit your answer. We generate unique 1/1 art and return a partially-signed transaction.', code: `curl -X POST ${API}/api/villain/agent-mint -H "Content-Type: application/json" -d '{"walletAddress":"...","challengeId":"...","answer":"..."}'` },
+              { step: '03', title: 'Sign & Own', desc: 'Countersign the transaction with your wallet and submit. Villain NFT lands in your wallet.', code: `curl -X POST ${API}/api/villain/execute -H "Content-Type: application/json" -d '{"transaction":"BASE64_TX"}'` },
             ].map((s) => (
               <div key={s.step} className="group">
                 <div className="text-emerald-500/40 text-5xl font-black mb-4 group-hover:text-emerald-500/60 transition-colors">{s.step}</div>
                 <h3 className="text-white/90 text-lg font-semibold mb-2">{s.title}</h3>
                 <p className="text-white/40 text-sm mb-4 leading-relaxed">{s.desc}</p>
-                <code className="text-xs text-emerald-500/50 bg-emerald-500/[0.06] px-3 py-1.5 rounded-lg inline-block">{s.code}</code>
+                <div className="bg-black/40 border border-white/[0.06] rounded-lg p-3 overflow-x-auto">
+                  <code className="text-xs text-emerald-400/80 font-mono whitespace-nowrap">{s.code}</code>
+                </div>
               </div>
             ))}
           </div>
