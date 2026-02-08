@@ -237,7 +237,7 @@ export class SchemeService {
   private static generateStepsForSchemeType(type: SchemeType): Array<{ agentId: string; kind: StepKind; stepOrder: number; input: Record<string, unknown> }> {
     const stepTemplates = {
       tweet: [
-        { agentId: 'chum', kind: 'draft_tweet' as StepKind, stepOrder: 1, input: {} },
+        { agentId: 'spy', kind: 'analyze' as StepKind, stepOrder: 1, input: {} },
         { agentId: 'karen', kind: 'review' as StepKind, stepOrder: 2, input: {} }
       ],
       cloud_post: [
