@@ -165,17 +165,19 @@ app.listen(config.port, async () => {
     }
   }
 
-  // Start fal.ai generators — 3 total workers spread across keys
+  // Start fal.ai generators — delayed 60s to let DB stabilize on boot
   const FAL_TOTAL_WORKERS = 3;
   const falKeys = [process.env.FAL_KEY_2, process.env.FAL_KEY].filter(Boolean) as string[];
-  let workerCount = 0;
-  for (let w = 0; w < FAL_TOTAL_WORKERS && falKeys.length > 0; w++) {
-    const key = falKeys[w % falKeys.length];
-    const ki = falKeys.indexOf(key);
-    falGenerator(`FAL${ki + 1}-W${w + 1}`, key);
-    workerCount++;
-  }
-  console.log(`[CHUM] Started ${workerCount} fal.ai workers across ${falKeys.length} keys`);
+  setTimeout(() => {
+    let workerCount = 0;
+    for (let w = 0; w < FAL_TOTAL_WORKERS && falKeys.length > 0; w++) {
+      const key = falKeys[w % falKeys.length];
+      const ki = falKeys.indexOf(key);
+      falGenerator(`FAL${ki + 1}-W${w + 1}`, key);
+      workerCount++;
+    }
+    console.log(`[CHUM] Started ${workerCount} fal.ai workers across ${falKeys.length} keys (delayed 60s)`);
+  }, 60000);
 
   // Initialize agent system
   try {
