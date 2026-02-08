@@ -10,11 +10,15 @@ import {
   getVillainByWallet,
   getAllVillains,
   updateVillainMintSignature,
+  updateVillainWallet,
+  returnVillainToPool,
+  getMintedCount,
+  getMintedCountByWallet,
   getVillainById,
 } from '../services/supabase';
 import { buildMintTransaction, getCollectionMetadata, createVillainCollection } from '../services/nft';
 import { createChallenge, verifyChallenge } from '../services/challenge';
-import { getVillainCount, getVillainCountByWallet } from '../services/supabase';
+// old count functions replaced by getMintedCount/getMintedCountByWallet
 
 const MAX_SUPPLY = 2222;
 const MAX_PER_WALLET = 10;
@@ -72,36 +76,40 @@ router.post('/villain/agent-mint', async (req, res) => {
       return res.status(401).json({ error: verification.error || 'Challenge failed' });
     }
 
-    // Check supply cap
-    const currentCount = await getVillainCount();
+    // Check supply cap (only count actually minted)
+    const currentCount = await getMintedCount();
     if (currentCount >= MAX_SUPPLY) {
       return res.status(400).json({ error: `Supply cap reached (${MAX_SUPPLY}/${MAX_SUPPLY}). No more villains can be minted.` });
     }
 
-    // Check wallet limit (10 per wallet)
-    const walletCount = await getVillainCountByWallet(walletAddress);
+    // Check wallet limit (10 per wallet, only count minted)
+    const walletCount = await getMintedCountByWallet(walletAddress);
     if (walletCount >= MAX_PER_WALLET) {
       return res.status(400).json({ error: `Wallet limit reached (${MAX_PER_WALLET} per wallet)` });
     }
 
     let villain: any = null;
 
-    // Try generate fresh, fallback to pool if rate limited
-    try {
-      console.log(`[VILLAIN-AGENT] Generating villain for ${walletAddress}`);
-      const { imageBuffer, traits, rarityScore } = await generateVillainImage();
-      const { imageUrl, metadataUrl } = await uploadVillainToStorage(
-        imageBuffer, traits, walletAddress, rarityScore
-      );
-      villain = await insertVillain(walletAddress, imageUrl, metadataUrl, traits, 0, rarityScore);
-      console.log(`[VILLAIN-AGENT] Created villain #${villain.id}`);
-    } catch (genError: any) {
-      console.log(`[VILLAIN-AGENT] Generation failed, trying pool: ${genError.message}`);
-      villain = await claimPoolVillain(walletAddress);
-      if (!villain) {
+    // Try to claim from pool first, generate fresh if pool empty
+    villain = await claimPoolVillain(`pending_${walletAddress}_${Date.now()}`);
+    if (!villain) {
+      try {
+        console.log(`[VILLAIN-AGENT] Pool empty, generating fresh for ${walletAddress}`);
+        const { imageBuffer, traits, rarityScore } = await generateVillainImage();
+        const poolId = `pending_${walletAddress}_${Date.now()}`;
+        const { imageUrl, metadataUrl } = await uploadVillainToStorage(
+          imageBuffer, traits, poolId, rarityScore
+        );
+        villain = await insertVillain(poolId, imageUrl, metadataUrl, traits, 0, rarityScore);
+        console.log(`[VILLAIN-AGENT] Generated villain #${villain.id} (pending)`);
+      } catch (genError: any) {
+        console.log(`[VILLAIN-AGENT] Generation failed: ${genError.message}`);
         return res.status(503).json({ error: 'Image generation temporarily unavailable and pool is empty. Try again in a moment.' });
       }
-      console.log(`[VILLAIN-AGENT] Assigned pool villain #${villain.id} to ${walletAddress}`);
+    } else {
+      // Mark as pending for this wallet
+      await updateVillainWallet(villain.id, `pending_${walletAddress}_${Date.now()}`);
+      console.log(`[VILLAIN-AGENT] Claimed pool villain #${villain.id} (pending)`);
     }
 
     // Build mint transaction (authority-signed, agent needs to countersign)
@@ -133,7 +141,7 @@ router.post('/villain/agent-mint', async (req, res) => {
  */
 router.post('/villain/execute', async (req, res) => {
   try {
-    const { transaction } = req.body;
+    const { transaction, villainId } = req.body;
     if (!transaction) {
       return res.status(400).json({ error: 'transaction is required' });
     }
@@ -152,6 +160,31 @@ router.post('/villain/execute', async (req, res) => {
     });
 
     console.log(`[VILLAIN-AGENT] Transaction submitted: ${signature}`);
+
+    // Confirm on-chain before marking as minted
+    try {
+      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+      if (confirmation.value.err) {
+        console.log(`[VILLAIN-AGENT] Transaction failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
+        // Return pending villain to pool
+        if (villainId) await returnVillainToPool(villainId);
+        return res.status(400).json({ error: 'Transaction failed on-chain', signature, details: confirmation.value.err });
+      }
+
+      // Get minter wallet from tx accounts (signer 2 = minter)
+      const minterKey = tx.message.staticAccountKeys[tx.message.header.numRequiredSignatures - 1];
+      const walletAddress = minterKey.toString();
+
+      // Mark as minted with real wallet + signature
+      if (villainId) {
+        await updateVillainWallet(villainId, walletAddress);
+        await updateVillainMintSignature(walletAddress, signature);
+        console.log(`[VILLAIN-AGENT] Villain #${villainId} minted by ${walletAddress}`);
+      }
+    } catch (confirmErr: any) {
+      console.log(`[VILLAIN-AGENT] Confirmation timeout, tx may still land: ${confirmErr.message}`);
+      // Don't return to pool — tx might still confirm
+    }
 
     res.json({ signature });
   } catch (error: any) {
@@ -174,13 +207,13 @@ router.post('/villain/generate', async (req, res) => {
     }
 
     // Check supply cap
-    const currentSupply = await getVillainCount();
+    const currentSupply = await getMintedCount();
     if (currentSupply >= MAX_SUPPLY) {
       return res.status(400).json({ error: `Supply cap reached (${MAX_SUPPLY}/${MAX_SUPPLY}). No more villains can be minted.` });
     }
 
     // Check wallet limit (10 per wallet)
-    const walletCount = await getVillainCountByWallet(walletAddress);
+    const walletCount = await getMintedCountByWallet(walletAddress);
     if (walletCount >= MAX_PER_WALLET) {
       return res.status(400).json({ error: `Wallet limit reached (${MAX_PER_WALLET} per wallet)` });
     }
@@ -332,7 +365,7 @@ router.get('/villains', async (req, res) => {
  */
 router.get('/villains/supply', async (_req, res) => {
   try {
-    const count = await getVillainCount();
+    const count = await getMintedCount();
     res.json({ minted: count, maxSupply: MAX_SUPPLY, remaining: MAX_SUPPLY - count });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to fetch supply' });

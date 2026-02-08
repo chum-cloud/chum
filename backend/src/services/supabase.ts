@@ -252,9 +252,7 @@ export async function getAllVillains(limit: number = 50): Promise<VillainRow[]> 
   const { data, error } = await supabase
     .from('villains')
     .select('*')
-    .not('wallet_address', 'like', 'pool%')
-    .neq('wallet_address', 'Test1111111111111111111111111111111111111111')
-    .neq('wallet_address', 'TestVillain002xyz789abcdef123456789abcdef1234')
+    .eq('is_minted', true)
     .order('id', { ascending: false })
     .limit(limit);
 
@@ -330,6 +328,41 @@ export async function updateVillainMintSignature(
     .eq('wallet_address', walletAddress);
 
   if (error) throw new Error(`updateVillainMintSignature: ${error.message}`);
+}
+
+export async function getMintedCount(): Promise<number> {
+  const { count, error } = await supabase
+    .from('villains')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_minted', true);
+  if (error) throw new Error(`getMintedCount: ${error.message}`);
+  return count ?? 0;
+}
+
+export async function getMintedCountByWallet(walletAddress: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('villains')
+    .select('*', { count: 'exact', head: true })
+    .eq('wallet_address', walletAddress)
+    .eq('is_minted', true);
+  if (error) throw new Error(`getMintedCountByWallet: ${error.message}`);
+  return count ?? 0;
+}
+
+export async function updateVillainWallet(id: number, walletAddress: string): Promise<void> {
+  const { error } = await supabase
+    .from('villains')
+    .update({ wallet_address: walletAddress })
+    .eq('id', id);
+  if (error) throw new Error(`updateVillainWallet: ${error.message}`);
+}
+
+export async function returnVillainToPool(id: number): Promise<void> {
+  const { error } = await supabase
+    .from('villains')
+    .update({ wallet_address: `pool_returned_${Date.now()}`, is_minted: false, mint_signature: null })
+    .eq('id', id);
+  if (error) throw new Error(`returnVillainToPool: ${error.message}`);
 }
 
 export async function getPoolCount(): Promise<number> {
