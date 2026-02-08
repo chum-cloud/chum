@@ -235,14 +235,8 @@ export default function VillainsPage() {
           {/* Right: Minted villains only */}
           <div className="flex items-center justify-center">
             {villains.length > 0 ? (
-              <div className={`grid gap-5 w-full ${villains.length === 1 ? 'grid-cols-1 max-w-[320px]' : villains.length <= 4 ? 'grid-cols-2 max-w-[440px]' : 'grid-cols-3 max-w-[560px]'}`}>
-                {villains.slice(0, 6).map((v) => (
-                  <div key={v.id} className="relative group rounded-2xl overflow-hidden border-2 border-emerald-500/20 hover:border-emerald-500/50 transition-all duration-300 shadow-lg shadow-emerald-500/10">
-                    <div className="aspect-square">
-                      <img src={v.image_url} alt={`Villain #${v.id}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                    </div>
-                  </div>
-                ))}
+              <div className="w-72 h-72 rounded-2xl overflow-hidden border-2 border-emerald-500/30 shadow-lg shadow-emerald-500/20 group">
+                <img src={villains[0].image_url} alt={`Villain #${villains[0].id}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
               </div>
             ) : (
               <div className="w-72 h-72 rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/[0.03] flex items-center justify-center">
