@@ -2,6 +2,8 @@
 export const OPERATION_COSTS = {
   GROQ_THOUGHT: 0.002,        // Llama 3.3 70B, ~150 tokens
   GROQ_TWEET: 0.002,          // Same model, tweet generation
+  VERTEX_THOUGHT: 0.0005,     // Gemini 2.0 Flash via Vertex AI, ~150 tokens
+  VERTEX_CONTENT: 0.001,      // Gemini 2.0 Flash via Vertex AI, ~300 tokens
   GEMINI_IMAGE: 0.01,         // Gemini Flash image gen
   HELIUS_BALANCE_CHECK: 0.0001, // RPC getBalance
   HELIUS_TX_QUERY: 0.0002,    // RPC transaction parsing

@@ -1,16 +1,15 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '../config';
-import type { 
-  AgentMemoryRow, 
-  AgentEventRow, 
-  SchemeRow, 
+import { generateVertexText } from '../services/vertex';
+import type {
+  AgentMemoryRow,
+  AgentEventRow,
+  SchemeRow,
   SchemeType,
-  SchemeStatus 
+  SchemeStatus
 } from '../types';
 
 const supabase = createClient(config.supabaseUrl, config.supabaseServiceKey);
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export interface AgentConstructorParams {
   name: string;
@@ -22,30 +21,25 @@ export abstract class BaseAgent {
   protected name: string;
   protected role: string;
   protected personality: string;
-  protected model: any;
 
   constructor({ name, role, personality }: AgentConstructorParams) {
     this.name = name;
     this.role = role;
     this.personality = personality;
-    this.model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
   }
 
   /**
-   * Core thinking method - calls Gemini with personality + context
+   * Core thinking method - calls Vertex AI (Gemini 2.0 Flash) with personality + context
    */
   async think(context: string): Promise<string> {
     try {
-      const prompt = `${this.personality}
+      const userPrompt = `CONTEXT:\n${context}\n\nRespond in character. Keep responses focused and actionable.`;
 
-CONTEXT:
-${context}
-
-Respond in character. Keep responses focused and actionable.`;
-
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      return response.text();
+      const text = await generateVertexText(this.personality, userPrompt, {
+        maxTokens: 300,
+        temperature: 0.9,
+      });
+      return text;
     } catch (error) {
       console.error(`[AGENT:${this.name.toUpperCase()}] Think error:`, error);
       throw new Error(`Failed to think: ${error}`);

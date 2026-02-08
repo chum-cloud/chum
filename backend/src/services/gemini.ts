@@ -1,7 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { VillainTraits, BodyColor, Hat, EyeColor, Accessory, Expression, Background } from '../types';
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // Trait arrays with rarity weights
 const BODY_COLORS: { value: BodyColor; weight: number }[] = [
@@ -208,11 +205,12 @@ export async function generateVillainImage(traits?: VillainTraits): Promise<{
     let url: string;
     let headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
-    if (process.env.VERTEX_SA_KEY) {
+    const vertexRaw = (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || process.env.VERTEX_SA_KEY)?.trim();
+    if (vertexRaw) {
       // Use Vertex AI endpoint (no RPD cap with billing)
       const { GoogleAuth } = await import('google-auth-library');
       let saKey: any;
-      const raw = process.env.VERTEX_SA_KEY!.trim();
+      const raw = vertexRaw;
       if (raw.startsWith('{')) {
         saKey = JSON.parse(raw);
       } else {
@@ -249,15 +247,26 @@ export async function generateVillainImage(traits?: VillainTraits): Promise<{
     let lastError: Error | null = null;
     let imageBuffer: Buffer | null = null;
 
-    for (let i = 0; i < (process.env.VERTEX_SA_KEY ? 1 : apiKeys.length); i++) {
-      const currentUrl = process.env.VERTEX_SA_KEY
-        ? url
-        : `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKeys[i]}`;
+    // Build list of attempts: Vertex first (if configured), then Gemini API keys
+    const attempts: Array<{ label: string; url: string; headers: Record<string, string> }> = [];
 
+    if (vertexRaw) {
+      attempts.push({ label: 'Vertex AI', url, headers: { ...headers } });
+    }
+    for (const key of apiKeys) {
+      attempts.push({
+        label: `Gemini API (${key.slice(-6)})`,
+        url: `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${key}`,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    for (let i = 0; i < attempts.length; i++) {
+      const attempt = attempts[i];
       try {
-        const response = await fetch(currentUrl, {
+        const response = await fetch(attempt.url, {
           method: 'POST',
-          headers,
+          headers: attempt.headers,
           body: JSON.stringify(payload)
         });
 
@@ -273,12 +282,11 @@ export async function generateVillainImage(traits?: VillainTraits): Promise<{
         }
 
         imageBuffer = Buffer.from(data.predictions[0].bytesBase64Encoded, 'base64');
-        console.log(`[IMAGEN] Image generated successfully with key ${i + 1}, size:`, imageBuffer.length, 'bytes');
+        console.log(`[IMAGEN] Image generated successfully via ${attempt.label}, size:`, imageBuffer.length, 'bytes');
         break;
       } catch (err) {
         lastError = err as Error;
-        console.warn(`[IMAGEN] Key ${i + 1} failed:`, (err as Error).message);
-        if (process.env.VERTEX_SA_KEY) throw err; // no fallback for Vertex
+        console.warn(`[IMAGEN] ${attempt.label} failed:`, (err as Error).message);
         continue;
       }
     }

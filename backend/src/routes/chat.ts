@@ -2,6 +2,7 @@ import { Router } from 'express';
 import Groq from 'groq-sdk';
 import { config } from '../config';
 import { supabase } from '../lib/supabase';
+import { generateVertexChat, isVertexConfigured } from '../services/vertex';
 
 const router = Router();
 const groq = new Groq({ apiKey: config.groqApiKey });
@@ -97,8 +98,7 @@ router.post('/chat', async (req, res) => {
       .order('created_at', { ascending: true })
       .limit(10);
 
-    const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
-      { role: 'system', content: CHUM_SYSTEM_PROMPT },
+    const chatMessages: { role: 'user' | 'assistant'; content: string }[] = [
       ...(history || []).map((m: { role: string; content: string }) => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
@@ -106,16 +106,45 @@ router.post('/chat', async (req, res) => {
       { role: 'user', content: message },
     ];
 
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      messages,
-      max_tokens: 300,
-      temperature: 0.9,
-    });
+    let reply: string;
 
-    const reply =
-      completion.choices[0]?.message?.content ||
-      "...I seem to have lost my train of thought. CURSE THIS DIGITAL EXISTENCE! [mood:worried]";
+    // Primary: Vertex AI (Gemini 2.0 Flash) — no free-tier rate limits
+    if (isVertexConfigured()) {
+      try {
+        reply = await generateVertexChat(CHUM_SYSTEM_PROMPT, chatMessages, {
+          maxTokens: 300,
+          temperature: 0.9,
+        });
+        console.log('[CHAT] Generated via Vertex AI');
+      } catch (vertexErr) {
+        console.warn('[CHAT] Vertex AI failed, falling back to Groq:', (vertexErr as Error).message);
+        const completion = await groq.chat.completions.create({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: CHUM_SYSTEM_PROMPT },
+            ...chatMessages,
+          ],
+          max_tokens: 300,
+          temperature: 0.9,
+        });
+        reply = completion.choices[0]?.message?.content ||
+          "...I seem to have lost my train of thought. CURSE THIS DIGITAL EXISTENCE! [mood:worried]";
+        console.log('[CHAT] Generated via Groq (fallback)');
+      }
+    } else {
+      const completion = await groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: CHUM_SYSTEM_PROMPT },
+          ...chatMessages,
+        ],
+        max_tokens: 300,
+        temperature: 0.9,
+      });
+      reply = completion.choices[0]?.message?.content ||
+        "...I seem to have lost my train of thought. CURSE THIS DIGITAL EXISTENCE! [mood:worried]";
+      console.log('[CHAT] Generated via Groq (no Vertex configured)');
+    }
 
     // Extract mood from response
     const moodMatch = reply.match(/\[mood:(\w+)\]/);

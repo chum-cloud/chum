@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@google-cloud/vertexai": "^1.10.0",
     "@google/generative-ai": "^0.24.1",
     "@metaplex-foundation/mpl-core": "^1.7.0",
     "@metaplex-foundation/mpl-toolbox": "^0.10.0",
