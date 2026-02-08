@@ -77,11 +77,16 @@ app.listen(config.port, async () => {
   // Pool manager: Vertex drip (1/min) + burst refill when pool < 30
   const POOL_TARGET = 60;
   const POOL_HALF = POOL_TARGET / 2;
+  const POOL_CAP = 300; // Stop generating when pool hits this
   let poolBurstRunning = false;
 
-  // Vertex AI steady drip — 1 villain per minute, always
+  // Vertex AI steady drip — 1 villain per minute, pauses at POOL_CAP
   setInterval(async () => {
     try {
+      const currentPool = await getPoolCount();
+      if (currentPool >= POOL_CAP) {
+        return; // Pool full, skip
+      }
       const { imageBuffer, traits, rarityScore } = await generateVillainImageVertexOnly();
       const poolAddr = `pool-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const { imageUrl } = await uploadVillainToStorage(imageBuffer, traits, poolAddr, rarityScore);
