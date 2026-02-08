@@ -256,7 +256,7 @@ export class SchemeService {
         { agentId: 'chum', kind: 'review' as StepKind, stepOrder: 2, input: {} }
       ],
       scheme: [
-        { agentId: 'chum', kind: 'draft_tweet' as StepKind, stepOrder: 1, input: {} },
+        { agentId: 'spy', kind: 'analyze' as StepKind, stepOrder: 1, input: {} },
         { agentId: 'karen', kind: 'review' as StepKind, stepOrder: 2, input: {} }
       ]
     };
