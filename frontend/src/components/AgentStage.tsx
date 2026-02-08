@@ -2,17 +2,15 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 
 const API = import.meta.env.VITE_API_URL || '';
 
-// ─── Home positions for each agent (% based, matching rooms on the top-down HQ map) ───
+// ─── Home positions (% based) — kept away from edges for mobile safety ───
 const AGENT_HOMES: Record<string, { x: number; y: number; zone: string }> = {
-  chum:       { x: 50, y: 50, zone: 'War Table' },         // Center table
-  karen:      { x: 14, y: 30, zone: 'Surveillance' },      // Top-left monitors
-  spy:        { x: 50, y: 15, zone: 'Vault' },             // Top center near vault
-  recruiter:  { x: 14, y: 75, zone: 'Comms' },             // Bottom-left comms desk
-  henchman:   { x: 86, y: 75, zone: 'Workshop' },          // Bottom-right workshop
-  treasurer:  { x: 86, y: 30, zone: 'Treasury' },          // Top-right treasury desk
+  chum:       { x: 50, y: 45, zone: 'War Table' },
+  karen:      { x: 18, y: 25, zone: 'Surveillance' },
+  spy:        { x: 50, y: 12, zone: 'Vault' },
+  recruiter:  { x: 18, y: 65, zone: 'Comms' },
+  henchman:   { x: 82, y: 65, zone: 'Workshop' },
+  treasurer:  { x: 82, y: 25, zone: 'Treasury' },
 };
-
-// No single meeting point — agents stay in their zones during conversations
 
 const AGENT_CONFIG: Record<string, { name: string; color: string }> = {
   chum:       { name: 'CHUM',       color: '#4ade80' },
@@ -69,7 +67,6 @@ function useWander(homeX: number, homeY: number, radius: number) {
   const frameRef = useRef<number>(0);
   
   useEffect(() => {
-    // Wander around home
     const pickNewTarget = () => {
       targetRef.current = {
         x: homeX + (Math.random() - 0.5) * radius * 2,
@@ -100,8 +97,6 @@ function useWander(homeX: number, homeY: number, radius: number) {
     };
     
     frameRef.current = requestAnimationFrame(move);
-    
-    // Pick new targets periodically
     const interval = setInterval(pickNewTarget, 2000 + Math.random() * 3000);
     
     return () => {
@@ -122,7 +117,6 @@ function getActiveConversation(messages: ConversationMessage[]) {
   const bubbles: Record<string, string> = {};
   const threads: Array<{ from: string; to: string }> = [];
   
-  // Only keep most recent message per agent
   for (const msg of recent) {
     const agentId = msg.agent_id;
     const content = msg.data?.content || '';
@@ -132,7 +126,7 @@ function getActiveConversation(messages: ConversationMessage[]) {
     if (replyTo) participants.add(replyTo);
     
     if (!bubbles[agentId] && content) {
-      bubbles[agentId] = content.length > 70 ? content.substring(0, 67) + '...' : content;
+      bubbles[agentId] = content.length > 40 ? content.substring(0, 37) + '...' : content;
     }
     
     if (replyTo && !threads.find(t => t.from === agentId && t.to === replyTo)) {
@@ -148,19 +142,17 @@ function AgentAvatar({
   agentId, 
   isInConvo, 
   bubble, 
-  bubbleIndex,
 }: { 
   agentId: string; 
   isInConvo: boolean; 
   bubble: string | null;
-  bubbleIndex: number;
 }) {
   const config = AGENT_CONFIG[agentId];
   const home = AGENT_HOMES[agentId];
   const pos = useWander(home.x, home.y, 2);
   
-  // Stagger bubbles vertically so they don't overlap
-  const bubbleOffset = bubbleIndex * 28;
+  // Position bubble left/right based on agent position to prevent overflow
+  const bubbleOnLeft = home.x > 50;
   
   return (
     <div
@@ -172,43 +164,35 @@ function AgentAvatar({
         zIndex: isInConvo ? 15 : 10,
       }}
     >
-      {/* Speech bubble — positioned above with stagger */}
+      {/* Speech bubble */}
       {bubble && (
         <div 
-          className="absolute left-1/2 -translate-x-1/2 px-3 py-1 rounded shadow-lg pointer-events-none"
+          className="absolute px-2 py-1 rounded shadow-lg pointer-events-none"
           style={{ 
-            bottom: `calc(100% + ${8 + bubbleOffset}px)`,
+            bottom: `calc(100% + 4px)`,
+            ...(bubbleOnLeft ? { right: '0', left: 'auto' } : { left: '0', right: 'auto' }),
             backgroundColor: 'rgba(0,0,0,0.92)',
             border: `1px solid ${config.color}60`,
             whiteSpace: 'nowrap',
-            maxWidth: '200px',
+            maxWidth: '160px',
             overflow: 'hidden',
-            zIndex: 25 + bubbleIndex,
-            fontSize: '11px',
+            textOverflow: 'ellipsis',
+            zIndex: 25,
+            fontSize: '9px',
             fontFamily: 'monospace',
-            lineHeight: '1.4',
+            lineHeight: '1.3',
           }}
         >
           <TypewriterText text={bubble} color={config.color} />
-          {bubbleIndex === 0 && (
-            <div 
-              className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
-              style={{
-                borderLeft: '5px solid transparent',
-                borderRight: '5px solid transparent',
-                borderTop: '5px solid rgba(0,0,0,0.92)',
-              }}
-            />
-          )}
         </div>
       )}
       
-      {/* Avatar */}
+      {/* Avatar — responsive sizes */}
       <div 
-        className="relative rounded-full overflow-hidden shadow-lg w-10 h-10 sm:w-14 sm:h-14 md:w-[72px] md:h-[72px]"
+        className="relative rounded-full overflow-hidden shadow-lg w-8 h-8 sm:w-12 sm:h-12 md:w-[60px] md:h-[60px]"
         style={{ 
           border: `2px solid ${config.color}`,
-          boxShadow: isInConvo ? `0 0 16px ${config.color}60` : `0 2px 8px rgba(0,0,0,0.5)`,
+          boxShadow: isInConvo ? `0 0 12px ${config.color}60` : `0 2px 6px rgba(0,0,0,0.5)`,
         }}
       >
         <img 
@@ -218,13 +202,12 @@ function AgentAvatar({
         />
       </div>
       
-      {/* Name */}
+      {/* Name label */}
       <div 
-        className="mt-0.5 px-1 py-0.5 rounded text-[7px] sm:text-[8px] md:text-[9px] font-mono font-bold whitespace-nowrap"
+        className="mt-0.5 px-1 rounded text-[6px] sm:text-[7px] md:text-[9px] font-mono font-bold whitespace-nowrap"
         style={{ 
-          backgroundColor: 'rgba(0,0,0,0.75)',
+          backgroundColor: 'rgba(0,0,0,0.8)',
           color: config.color,
-          border: `1px solid ${config.color}30`,
         }}
       >
         {config.name}
@@ -257,15 +240,12 @@ export default function AgentStage() {
     [conversations]
   );
 
-  // Assign bubble stagger index per agent
-  const bubbleAgents = Object.keys(bubbles);
-
   return (
     <div 
       className="relative w-full rounded-lg overflow-hidden border border-chum-border"
       style={{ aspectRatio: '16/9' }}
     >
-      {/* Background — underwater office HQ */}
+      {/* Background */}
       <div className="absolute inset-0 bg-[#0a1520]" />
       <img 
         src="/agents/hq-topdown.png" 
@@ -315,15 +295,14 @@ export default function AgentStage() {
           agentId={agentId}
           isInConvo={participants.has(agentId)}
           bubble={bubbles[agentId] || null}
-          bubbleIndex={bubbleAgents.indexOf(agentId)}
         />
       ))}
 
-      {/* Status bar */}
-      <div className="absolute bottom-0 left-0 right-0 px-3 py-1.5 bg-black/70 flex items-center justify-between text-[10px] font-mono" style={{ zIndex: 20 }}>
-        <div className="flex items-center gap-3">
+      {/* Status bar — hidden on small screens, compact */}
+      <div className="absolute bottom-0 left-0 right-0 px-2 py-1 bg-black/70 hidden sm:flex items-center justify-between text-[9px] font-mono" style={{ zIndex: 20 }}>
+        <div className="flex items-center gap-2 overflow-hidden">
           {Object.entries(AGENT_CONFIG).map(([id, cfg]) => (
-            <div key={id} className="flex items-center gap-1">
+            <div key={id} className="flex items-center gap-0.5 shrink-0">
               <div 
                 className="w-1.5 h-1.5 rounded-full"
                 style={{ backgroundColor: participants.has(id) ? cfg.color : '#4b5563' }}
@@ -332,10 +311,10 @@ export default function AgentStage() {
             </div>
           ))}
         </div>
-        <span className="text-gray-500">
+        <span className="text-gray-500 shrink-0 ml-2">
           {participants.size > 0 
-            ? `💬 ${participants.size} agents talking` 
-            : '😴 Agents patrolling'}
+            ? `💬 ${participants.size} talking` 
+            : '😴 Patrolling'}
         </span>
       </div>
     </div>
