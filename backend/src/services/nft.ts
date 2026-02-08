@@ -134,9 +134,13 @@ export async function buildMintTransaction(
   const combinedBuilder = builder.add(feeBuilder);
   const tx = await combinedBuilder.buildWithLatestBlockhash(u);
 
-  // Serialize - the backend signs as authority + asset signer,
-  // user needs to sign as payer
-  const serialized = u.transactions.serialize(tx);
+  // Sign with authority (payer) + asset signer on the backend
+  const signedTx = await u.identity.signTransaction(tx);
+  const fullySignedTx = await assetSigner.signTransaction(signedTx);
+
+  // Serialize - authority + asset signer are signed,
+  // minter still needs to countersign
+  const serialized = u.transactions.serialize(fullySignedTx);
   const base64Tx = Buffer.from(serialized).toString('base64');
 
   return {
