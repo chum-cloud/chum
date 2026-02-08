@@ -145,7 +145,7 @@ function buildPrompt(traits: VillainTraits): string {
   ];
   const pose = poses[Math.floor(Math.random() * poses.length)];
 
-  const prompt = `Half-body portrait of a small ${bodyColor} plankton villain character, 1930s rubber hose cartoon style like Cuphead and Fleischer Studios. ONE large ${eyeColor} cyclops eye, two antennae with ball tips, white gloved hands, ${hatDesc}, ${outfit}. ${accessoryDesc ? accessoryDesc + '. ' : ''}${expression} expression. ${pose}. Thick black outlines, muted vintage palette, dark vignette background with film grain. Circular portrait composition.`;
+  const prompt = `Half-body portrait of a small ${bodyColor} plankton villain character, 1930s rubber hose cartoon style like Cuphead and Fleischer Studios. ONE large ${eyeColor} cyclops eye, two antennae with ball tips, ${hatDesc}, ${outfit}. ${accessoryDesc ? accessoryDesc + '. ' : ''}${expression} expression. ${pose}. Thick black outlines, muted vintage palette, dark vignette background with film grain. Circular portrait composition.`;
 
   return prompt;
 }
