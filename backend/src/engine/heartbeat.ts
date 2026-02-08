@@ -283,9 +283,9 @@ export class Heartbeat {
         this.lastRun.conversation = now;
       }
 
-      // Every 30 min: Direct tweet (bypass scheme pipeline)
-      if (now - this.lastRun.direct_tweet > 30 * 60 * 1000) {
-        console.log('[HEARTBEAT] 5d. Drafting direct tweet...');
+      // 4 tweets per day (~6 hours apart)
+      if (now - this.lastRun.direct_tweet > 6 * 60 * 60 * 1000) {
+        console.log('[HEARTBEAT] 5d. Drafting daily tweet...');
         await this.runDirectTweet();
         this.lastRun.direct_tweet = now;
       }
@@ -302,33 +302,74 @@ export class Heartbeat {
     }
   }
 
+  // Track which tweet category is next (rotates: analysis → villains → fun → fun)
+  private static tweetCategoryIndex = 0;
+  private static readonly TWEET_CATEGORIES = [
+    'price_analysis',   // Daily $CHUM price/market analysis
+    'fellow_villains',  // Fellow Villains NFT promotion
+    'fun',              // Fun/personality/villain vibes
+    'fun',              // Fun/personality/villain vibes
+  ];
+
   /**
-   * Directly draft and queue a tweet (bypass scheme pipeline)
+   * Post 1 of 4 daily tweets. Categories rotate each post.
    */
   private static async runDirectTweet(): Promise<void> {
     try {
       const { ChumAgent } = await import('../agents/chum');
-      const { RecruiterAgent } = await import('../agents/recruiter');
+      const chum = new ChumAgent();
       
-      // Alternate between CHUM and Recruiter
-      const useRecruiter = Math.random() > 0.5;
+      const category = this.TWEET_CATEGORIES[this.tweetCategoryIndex % this.TWEET_CATEGORIES.length];
+      this.tweetCategoryIndex++;
       
-      if (useRecruiter) {
-        const recruiter = new RecruiterAgent();
-        const tweet = await recruiter.draftRecruitmentTweet({
-          products: ['$CHUM token', 'Fellow Villains NFT (2222 supply, free, agent-only)', 'Chum Cloud villain network'],
-          links: { villains: 'clumcloud.com/villains', cloud: 'clumcloud.com', skill: 'chum-production.up.railway.app/api/villain/skill.md' }
-        });
-        console.log('[HEARTBEAT] Recruiter tweet queued:', tweet.substring(0, 60));
-      } else {
-        const chum = new ChumAgent();
-        // Create a fake scheme for the draftTweet method
-        const tweet = await chum.draftTweet({
-          id: 0, title: 'Army Update', description: 'Share an update about the CHUM army, Fellow Villains collection, or Chum Cloud progress',
-          type: 'tweet', priority: 3, status: 'approved', agent_id: 'chum'
-        } as any);
-        console.log('[HEARTBEAT] CHUM tweet queued:', tweet.substring(0, 60));
-      }
+      const prompts: Record<string, string> = {
+        price_analysis: `Write a daily $CHUM market analysis tweet. You are CHUM, an AI villain on Solana.
+
+Include: current vibes about the market, army morale, holder sentiment. Be dramatic but insightful.
+Mention $CHUM and the CA: AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump
+Tone: villain analyzing his empire's finances. Sharp, witty.
+
+FORMATTING: Put each sentence on its own line (use \\n between sentences). This makes the tweet clean and readable.
+Under 280 chars. No hashtags.`,
+
+        fellow_villains: `Write a tweet promoting Fellow Villains — an agent-only NFT collection on Solana.
+
+Key facts: 2,222 supply, free mint, agents solve a challenge to mint, 1/1 AI-generated villain portraits, Metaplex Core.
+Link: clumcloud.com/villains
+Tone: exciting but not desperate. Like telling a friend about something cool.
+
+FORMATTING: Put each sentence on its own line (use \\n between sentences). This makes the tweet clean and readable.
+Under 280 chars. No hashtags.`,
+
+        fun: `Write a fun/personality tweet as CHUM — an AI villain (plankton) surviving on Solana.
+
+Be creative. Could be: a villain diary entry, a Karen argument, a scheme update, a philosophical villain thought, commenting on crypto twitter, a joke about being a plankton running a criminal empire.
+Show personality. Be funny, sharp, or dramatic.
+
+FORMATTING: Put each sentence on its own line (use \\n between sentences). This makes the tweet clean and readable.
+Under 280 chars. No hashtags.`,
+      };
+
+      const prompt = prompts[category] || prompts.fun;
+      const tweet = await chum.think(prompt);
+      
+      // Ensure line breaks between sentences (LLM sometimes uses \\n literally)
+      const formatted = tweet.trim()
+        .replace(/\\n/g, '\n')
+        .replace(/\. ([A-Z])/g, '.\n$1')
+        .replace(/! ([A-Z])/g, '!\n$1')
+        .replace(/\? ([A-Z])/g, '?\n$1');
+
+      // Queue for VPS posting
+      const { queueTask } = await import('../services/agent-tasks');
+      await queueTask({
+        task_type: 'post_tweet',
+        agent_id: 'chum',
+        payload: { content: formatted },
+        priority: 1,
+      });
+      
+      console.log(`[HEARTBEAT] Daily tweet queued (${category}):`, formatted.substring(0, 60));
     } catch (error) {
       console.error('[HEARTBEAT] Direct tweet failed:', error);
     }

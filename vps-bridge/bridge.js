@@ -91,9 +91,16 @@ async function postTweet(page, content) {
   await editor.click();
   await sleep(500);
   
-  // Type character by character to avoid detection
+  // Type character by character; use Shift+Enter for newlines (Enter alone adds thread tweet)
   for (const char of content) {
-    await page.keyboard.type(char, { delay: 20 + Math.random() * 30 });
+    if (char === '\n') {
+      await page.keyboard.down('Shift');
+      await page.keyboard.press('Enter');
+      await page.keyboard.up('Shift');
+      await sleep(50);
+    } else {
+      await page.keyboard.type(char, { delay: 20 + Math.random() * 30 });
+    }
   }
   await sleep(1000);
 
