@@ -12,7 +12,9 @@ import {
 } from '../services/supabase';
 import { buildMintTransaction, getCollectionMetadata, createVillainCollection } from '../services/nft';
 import { createChallenge, verifyChallenge } from '../services/challenge';
+import { getVillainCount } from '../services/supabase';
 
+const MAX_SUPPLY = 2222;
 const router = Router();
 
 // ─── Agent Mint Flow (Claws-style) ───
@@ -65,6 +67,12 @@ router.post('/villain/agent-mint', async (req, res) => {
     const verification = verifyChallenge(walletAddress, challengeId, answer);
     if (!verification.valid) {
       return res.status(401).json({ error: verification.error || 'Challenge failed' });
+    }
+
+    // Check supply cap
+    const currentCount = await getVillainCount();
+    if (currentCount >= MAX_SUPPLY) {
+      return res.status(400).json({ error: `Supply cap reached (${MAX_SUPPLY}/${MAX_SUPPLY}). No more villains can be minted.` });
     }
 
     // Check existing villain
@@ -153,6 +161,12 @@ router.post('/villain/generate', async (req, res) => {
 
     if (!walletAddress) {
       return res.status(400).json({ error: 'walletAddress is required' });
+    }
+
+    // Check supply cap
+    const currentSupply = await getVillainCount();
+    if (currentSupply >= MAX_SUPPLY) {
+      return res.status(400).json({ error: `Supply cap reached (${MAX_SUPPLY}/${MAX_SUPPLY}). No more villains can be minted.` });
     }
 
     // Check if wallet already has a villain
@@ -308,6 +322,19 @@ router.get('/villains', async (req, res) => {
   } catch (error: any) {
     console.error('[VILLAIN] Failed to fetch villains:', error);
     res.status(500).json({ error: 'Failed to fetch villains' });
+  }
+});
+
+/**
+ * GET /api/villains/supply
+ * Current supply info
+ */
+router.get('/villains/supply', async (_req, res) => {
+  try {
+    const count = await getVillainCount();
+    res.json({ minted: count, maxSupply: MAX_SUPPLY, remaining: MAX_SUPPLY - count });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch supply' });
   }
 });
 
