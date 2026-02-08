@@ -98,12 +98,17 @@ export async function buildMintTransaction(
   // Survival wallet receives royalties
   const authorityPubkey = u.identity.publicKey;
 
+  // Create a non-signing payer reference for the minter
+  // The minter pays rent + tx fees, authority only signs as collection update authority
+  const minterSigner = { publicKey: minterPubkey, signTransaction: null as any, signMessage: null as any, signAllTransactions: null as any };
+
   const builder = create(u, {
     asset: assetSigner,
     collection,
     name: `Fellow Villain #${villainId}`,
     uri: `${config.apiBaseUrl}/api/villain/${villainId}/metadata`,
     owner: minterPubkey,
+    payer: minterSigner,
     plugins: [
       {
         type: 'Royalties',
