@@ -30,10 +30,11 @@ const EYE_COLORS: { value: EyeColor; weight: number }[] = [
 ];
 
 const ACCESSORIES: { value: Accessory; weight: number }[] = [
-  { value: 'monocle', weight: 20 },
-  { value: 'sunglasses', weight: 20 },
-  { value: 'eyepatch', weight: 20 },
-  { value: 'scar', weight: 20 },
+  { value: 'none', weight: 40 },
+  { value: 'monocle', weight: 15 },
+  { value: 'sunglasses', weight: 15 },
+  { value: 'eyepatch', weight: 15 },
+  { value: 'scar', weight: 15 },
 ];
 
 const EXPRESSIONS: { value: Expression; weight: number }[] = [
@@ -118,14 +119,22 @@ function buildPrompt(traits: VillainTraits): string {
   }
 
   const outfits = [
-    'wearing a villain cape',
-    'wearing a lab coat',
-    'wearing a leather jacket',
+    'wearing a villain cape with high collar',
+    'wearing a lab coat with pens in pocket',
+    'wearing a leather jacket with studs',
     'wearing a military uniform with medals',
     'wearing a tuxedo with bow tie',
-    'wearing a trench coat',
+    'wearing a trench coat with popped collar',
     'wearing a striped prison outfit',
     'wearing a fancy vest and dress shirt',
+    'wearing a Hawaiian shirt',
+    'wearing a hoodie',
+    'wearing a suit of armor',
+    'wearing a business suit with tie',
+    'wearing a bomber jacket',
+    'wearing a kimono robe',
+    'wearing a wrestling singlet',
+    'wearing overalls',
   ];
   const outfit = outfits[Math.floor(Math.random() * outfits.length)];
 
