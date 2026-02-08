@@ -6,6 +6,7 @@ import { uploadVillainToStorage, generateMetadata } from '../services/storage';
 import {
   insertVillain,
   claimPoolVillain,
+  getPoolCount,
   getVillainByWallet,
   getAllVillains,
   updateVillainMintSignature,
@@ -428,6 +429,50 @@ router.post('/villains/create-collection', async (req, res) => {
   } catch (error: any) {
     console.error('[VILLAIN] Collection creation failed:', error);
     res.status(500).json({ error: 'Failed to create collection', details: error.message });
+  }
+});
+
+/**
+ * GET /api/villains/pool
+ * Pool status
+ */
+router.get('/villains/pool', async (_req, res) => {
+  try {
+    const count = await getPoolCount();
+    res.json({ pool: count });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch pool count' });
+  }
+});
+
+/**
+ * POST /api/villains/pool/refill
+ * Refill pool up to target (default 10)
+ */
+router.post('/villains/pool/refill', async (req, res) => {
+  try {
+    const target = req.body.target || 10;
+    const current = await getPoolCount();
+    const needed = Math.max(0, target - current);
+    if (needed === 0) return res.json({ message: 'Pool already full', pool: current });
+
+    let generated = 0;
+    for (let i = 0; i < needed; i++) {
+      try {
+        const { imageBuffer, traits, rarityScore } = await generateVillainImage();
+        const { imageUrl } = await uploadVillainToStorage(imageBuffer, traits, `pool-${Date.now()}`, rarityScore);
+        const poolAddr = `pool-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        await insertVillain(poolAddr, imageUrl, '', traits, 0, rarityScore);
+        generated++;
+        console.log(`[POOL] Refilled ${generated}/${needed}`);
+      } catch (err: any) {
+        console.log(`[POOL] Generation failed at ${generated}/${needed}: ${err.message}`);
+        break; // Rate limited, stop
+      }
+    }
+    res.json({ message: `Refilled ${generated} villains`, pool: current + generated });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to refill pool', details: error.message });
   }
 });
 

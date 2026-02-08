@@ -332,6 +332,15 @@ export async function updateVillainMintSignature(
   if (error) throw new Error(`updateVillainMintSignature: ${error.message}`);
 }
 
+export async function getPoolCount(): Promise<number> {
+  const { count, error } = await supabase
+    .from('villains')
+    .select('*', { count: 'exact', head: true })
+    .like('wallet_address', 'pool%');
+  if (error) throw new Error(`getPoolCount: ${error.message}`);
+  return count ?? 0;
+}
+
 export async function claimPoolVillain(walletAddress: string): Promise<VillainRow | null> {
   // Get oldest pool villain
   const { data: pool, error: fetchErr } = await supabase
