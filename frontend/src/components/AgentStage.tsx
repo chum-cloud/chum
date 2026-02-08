@@ -4,12 +4,12 @@ const API = import.meta.env.VITE_API_URL || '';
 
 // ─── Home positions for each agent (% based, matching rooms on the top-down HQ map) ───
 const AGENT_HOMES: Record<string, { x: number; y: number; zone: string }> = {
-  chum:       { x: 48, y: 52, zone: 'War Table' },         // Center table
-  karen:      { x: 18, y: 42, zone: 'Surveillance' },      // Left monitors
-  spy:        { x: 55, y: 22, zone: 'Vault' },             // Upper area near vault
-  recruiter:  { x: 25, y: 72, zone: 'Comms' },             // Lower-left comms desk
-  henchman:   { x: 68, y: 72, zone: 'Workshop' },          // Lower-right workshop
-  treasurer:  { x: 80, y: 35, zone: 'Treasury' },          // Right side treasury desk
+  chum:       { x: 50, y: 50, zone: 'War Table' },         // Center table
+  karen:      { x: 14, y: 30, zone: 'Surveillance' },      // Top-left monitors
+  spy:        { x: 50, y: 15, zone: 'Vault' },             // Top center near vault
+  recruiter:  { x: 14, y: 75, zone: 'Comms' },             // Bottom-left comms desk
+  henchman:   { x: 86, y: 75, zone: 'Workshop' },          // Bottom-right workshop
+  treasurer:  { x: 86, y: 30, zone: 'Treasury' },          // Top-right treasury desk
 };
 
 const MEETING_POINT = { x: 48, y: 50 };
@@ -189,7 +189,7 @@ function AgentAvatar({
             backgroundColor: 'rgba(0,0,0,0.92)',
             border: `1px solid ${config.color}60`,
             whiteSpace: 'nowrap',
-            maxWidth: '320px',
+            maxWidth: '200px',
             overflow: 'hidden',
             zIndex: 25 + bubbleIndex,
             fontSize: '11px',
@@ -213,11 +213,9 @@ function AgentAvatar({
       
       {/* Avatar */}
       <div 
-        className="relative rounded-full overflow-hidden shadow-lg"
+        className="relative rounded-full overflow-hidden shadow-lg w-10 h-10 sm:w-14 sm:h-14 md:w-[72px] md:h-[72px]"
         style={{ 
-          width: '72px', 
-          height: '72px',
-          border: `2.5px solid ${config.color}`,
+          border: `2px solid ${config.color}`,
           boxShadow: isInConvo ? `0 0 16px ${config.color}60` : `0 2px 8px rgba(0,0,0,0.5)`,
         }}
       >
@@ -230,7 +228,7 @@ function AgentAvatar({
       
       {/* Name */}
       <div 
-        className="mt-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold whitespace-nowrap"
+        className="mt-0.5 px-1 py-0.5 rounded text-[7px] sm:text-[8px] md:text-[9px] font-mono font-bold whitespace-nowrap"
         style={{ 
           backgroundColor: 'rgba(0,0,0,0.75)',
           color: config.color,
