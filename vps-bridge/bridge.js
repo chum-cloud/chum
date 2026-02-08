@@ -27,6 +27,12 @@ let hourStart = Date.now();
 
 async function launchBrowser() {
   if (browser) return browser;
+  
+  // Clean stale lock file to prevent "Failed to create SingletonLock" errors
+  const fs = require('fs');
+  const lockPath = `${USER_DATA_DIR}/SingletonLock`;
+  try { fs.unlinkSync(lockPath); } catch { /* doesn't exist, fine */ }
+  
   console.log('[bridge] Launching Chrome...');
   browser = await puppeteer.launch({
     executablePath: CHROME_PATH,

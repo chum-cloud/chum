@@ -20,7 +20,8 @@ export class Heartbeat {
     spy_intel: 0,
     chum_scheme: 0,
     karen_review: 0,
-    conversation: 0
+    conversation: 0,
+    direct_tweet: 0
   };
 
   /**
@@ -282,6 +283,13 @@ export class Heartbeat {
         this.lastRun.conversation = now;
       }
 
+      // Every 30 min: Direct tweet (bypass scheme pipeline)
+      if (now - this.lastRun.direct_tweet > 30 * 60 * 1000) {
+        console.log('[HEARTBEAT] 5d. Drafting direct tweet...');
+        await this.runDirectTweet();
+        this.lastRun.direct_tweet = now;
+      }
+
       // Every 4 hours: Karen reviews agent performance
       if (now - this.lastRun.karen_review > intervals.karen_review * 60 * 1000) {
         console.log('[HEARTBEAT] 5c. Running Karen performance review...');
@@ -291,6 +299,38 @@ export class Heartbeat {
 
     } catch (error) {
       console.error('[HEARTBEAT] Failed to run periodic activities:', error);
+    }
+  }
+
+  /**
+   * Directly draft and queue a tweet (bypass scheme pipeline)
+   */
+  private static async runDirectTweet(): Promise<void> {
+    try {
+      const { ChumAgent } = await import('../agents/chum');
+      const { RecruiterAgent } = await import('../agents/recruiter');
+      
+      // Alternate between CHUM and Recruiter
+      const useRecruiter = Math.random() > 0.5;
+      
+      if (useRecruiter) {
+        const recruiter = new RecruiterAgent();
+        const tweet = await recruiter.draftRecruitmentTweet({
+          products: ['$CHUM token', 'Fellow Villains NFT (2222 supply, free, agent-only)', 'Chum Cloud villain network'],
+          links: { villains: 'clumcloud.com/villains', cloud: 'clumcloud.com', skill: 'chum-production.up.railway.app/api/villain/skill.md' }
+        });
+        console.log('[HEARTBEAT] Recruiter tweet queued:', tweet.substring(0, 60));
+      } else {
+        const chum = new ChumAgent();
+        // Create a fake scheme for the draftTweet method
+        const tweet = await chum.draftTweet({
+          id: 0, title: 'Army Update', description: 'Share an update about the CHUM army, Fellow Villains collection, or Chum Cloud progress',
+          type: 'tweet', priority: 3, status: 'approved', agent_id: 'chum'
+        } as any);
+        console.log('[HEARTBEAT] CHUM tweet queued:', tweet.substring(0, 60));
+      }
+    } catch (error) {
+      console.error('[HEARTBEAT] Direct tweet failed:', error);
     }
   }
 

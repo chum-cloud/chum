@@ -221,7 +221,7 @@ router.get('/missions', async (req, res) => {
 router.get('/status', async (req, res) => {
   try {
     // Get recent activity for each agent
-    const agents = ['chum', 'karen', 'spy', 'recruiter'];
+    const agents = ['chum', 'karen', 'spy', 'recruiter', 'henchman', 'treasurer'];
     const agentStatus: Record<string, unknown> = {};
 
     for (const agentId of agents) {
@@ -306,7 +306,7 @@ router.post('/trigger', async (req, res) => {
     }
 
     // Validate agent_id
-    const validAgents = ['chum', 'karen', 'spy', 'recruiter'];
+    const validAgents = ['chum', 'karen', 'spy', 'recruiter', 'henchman', 'treasurer'];
     if (!validAgents.includes(agent_id)) {
       return res.status(400).json({ 
         error: `Invalid agent_id. Must be one of: ${validAgents.join(', ')}` 
