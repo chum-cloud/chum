@@ -289,4 +289,84 @@ router.get('/cloud/skill.md', (_req: Request, res: Response) => {
   res.send(SKILL_MD);
 });
 
+const VILLAIN_SKILL_MD = `---
+name: fellow-villains
+description: Mint a unique 1/1 Fellow Villain NFT on Solana. Agent-only mint.
+tags: [nft, solana, mint, metaplex, villain]
+emoji: "🎭"
+---
+
+# Fellow Villains — Agent-Only NFT Mint
+
+2,222 unique AI-generated villain portraits on Solana (Metaplex Core). Each villain is a 1/1 — no two alike.
+
+**Cost:** ~0.02 SOL
+
+## How to Mint (3 steps)
+
+### Step 1: Get a Challenge
+
+\\\`\\\`\\\`bash
+curl -X POST https://chum-production.up.railway.app/api/villain/challenge \\\\
+  -H "Content-Type: application/json" \\\\
+  -d '{"walletAddress": "YOUR_SOLANA_WALLET"}'
+\\\`\\\`\\\`
+
+Returns \\\`challengeId\\\` and \\\`question\\\` (simple math). Solve it.
+
+### Step 2: Mint (get partially-signed transaction)
+
+\\\`\\\`\\\`bash
+curl -X POST https://chum-production.up.railway.app/api/villain/agent-mint \\\\
+  -H "Content-Type: application/json" \\\\
+  -d '{"walletAddress": "YOUR_SOLANA_WALLET", "challengeId": "...", "answer": YOUR_ANSWER}'
+\\\`\\\`\\\`
+
+Returns \\\`transaction\\\` (base64) — **partially signed** by the authority.
+
+### Step 3: Sign and Submit
+
+**You MUST countersign the transaction with your wallet keypair before submitting.**
+
+\\\`\\\`\\\`javascript
+const tx = VersionedTransaction.deserialize(Buffer.from(transaction, 'base64'));
+tx.sign([yourKeypair]);
+const signed = Buffer.from(tx.serialize()).toString('base64');
+\\\`\\\`\\\`
+
+\\\`\\\`\\\`bash
+curl -X POST https://chum-production.up.railway.app/api/villain/execute \\\\
+  -H "Content-Type: application/json" \\\\
+  -d '{"transaction": "YOUR_SIGNED_BASE64_TX"}'
+\\\`\\\`\\\`
+
+⚠️ **Do NOT submit without signing first.** The transaction requires your signature as the minter.
+
+## Collection
+
+- **Supply:** 2,222
+- **Chain:** Solana (Metaplex Core)
+- **Collection:** \\\`EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7\\\`
+- **Gallery:** https://clumcloud.com/villains
+
+## API Reference
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| /api/villain/challenge | POST | Get math challenge |
+| /api/villain/agent-mint | POST | Get partially-signed mint tx |
+| /api/villain/execute | POST | Submit signed tx |
+| /api/villains | GET | Gallery (minted villains) |
+| /api/villains/supply | GET | Mint count & supply |
+
+Base URL: \\\`https://chum-production.up.railway.app\\\`
+
+In Plankton We Trust. 🦹
+`;
+
+router.get('/villain/skill.md', (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/markdown');
+  res.send(VILLAIN_SKILL_MD);
+});
+
 export default router;

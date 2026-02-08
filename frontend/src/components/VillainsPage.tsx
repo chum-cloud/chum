@@ -208,7 +208,7 @@ export default function VillainsPage() {
             {/* CTA */}
             <div className="flex flex-wrap gap-4">
               <a
-                href="https://chum-production.up.railway.app/api/cloud/skill.md"
+                href="https://chum-production.up.railway.app/api/villain/skill.md"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-colors"
