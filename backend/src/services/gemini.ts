@@ -119,7 +119,23 @@ function buildPrompt(traits: VillainTraits): string {
                    accessory === 'sunglasses' ? 'wearing cool sunglasses' : '';
   }
 
-  const prompt = `Half-body portrait of a small ${bodyColor} plankton villain character, 1930s rubber hose cartoon style like Cuphead and Fleischer Studios. ONE large ${eyeColor} cyclops eye, two antennae with ball tips, white gloved hands${hatDesc ? ', ' + hatDesc : ''}. ${accessoryDesc ? accessoryDesc + '. ' : ''}${expression} expression. Thick black outlines, muted vintage palette, dark vignette background with film grain. Circular portrait composition, looking at viewer.`;
+  const poses = [
+    'three-quarter view, looking at viewer with a sly grin',
+    'leaning forward menacingly, hands rubbing together',
+    'arms crossed confidently, slight head tilt',
+    'pointing at viewer with one gloved hand',
+    'laughing maniacally, head thrown back slightly',
+    'scheming pose, one hand on chin',
+    'dynamic angle from below, looking down at viewer',
+    'slight dutch angle, dramatic lighting',
+    'hands on hips in a power pose',
+    'one eyebrow raised, smirking at viewer',
+    'fist raised triumphantly',
+    'dramatic side profile turning toward viewer',
+  ];
+  const pose = poses[Math.floor(Math.random() * poses.length)];
+
+  const prompt = `Half-body portrait of a small ${bodyColor} plankton villain character, 1930s rubber hose cartoon style like Cuphead and Fleischer Studios. ONE large ${eyeColor} cyclops eye, two antennae with ball tips, white gloved hands${hatDesc ? ', ' + hatDesc : ''}. ${accessoryDesc ? accessoryDesc + '. ' : ''}${expression} expression. ${pose}. Thick black outlines, muted vintage palette, dark vignette background with film grain. Circular portrait composition.`;
 
   return prompt;
 }
