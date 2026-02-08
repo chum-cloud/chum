@@ -85,8 +85,8 @@ app.listen(config.port, async () => {
   // Re-enable when VERTEX_SA_KEY is fixed with a valid service account
   // setInterval(async () => { ... }, 60 * 1000);
 
-  // Burst refill check — every 30s, triggers when pool < half
-  setInterval(async () => {
+  // Burst refill DISABLED — pool has 2500+ villains ready
+  /* setInterval(async () => {
     if (poolBurstRunning) return;
     try {
       const current = await getPoolCount();
@@ -115,7 +115,7 @@ app.listen(config.port, async () => {
     } finally {
       poolBurstRunning = false;
     }
-  }, 30 * 1000); // check every 30s
+  }, 30 * 1000); */ // check every 30s
 
   // fal.ai parallel generators — run continuously when pool < POOL_CAP
   async function falGenerator(label: string, apiKey: string) {
@@ -151,8 +151,8 @@ app.listen(config.port, async () => {
     }
   }
 
-  // Start fal.ai generators — delayed 60s to let DB stabilize on boot
-  const FAL_TOTAL_WORKERS = 3;
+  // fal.ai generators DISABLED — pool has 2500+ villains, enough for remaining 1193 mints
+  const FAL_TOTAL_WORKERS = 0; // was 3
   const falKeys = [process.env.FAL_KEY_2, process.env.FAL_KEY].filter(Boolean) as string[];
   setTimeout(() => {
     let workerCount = 0;
