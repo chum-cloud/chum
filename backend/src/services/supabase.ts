@@ -375,13 +375,21 @@ export async function getPoolCount(): Promise<number> {
 }
 
 export async function claimPoolVillain(walletAddress: string): Promise<VillainRow | null> {
-  // Get oldest pool villain
+  // Get random pool villain
+  const { count } = await supabase
+    .from('villains')
+    .select('*', { count: 'exact', head: true })
+    .like('wallet_address', 'pool%');
+  
+  if (!count || count === 0) return null;
+  
+  const randomOffset = Math.floor(Math.random() * count);
   const { data: pool, error: fetchErr } = await supabase
     .from('villains')
     .select('*')
     .like('wallet_address', 'pool%')
     .order('id', { ascending: true })
-    .limit(1)
+    .range(randomOffset, randomOffset)
     .single();
 
   if (fetchErr || !pool) return null;
