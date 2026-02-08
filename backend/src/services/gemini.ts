@@ -220,7 +220,8 @@ export async function generateVillainImage(traits?: VillainTraits): Promise<{
     let url: string;
     let headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
-    const vertexRaw = (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || process.env.VERTEX_SA_KEY)?.trim();
+    // Vertex SA is deleted (invalid_grant), skip entirely — use Gemini API keys + fal.ai
+    const vertexRaw: string | undefined = undefined; // was: (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || process.env.VERTEX_SA_KEY)?.trim();
     if (vertexRaw) {
       // Use Vertex AI endpoint (no RPD cap with billing)
       const { GoogleAuth } = await import('google-auth-library');
