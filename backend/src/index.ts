@@ -18,6 +18,7 @@ import roomRouter from './routes/room';
 import verifyRouter from './routes/verify';
 import tradingRouter from './routes/trading';
 import chatRouter from './routes/chat';
+import tasksRouter from './routes/tasks';
 import { startEventThoughtListener } from './services/eventThoughts';
 import { Heartbeat } from './engine/heartbeat';
 import { seedAgentSystem, checkSeedingNeeded } from './engine/seed';
@@ -48,6 +49,7 @@ app.use('/api/verify', verifyRouter);
 app.use('/api/trading', tradingRouter);
 app.use('/api', chatRouter);
 app.use('/api/agents', agentsRouter);
+app.use('/api', tasksRouter);
 
 app.listen(config.port, async () => {
   console.log(`[CHUM] Server running on port ${config.port}`);

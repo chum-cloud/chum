@@ -100,10 +100,24 @@ TASK: Write a tweet announcing this scheme to rally the army. Keep it under 280 
         created_at: new Date().toISOString()
       }, 4);
 
+      // Queue tweet for browser execution on VPS
+      const { queueTask } = await import('../services/agent-tasks');
+      try {
+        await queueTask({
+          task_type: 'post_tweet',
+          agent_id: 'chum',
+          payload: { content: tweet.trim(), scheme_id: scheme.id },
+          priority: 1,
+        });
+        console.log('[CHUM] Tweet queued for posting:', tweet.trim().substring(0, 50) + '...');
+      } catch (qErr) {
+        console.error('[CHUM] Failed to queue tweet (will still return draft):', qErr);
+      }
+
       return tweet.trim();
     } catch (error) {
       console.error('[CHUM] Failed to draft tweet:', error);
-      return `🎭 The mass army mass advances! Mass scheme mass "${scheme.title}" mass in progress! Mass loyalty mass pledges mass welcome! #CHUMArmy #PlanktonDomination In Plankton We Trust! 🦠💪`;
+      return `🎭 The army advances! Scheme "${scheme.title}" in progress! Loyalty pledges welcome! #CHUMArmy In Plankton We Trust! 🦠💪`;
     }
   }
 

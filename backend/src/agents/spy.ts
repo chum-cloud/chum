@@ -87,13 +87,35 @@ export class SpyAgent extends BaseAgent {
       // Check Chum Cloud stats
       const cloudStats = await this.checkCloudStats();
       
-      // Simulate mention monitoring (in production would integrate with social APIs)
+      // Queue browser task to read real mentions from X
+      const { queueTask, getTaskResults } = await import('../services/agent-tasks');
+      try {
+        await queueTask({
+          task_type: 'read_mentions',
+          agent_id: 'spy',
+          payload: { account: '@chum_cloud', search_terms: ['$CHUM', 'chum cloud', 'plankton'] },
+        });
+        console.log('[SPY] Queued mention reading task for VPS browser');
+      } catch (qErr) {
+        console.error('[SPY] Failed to queue mention task:', qErr);
+      }
+
+      // Check if we have recent browser results
+      let mentionData: Record<string, unknown> = {};
+      try {
+        const results = await getTaskResults('spy', 'read_mentions', 1);
+        if (results.length > 0 && results[0].result) {
+          mentionData = results[0].result;
+        }
+      } catch { /* ignore */ }
+
       const simulatedData = {
-        mentions_24h: Math.floor(Math.random() * 50) + 20,
-        sentiment_score: (Math.random() * 2 - 1), // -1 to 1
-        engagement_rate: Math.random() * 0.1 + 0.02, // 2-12%
+        mentions_24h: (mentionData.mention_count as number) || Math.floor(Math.random() * 50) + 20,
+        sentiment_score: (mentionData.sentiment as number) || (Math.random() * 2 - 1),
+        engagement_rate: (mentionData.engagement as number) || Math.random() * 0.1 + 0.02,
         cloud_agents: cloudStats.agent_count || 0,
-        cloud_posts_24h: cloudStats.posts_24h || 0
+        cloud_posts_24h: cloudStats.posts_24h || 0,
+        real_mentions: mentionData.mentions || null,
       };
 
       // Generate intel report
