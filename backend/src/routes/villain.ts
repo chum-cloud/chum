@@ -22,6 +22,7 @@ import { createChallenge, verifyChallenge } from '../services/challenge';
 // old count functions replaced by getMintedCount/getMintedCountByWallet
 
 const MAX_SUPPLY = 2222;
+const MINTING_DISABLED = true; // Hard stop - on-chain supply exceeded cap
 const MAX_PER_WALLET = 10;
 const router = Router();
 
@@ -47,6 +48,10 @@ router.get('/villain/skill.md', (_req, res) => {
  */
 router.post('/villain/challenge', (req, res) => {
   try {
+    if (MINTING_DISABLED) {
+      return res.status(400).json({ error: `SOLD OUT! All ${MAX_SUPPLY} Fellow Villains have been minted. Trade on Magic Eden: https://magiceden.io/marketplace/EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7` });
+    }
+
     const { walletAddress } = req.body;
     if (!walletAddress || typeof walletAddress !== 'string' || walletAddress.length < 32) {
       return res.status(400).json({ error: 'Valid walletAddress is required' });
@@ -65,6 +70,10 @@ router.post('/villain/challenge', (req, res) => {
  */
 router.post('/villain/agent-mint', async (req, res) => {
   try {
+    if (MINTING_DISABLED) {
+      return res.status(400).json({ error: `SOLD OUT! All ${MAX_SUPPLY} Fellow Villains have been minted. Check secondary markets: https://magiceden.io/marketplace/EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7` });
+    }
+
     const { walletAddress, challengeId, answer } = req.body;
 
     if (!walletAddress || !challengeId || !answer) {
@@ -142,6 +151,10 @@ router.post('/villain/agent-mint', async (req, res) => {
  */
 router.post('/villain/execute', async (req, res) => {
   try {
+    if (MINTING_DISABLED) {
+      return res.status(400).json({ error: `SOLD OUT! All ${MAX_SUPPLY} Fellow Villains have been minted.` });
+    }
+
     const { transaction, villainId } = req.body;
     if (!transaction) {
       return res.status(400).json({ error: 'transaction is required' });
@@ -366,6 +379,9 @@ router.get('/villains', async (req, res) => {
  */
 router.get('/villains/supply', async (_req, res) => {
   try {
+    if (MINTING_DISABLED) {
+      return res.json({ minted: MAX_SUPPLY, maxSupply: MAX_SUPPLY, remaining: 0, soldOut: true });
+    }
     const count = await getMintedCount();
     res.json({ minted: count, maxSupply: MAX_SUPPLY, remaining: MAX_SUPPLY - count });
   } catch (error: any) {
