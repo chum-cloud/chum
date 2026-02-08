@@ -380,7 +380,7 @@ router.get('/villains', async (req, res) => {
 router.get('/villains/supply', async (_req, res) => {
   try {
     if (MINTING_DISABLED) {
-      return res.json({ minted: MAX_SUPPLY, maxSupply: MAX_SUPPLY, remaining: 0, soldOut: true });
+      return res.json({ minted: 2718, maxSupply: 2222, remaining: 0, soldOut: true });
     }
     const count = await getMintedCount();
     res.json({ minted: count, maxSupply: MAX_SUPPLY, remaining: MAX_SUPPLY - count });
