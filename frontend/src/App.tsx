@@ -44,7 +44,7 @@ export default function App() {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-purple-400/70 hover:text-purple-400 transition-colors"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 12l10 10 10-10L12 2zm0 3.4L19.6 12 12 18.6 4.4 12 12 5.4z"/></svg>
+          <img src="/me-logo.svg" alt="Magic Eden" className="w-4 h-4 rounded-sm" />
           ME
         </a>
         <span className="text-chum-border">&middot;</span>
@@ -200,7 +200,7 @@ export default function App() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-purple-400/70 hover:text-purple-400 transition-colors"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 12l10 10 10-10L12 2zm0 3.4L19.6 12 12 18.6 4.4 12 12 5.4z"/></svg>
+                    <img src="/me-logo.svg" alt="Magic Eden" className="w-3 h-3 rounded-sm" />
                     ME &rarr;
                   </a>
                 </div>
