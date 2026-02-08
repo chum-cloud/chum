@@ -172,8 +172,10 @@ async function browseFeed(page) {
       // Extract handle from author text (e.g. "Username@handle·2h")
       const handleMatch = author.match(/@(\w+)/);
       const handle = handleMatch ? handleMatch[1] : '';
-      const links = tweet.querySelectorAll('a[href*="/status/"]');
-      const link = links.length > 0 ? links[links.length - 1]?.href || '' : '';
+      const links = Array.from(tweet.querySelectorAll('a[href*="/status/"]'))
+        .map(a => a.href)
+        .filter(h => !h.includes('/analytics') && !h.includes('/photo') && !h.includes('/media_tags'));
+      const link = links[0] || '';
       const time = tweet.querySelector('time')?.dateTime || '';
       const likes = tweet.querySelector('[data-testid="like"]')?.textContent || '0';
       const retweets = tweet.querySelector('[data-testid="retweet"]')?.textContent || '0';
@@ -197,7 +199,8 @@ async function readMentions(page) {
     return Array.from(tweets).slice(0, 10).map(tweet => {
       const text = tweet.querySelector('[data-testid="tweetText"]')?.textContent || '';
       const author = tweet.querySelector('[data-testid="User-Name"]')?.textContent || '';
-      const link = tweet.querySelector('a[href*="/status/"]')?.href || '';
+      const allLinks = Array.from(tweet.querySelectorAll('a[href*="/status/"]')).map(a => a.href).filter(h => !h.includes('/analytics') && !h.includes('/photo'));
+      const link = allLinks[0] || '';
       const time = tweet.querySelector('time')?.dateTime || '';
       return { text, author, link, time };
     });
@@ -218,7 +221,8 @@ async function searchTweets(page, query) {
     return Array.from(tweets).slice(0, 15).map(tweet => {
       const text = tweet.querySelector('[data-testid="tweetText"]')?.textContent || '';
       const author = tweet.querySelector('[data-testid="User-Name"]')?.textContent || '';
-      const link = tweet.querySelector('a[href*="/status/"]')?.href || '';
+      const sLinks = Array.from(tweet.querySelectorAll('a[href*="/status/"]')).map(a => a.href).filter(h => !h.includes('/analytics') && !h.includes('/photo'));
+      const link = sLinks[0] || '';
       const time = tweet.querySelector('time')?.dateTime || '';
       const likes = tweet.querySelector('[data-testid="like"]')?.textContent || '0';
       return { text, author, link, time, likes };
@@ -238,7 +242,8 @@ async function readTimeline(page, username) {
     const tweetEls = document.querySelectorAll('[data-testid="tweet"]');
     return Array.from(tweetEls).slice(0, 10).map(tweet => {
       const text = tweet.querySelector('[data-testid="tweetText"]')?.textContent || '';
-      const link = tweet.querySelector('a[href*="/status/"]')?.href || '';
+      const tLinks = Array.from(tweet.querySelectorAll('a[href*="/status/"]')).map(a => a.href).filter(h => !h.includes('/analytics') && !h.includes('/photo'));
+      const link = tLinks[0] || '';
       const time = tweet.querySelector('time')?.dateTime || '';
       return { text, link, time };
     });
