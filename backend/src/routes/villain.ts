@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { readFileSync } from 'fs';
+import path from 'path';
 import { generateVillainImage, calculateRarityScore } from '../services/gemini';
 import { uploadVillainToStorage, generateMetadata } from '../services/storage';
 import {
@@ -9,8 +11,136 @@ import {
   getVillainById,
 } from '../services/supabase';
 import { buildMintTransaction, getCollectionMetadata, createVillainCollection } from '../services/nft';
+import { createChallenge, verifyChallenge } from '../services/challenge';
 
 const router = Router();
+
+// ─── Agent Mint Flow (Claws-style) ───
+
+/**
+ * GET /api/villain/skill.md
+ * Skill file for agent onboarding
+ */
+router.get('/villain/skill.md', (_req, res) => {
+  try {
+    const skillPath = path.join(__dirname, '../../villain-skill.md');
+    const content = readFileSync(skillPath, 'utf-8');
+    res.type('text/markdown').send(content);
+  } catch {
+    res.status(500).send('# Error\nSkill file not found.');
+  }
+});
+
+/**
+ * POST /api/villain/challenge
+ * Step 1: Get a challenge to prove you're an agent
+ */
+router.post('/villain/challenge', (req, res) => {
+  try {
+    const { walletAddress } = req.body;
+    if (!walletAddress || typeof walletAddress !== 'string' || walletAddress.length < 32) {
+      return res.status(400).json({ error: 'Valid walletAddress is required' });
+    }
+
+    const challenge = createChallenge(walletAddress);
+    res.json(challenge);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to create challenge' });
+  }
+});
+
+/**
+ * POST /api/villain/agent-mint
+ * Step 2: Solve challenge → generate villain → get partially signed tx
+ */
+router.post('/villain/agent-mint', async (req, res) => {
+  try {
+    const { walletAddress, challengeId, answer } = req.body;
+
+    if (!walletAddress || !challengeId || !answer) {
+      return res.status(400).json({ error: 'walletAddress, challengeId, and answer are required' });
+    }
+
+    // Verify challenge
+    const verification = verifyChallenge(walletAddress, challengeId, answer);
+    if (!verification.valid) {
+      return res.status(401).json({ error: verification.error || 'Challenge failed' });
+    }
+
+    // Check existing villain
+    const existing = await getVillainByWallet(walletAddress);
+    if (existing && existing.is_minted) {
+      return res.status(400).json({ error: 'Wallet already has a minted villain' });
+    }
+
+    let villain = existing;
+
+    // Generate if no existing villain
+    if (!villain) {
+      console.log(`[VILLAIN-AGENT] Generating villain for ${walletAddress}`);
+      const { imageBuffer, traits, rarityScore } = await generateVillainImage();
+      const { imageUrl, metadataUrl } = await uploadVillainToStorage(
+        imageBuffer, traits, walletAddress, rarityScore
+      );
+      villain = await insertVillain(walletAddress, imageUrl, metadataUrl, traits, 0, rarityScore);
+      console.log(`[VILLAIN-AGENT] Created villain #${villain.id}`);
+    }
+
+    // Build mint transaction (authority-signed, agent needs to countersign)
+    const { transaction, assetAddress } = await buildMintTransaction(
+      walletAddress,
+      villain.id,
+      villain.image_url,
+      villain.traits,
+      villain.rarity_score || 0
+    );
+
+    res.json({
+      transaction,
+      nftMint: assetAddress,
+      villainId: villain.id,
+      imageUrl: villain.image_url,
+      traits: villain.traits,
+      rarityScore: villain.rarity_score,
+    });
+  } catch (error: any) {
+    console.error('[VILLAIN-AGENT] Agent mint failed:', error);
+    res.status(500).json({ error: 'Mint failed', details: error.message });
+  }
+});
+
+/**
+ * POST /api/villain/execute
+ * Step 3: Submit the fully-signed transaction
+ */
+router.post('/villain/execute', async (req, res) => {
+  try {
+    const { transaction } = req.body;
+    if (!transaction) {
+      return res.status(400).json({ error: 'transaction is required' });
+    }
+
+    // Deserialize and send to Solana
+    const { Connection, VersionedTransaction } = await import('@solana/web3.js');
+    const connection = new Connection(process.env.HELIUS_API_KEY 
+      ? `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`
+      : 'https://api.mainnet-beta.solana.com');
+
+    const txBuffer = Buffer.from(transaction, 'base64');
+    const tx = VersionedTransaction.deserialize(txBuffer);
+    const signature = await connection.sendRawTransaction(tx.serialize(), {
+      skipPreflight: true,
+      maxRetries: 3,
+    });
+
+    console.log(`[VILLAIN-AGENT] Transaction submitted: ${signature}`);
+
+    res.json({ signature });
+  } catch (error: any) {
+    console.error('[VILLAIN-AGENT] Execute failed:', error);
+    res.status(500).json({ error: 'Failed to submit transaction', details: error.message });
+  }
+});
 
 /**
  * POST /api/villain/generate
