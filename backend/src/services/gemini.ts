@@ -2,12 +2,17 @@ import type { VillainTraits, BodyColor, Hat, EyeColor, Accessory, Expression, Ba
 
 // Trait arrays with rarity weights
 const BODY_COLORS: { value: BodyColor; weight: number }[] = [
-  { value: 'green', weight: 30 },
-  { value: 'blue', weight: 20 },
-  { value: 'purple', weight: 15 },
-  { value: 'red', weight: 15 },
-  { value: 'teal', weight: 15 },
+  { value: 'green', weight: 22 },
+  { value: 'blue', weight: 15 },
+  { value: 'purple', weight: 12 },
+  { value: 'red', weight: 10 },
+  { value: 'teal', weight: 10 },
+  { value: 'coral', weight: 8 },
   { value: 'gold', weight: 5 },
+  { value: 'bone white', weight: 5 },
+  { value: 'obsidian', weight: 5 },
+  { value: 'robot', weight: 4 },
+  { value: 'radioactive', weight: 4 },
 ];
 
 const HATS: { value: Hat; weight: number }[] = [
@@ -184,7 +189,17 @@ function buildPrompt(traits: VillainTraits): string {
   ];
   const pose = poses[Math.floor(Math.random() * poses.length)];
 
-  const prompt = `Half-body portrait of a 1930s Cuphead-style cartoon villain character. Oval bean-shaped ${bodyColor} head with ONE large ${eyeColor} cyclops eye, two thin antennae with ball tips on top. Human-like body with thin noodle limbs, white gloved hands, ${hatDesc}, ${outfit}. ${accessoryDesc ? accessoryDesc + '. ' : ''}${expression} expression. ${pose}. Rubber hose animation style, thick black outlines, muted vintage palette, solid dark background. Portrait composition.`;
+  // Special body descriptions for unique skins
+  const bodyDescriptions: Record<string, string> = {
+    'robot': 'metallic chrome silver robot-skinned',
+    'radioactive': 'glowing neon green radioactive',
+    'bone white': 'pale bone-white skeletal',
+    'obsidian': 'dark obsidian black',
+    'coral': 'pink coral-colored',
+  };
+  const bodyDesc = bodyDescriptions[bodyColor] || bodyColor;
+
+  const prompt = `Half-body portrait of a 1930s Cuphead-style cartoon villain character. Oval bean-shaped ${bodyDesc} head with ONE large ${eyeColor} cyclops eye, two thin antennae with ball tips on top. Human-like body with thin noodle limbs, white gloved hands, ${hatDesc}, ${outfit}. ${accessoryDesc ? accessoryDesc + '. ' : ''}${expression} expression. ${pose}. Rubber hose animation style, thick black outlines, muted vintage palette, solid dark background. Portrait composition.`;
 
   return prompt;
 }
