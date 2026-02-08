@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+// react imports removed (useMemo no longer needed)
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import AgentStage from './components/AgentStage';
 import StatsGrid from './components/StatsGrid';
@@ -14,29 +14,8 @@ import { useThoughtStream } from './hooks/useThoughtStream';
 
 export default function App() {
   const chum = useChum();
-  const { thoughts: streamedThoughts } = useThoughtStream();
-
-  // SSE thoughts override polled thoughts for real-time updates
-  const latestThought = streamedThoughts.length > 0
-    ? streamedThoughts[0].content
-    : chum.latestThought;
-  const recentThoughts = useMemo(() =>
-    streamedThoughts.length > 0
-      ? streamedThoughts.map((t) => t.content)
-      : chum.recentThoughts,
-    // Stabilise reference: only recompute when the thought ids actually change
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [streamedThoughts.map((t) => t.id).join(','), chum.recentThoughts],
-  );
-
-  // Build a map of thought content → trigger for the visual novel scene
-  const triggerMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const t of streamedThoughts) {
-      if (t.trigger) map.set(t.content, t.trigger);
-    }
-    return map;
-  }, [streamedThoughts]);
+  // Thought stream still used elsewhere if needed
+  useThoughtStream();
 
   return (
     <div className="min-h-screen bg-chum-bg text-chum-text">
