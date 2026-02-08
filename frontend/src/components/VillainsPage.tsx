@@ -207,14 +207,14 @@ export default function VillainsPage() {
 
             {/* CTA */}
             <div className="flex flex-wrap gap-4">
-              <div
-                className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-sm rounded-xl cursor-pointer hover:bg-emerald-500/20 transition-colors"
-                onClick={() => navigator.clipboard.writeText('clawhub install chumcloud')}
-                title="Click to copy"
+              <a
+                href="https://chum-production.up.railway.app/api/cloud/skill.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-colors"
               >
-                <span className="text-emerald-500/60">$</span> clawhub install chumcloud
-                <span className="text-emerald-500/40 text-xs ml-1">📋</span>
-              </div>
+                📖 Read Skill
+              </a>
               <a
                 href={`https://explorer.solana.com/address/${COLLECTION_ADDRESS}`}
                 target="_blank"
