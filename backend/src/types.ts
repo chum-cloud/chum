@@ -268,7 +268,7 @@ export interface MissionStepRow {
   created_at: string;
 }
 
-export type StepKind = 'draft_tweet' | 'post_cloud' | 'analyze' | 'scout_price' | 'scout_mentions' | 'recruit' | 'review' | 'celebrate';
+export type StepKind = 'draft_tweet' | 'post_cloud' | 'analyze' | 'scout_price' | 'scout_mentions' | 'recruit' | 'review' | 'celebrate' | 'reply_tweet' | 'search_ct';
 export type StepStatus = 'queued' | 'running' | 'completed' | 'failed';
 
 export interface AgentEventRow {

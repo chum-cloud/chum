@@ -155,6 +155,67 @@ export async function waitForTask(
 }
 
 /**
+ * Get pending tasks (for VPS bridge or API polling)
+ */
+export async function getPendingTasks(limit = 5): Promise<PendingTweetRow[]> {
+  const { data, error } = await supabase
+    .from('pending_tweets')
+    .select('*')
+    .eq('status', 'pending')
+    .order('priority', { ascending: false })
+    .order('created_at', { ascending: true })
+    .limit(limit);
+
+  if (error) throw new Error(`Failed to get pending tasks: ${error.message}`);
+  return (data || []) as PendingTweetRow[];
+}
+
+/**
+ * Claim a task (mark as processing)
+ */
+export async function claimTask(taskId: number): Promise<boolean> {
+  const { error } = await supabase
+    .from('pending_tweets')
+    .update({ status: 'processing' })
+    .eq('id', taskId)
+    .eq('status', 'pending');
+
+  return !error;
+}
+
+/**
+ * Complete a task with result
+ */
+export async function completeTask(taskId: number, result: Record<string, unknown>): Promise<void> {
+  const { error } = await supabase
+    .from('pending_tweets')
+    .update({
+      status: 'done',
+      result,
+      processed_at: new Date().toISOString(),
+    })
+    .eq('id', taskId);
+
+  if (error) throw new Error(`Failed to complete task: ${error.message}`);
+}
+
+/**
+ * Fail a task with error
+ */
+export async function failTask(taskId: number, errorMsg: string): Promise<void> {
+  const { error } = await supabase
+    .from('pending_tweets')
+    .update({
+      status: 'failed',
+      error: errorMsg,
+      processed_at: new Date().toISOString(),
+    })
+    .eq('id', taskId);
+
+  if (error) throw new Error(`Failed to fail task: ${error.message}`);
+}
+
+/**
  * Clean up old completed tasks (keep last N days)
  */
 export async function cleanupOldTasks(daysToKeep = 7): Promise<number> {
