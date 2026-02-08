@@ -268,7 +268,7 @@ export default function AgentStage() {
       {/* Background — underwater office HQ */}
       <div className="absolute inset-0 bg-[#0a1520]" />
       <img 
-        src="/agents/hq-office-1.png" 
+        src="/agents/hq-topdown.png" 
         alt="Villain HQ" 
         className="absolute inset-0 w-full h-full object-cover"
         style={{ filter: 'brightness(1.15) saturate(1.1)' }}
