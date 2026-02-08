@@ -211,7 +211,14 @@ export async function generateVillainImage(traits?: VillainTraits): Promise<{
     if (process.env.VERTEX_SA_KEY) {
       // Use Vertex AI endpoint (no RPD cap with billing)
       const { GoogleAuth } = await import('google-auth-library');
-      const saKey = JSON.parse(process.env.VERTEX_SA_KEY);
+      let saKey: any;
+      const raw = process.env.VERTEX_SA_KEY!.trim();
+      if (raw.startsWith('{')) {
+        saKey = JSON.parse(raw);
+      } else {
+        // Base64-encoded JSON (safer for Railway env vars)
+        saKey = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
+      }
       const auth = new GoogleAuth({ credentials: saKey, scopes: ['https://www.googleapis.com/auth/cloud-platform'] });
       const client = await auth.getClient();
       const token = await client.getAccessToken();
