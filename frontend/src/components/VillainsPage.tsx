@@ -179,7 +179,8 @@ export default function VillainsPage() {
       {/* Hero */}
       <section className="relative z-10 pt-20 pb-16 md:pt-32 md:pb-24">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="max-w-2xl">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div>
             <div className="text-emerald-500/60 text-sm font-medium tracking-widest uppercase mb-4">
               Metaplex Core · Solana
             </div>
@@ -216,6 +217,37 @@ export default function VillainsPage() {
                 View on Explorer
               </a>
             </div>
+          </div>
+          </div>
+
+          {/* Right: Villain showcase */}
+          <div className="hidden md:flex items-center justify-center">
+            {villains.length > 0 ? (
+              <div className={`grid gap-4 ${villains.length === 1 ? 'grid-cols-1 max-w-[280px]' : villains.length <= 4 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                {villains.slice(0, 6).map((v) => (
+                  <div key={v.id} className="relative group rounded-2xl overflow-hidden border border-white/[0.06] hover:border-emerald-500/30 transition-all duration-300">
+                    <div className="aspect-square">
+                      <img
+                        src={v.image_url}
+                        alt={`Villain #${v.id}`}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                    </div>
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+                      <span className="text-white/80 text-sm font-semibold">#{v.id}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="w-64 h-64 rounded-2xl border border-white/[0.06] bg-white/[0.02] flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-5xl mb-3">🦹</div>
+                  <p className="text-white/30 text-sm">First villain<br/>awaits minting</p>
+                </div>
+              </div>
+            )}
+          </div>
           </div>
         </div>
       </section>
