@@ -34,18 +34,18 @@ function useWander(homeX: number, homeY: number, radius: number, pullTo: { x: nu
   const frameRef = useRef<number>(0);
 
   useEffect(() => {
-    // If in convo, target is between home and partner (70% toward partner)
+    // If in convo, move toward partner but stop at 30% to prevent overlap
     if (pullTo) {
-      const tx = homeX + (pullTo.x - homeX) * 0.55;
-      const ty = homeY + (pullTo.y - homeY) * 0.55;
-      targetRef.current = { x: tx + (Math.random() - 0.5) * 3, y: ty + (Math.random() - 0.5) * 3 };
+      const tx = homeX + (pullTo.x - homeX) * 0.3;
+      const ty = homeY + (pullTo.y - homeY) * 0.3;
+      targetRef.current = { x: tx + (Math.random() - 0.5) * 2, y: ty + (Math.random() - 0.5) * 2 };
     }
 
     const pick = () => {
       if (pullTo) {
-        const tx = homeX + (pullTo.x - homeX) * 0.55;
-        const ty = homeY + (pullTo.y - homeY) * 0.55;
-        targetRef.current = { x: tx + (Math.random() - 0.5) * 3, y: ty + (Math.random() - 0.5) * 3 };
+        const tx = homeX + (pullTo.x - homeX) * 0.3;
+        const ty = homeY + (pullTo.y - homeY) * 0.3;
+        targetRef.current = { x: tx + (Math.random() - 0.5) * 2, y: ty + (Math.random() - 0.5) * 2 };
       } else {
         targetRef.current = {
           x: homeX + (Math.random() - 0.5) * radius * 2,
