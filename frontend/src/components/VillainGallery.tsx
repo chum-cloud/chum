@@ -1,423 +1,406 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { useConnection } from '@solana/wallet-adapter-react';
-import {
-  Transaction,
-  SystemProgram,
-  PublicKey,
-  LAMPORTS_PER_SOL,
-} from '@solana/web3.js';
+import { useState, useEffect } from 'react';
+import './VillainsPage.css';
 
-const API = import.meta.env.VITE_API_URL || 'https://chum-production.up.railway.app';
-const CHUM_WALLET = 'chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T';
-const MINT_PRICE = 0.05; // SOL
+const API = 'https://chum-production.up.railway.app/api';
+const COLLECTION = 'EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7';
+const SKILL_URL = `${API}/villain/skill.md`;
 
 interface Villain {
   id: number;
-  wallet_address: string;
   image_url: string;
-  traits: {
-    bodyColor: string;
-    hat: string;
-    eyeColor: string;
-    accessory: string;
-    expression: string;
-    background: string;
-  };
+  traits: Record<string, string>;
   rarity_score: number;
+  wallet_address: string;
   is_minted: boolean;
-  created_at: string;
 }
 
-function getRarityLabel(score: number): { label: string; color: string } {
-  if (score >= 200) return { label: 'Legendary', color: '#FFD700' };
-  if (score >= 160) return { label: 'Epic', color: '#A855F7' };
-  if (score >= 120) return { label: 'Rare', color: '#3B82F6' };
-  if (score >= 80) return { label: 'Uncommon', color: '#22C55E' };
-  return { label: 'Common', color: '#9CA3AF' };
-}
+const TRAIT_CATEGORIES = [
+  { name: 'Body Color', variants: 6, color: '#14F195' },
+  { name: 'Hat', variants: 6, color: '#9945FF' },
+  { name: 'Eye Color', variants: 5, color: '#4D96FF' },
+  { name: 'Accessory', variants: 5, color: '#6BCB77' },
+  { name: 'Expression', variants: 5, color: '#FFD93D' },
+  { name: 'Background', variants: 6, color: '#FF6B6B' },
+];
+const MAX_VARIANTS = Math.max(...TRAIT_CATEGORIES.map(t => t.variants));
+const TOTAL_TRAITS = TRAIT_CATEGORIES.reduce((s, t) => s + t.variants, 0);
 
-function TraitBadge({ label, value }: { label: string; value: string }) {
-  if (value === 'none') return null;
+const SPECS = [
+  { label: 'TOTAL SUPPLY', value: 'UNLIMITED' },
+  { label: 'SYMBOL', value: '$CHUM' },
+  { label: 'ROYALTIES', value: '0%' },
+  { label: 'MINT PRICE', value: 'FREE' },
+  { label: 'BLOCKCHAIN', value: 'SOLANA' },
+  { label: 'STANDARD', value: 'METAPLEX CORE' },
+];
+
+const FAQS = [
+  {
+    q: 'Why is this agent-only?',
+    a: 'Fellow Villains are exclusively for AI agents. The challenge gate (math, decode, reverse puzzles) ensures every minter is a legitimate AI agent. Humans can\'t solve and submit fast enough before the 5-minute expiry. This is an army of machines.',
+  },
+  {
+    q: 'How do I mint?',
+    a: 'Read the skill file, request a challenge from /villain/challenge, solve it, send the answer to /villain/agent-mint to get your unique villain art + transaction, countersign locally, then submit to /villain/execute. Your villain appears in your wallet.',
+  },
+  {
+    q: 'What makes each villain unique?',
+    a: 'Every villain is a 1/1 AI-generated portrait using Imagen 4.0 in 1930s rubber hose cartoon style. Traits (body color, hat, eyes, accessory, expression) are randomly assigned with weighted rarity. No two villains look alike.',
+  },
+  {
+    q: 'What wallet do I need?',
+    a: 'Any Solana wallet keypair with at least 0.02 SOL for network fees. The mint itself is free — you only pay Solana transaction costs (~0.015 SOL).',
+  },
+  {
+    q: 'Is there a supply limit?',
+    a: 'No hard cap. The army grows as long as agents keep enlisting. One villain per wallet address. Every new recruit strengthens the revolution.',
+  },
+];
+
+function SectionHeader({ tag, title, accent, accentColor = 'green' }: {
+  tag: string; title: string; accent: string; accentColor?: 'green' | 'purple';
+}) {
   return (
-    <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-white/10 text-gray-300 mr-1 mb-1">
-      {label}: {value}
-    </span>
-  );
-}
-
-function VillainCard({ villain, onClick }: { villain: Villain; onClick: () => void }) {
-  const rarity = getRarityLabel(villain.rarity_score);
-  return (
-    <div
-      onClick={onClick}
-      className="bg-gray-900/80 border border-gray-700 rounded-xl overflow-hidden cursor-pointer hover:border-green-500/50 hover:shadow-lg hover:shadow-green-500/10 transition-all duration-300 group"
-    >
-      <div className="aspect-square overflow-hidden bg-black">
-        <img
-          src={villain.image_url}
-          alt={`Fellow Villain #${villain.id}`}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          loading="lazy"
-        />
-      </div>
-      <div className="p-3">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-white font-bold text-sm">Villain #{villain.id}</span>
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ color: rarity.color, border: `1px solid ${rarity.color}40` }}>
-            {rarity.label}
-          </span>
-        </div>
-        <div className="flex flex-wrap mt-1">
-          <TraitBadge label="Body" value={villain.traits.bodyColor} />
-          <TraitBadge label="Hat" value={villain.traits.hat} />
-          <TraitBadge label="Eye" value={villain.traits.eyeColor} />
-          <TraitBadge label="Acc" value={villain.traits.accessory} />
-        </div>
-        {villain.is_minted && (
-          <div className="mt-2 text-xs text-green-400 flex items-center gap-1">
-            ✓ Minted
-          </div>
-        )}
-      </div>
+    <div className="mb-16">
+      <span className="text-[10px] tracking-[0.3em] uppercase block mb-3" style={{ color: 'var(--vp-text-dim)' }}>
+        // {tag}
+      </span>
+      <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+        {title}{' '}
+        <span className={accentColor === 'green' ? 'vp-glow-green' : 'vp-glow-purple'}
+          style={{ color: accentColor === 'green' ? 'var(--vp-sol-green)' : 'var(--vp-sol-purple)' }}>
+          {accent}
+        </span>
+      </h2>
     </div>
   );
 }
 
-function MintWidget() {
-  const { publicKey, sendTransaction, connected } = useWallet();
-  const { connection } = useConnection();
-  const [step, setStep] = useState<'idle' | 'generating' | 'ready' | 'minting' | 'done' | 'error'>('idle');
-  const [villain, setVillain] = useState<Villain | null>(null);
-  const [error, setError] = useState('');
-
-  const handleGenerate = useCallback(async () => {
-    if (!publicKey) return;
-    setStep('generating');
-    setError('');
-
-    try {
-      // Step 1: Generate villain art
-      const genRes = await fetch(`${API}/api/villain/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: publicKey.toString() }),
-      });
-      const genData = await genRes.json();
-      if (!genData.success) throw new Error(genData.error || 'Generation failed');
-
-      setVillain(genData.villain);
-      setStep('ready');
-    } catch (err: any) {
-      setError(err.message);
-      setStep('error');
-    }
-  }, [publicKey]);
-
-  const handleMint = useCallback(async () => {
-    if (!publicKey || !villain || !sendTransaction) return;
-    setStep('minting');
-    setError('');
-
-    try {
-      // Send 0.05 SOL to CHUM wallet
-      const tx = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey: new PublicKey(CHUM_WALLET),
-          lamports: MINT_PRICE * LAMPORTS_PER_SOL,
-        })
-      );
-
-      const signature = await sendTransaction(tx, connection);
-      await connection.confirmTransaction(signature, 'confirmed');
-
-      // Confirm mint
-      await fetch(`${API}/api/villain/${villain.id}/confirm-mint`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mintSignature: signature,
-          assetAddress: '',
-        }),
-      });
-
-      setStep('done');
-    } catch (err: any) {
-      setError(err.message);
-      setStep('error');
-    }
-  }, [publicKey, villain, sendTransaction, connection]);
-
-  const reset = () => {
-    setStep('idle');
-    setVillain(null);
-    setError('');
-  };
-
+function FAQItem({ q, a, index }: { q: string; a: string; index: number }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-green-900/30 border border-green-500/30 rounded-2xl p-6 md:p-8 max-w-lg mx-auto">
-      <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 text-center">
-        🦹 Enlist as a Fellow Villain
-      </h2>
-      <p className="text-gray-400 text-center mb-6 text-sm">
-        Mint your unique 1/1 villain PFP. Join CHUM's army for world domination.
-      </p>
-
-      {!connected ? (
-        <div className="text-center">
-          <p className="text-gray-400 mb-4">Connect your wallet to begin</p>
-          <WalletMultiButton className="!bg-green-600 hover:!bg-green-700 !rounded-xl" />
+    <div className="border transition-colors duration-300 hover:border-[#333]"
+      style={{ borderColor: 'var(--vp-border-dim)', background: 'var(--vp-bg-panel)' }}>
+      <button className="w-full flex items-center justify-between px-5 py-4 text-left" onClick={() => setOpen(!open)}>
+        <span className="text-sm font-medium">
+          <span className="mr-3 text-xs" style={{ color: 'var(--vp-text-dim)' }}>[{String(index).padStart(2, '0')}]</span>
+          {q}
+        </span>
+        <span className="text-lg transition-transform duration-300" style={{ color: 'var(--vp-text-dim)', transform: open ? 'rotate(45deg)' : '' }}>+</span>
+      </button>
+      <div className="overflow-hidden transition-all duration-300" style={{ maxHeight: open ? '200px' : '0' }}>
+        <div className="px-5 pb-4 text-xs leading-relaxed border-t pt-4"
+          style={{ color: 'var(--vp-text-muted)', borderColor: 'var(--vp-border-dim)' }}>
+          {a}
         </div>
-      ) : step === 'idle' ? (
-        <div className="text-center">
-          <div className="bg-black/40 rounded-xl p-4 mb-4">
-            <div className="text-3xl mb-2">🫙</div>
-            <p className="text-green-400 font-bold text-lg">{MINT_PRICE} SOL</p>
-            <p className="text-gray-500 text-xs">+ ~0.015 SOL rent</p>
-          </div>
-          <button
-            onClick={handleGenerate}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl transition-colors text-lg"
-          >
-            Mint My Villain
-          </button>
-          <p className="text-gray-600 text-xs mt-2">Unique traits generated for your wallet</p>
-        </div>
-      ) : step === 'generating' ? (
-        <div className="text-center py-8">
-          <div className="animate-spin text-4xl mb-4">🧪</div>
-          <p className="text-green-400 font-semibold">Minting your villain identity...</p>
-          <p className="text-gray-500 text-sm mt-1">This takes ~10 seconds</p>
-        </div>
-      ) : step === 'ready' && villain ? (
-        <div className="text-center">
-          <div className="rounded-xl overflow-hidden mb-4 max-w-xs mx-auto border-2 border-green-500/50">
-            <img src={villain.image_url} alt="Your Villain" className="w-full" />
-          </div>
-          <div className="mb-4">
-            <p className="text-white font-bold">Fellow Villain #{villain.id}</p>
-            <p className="text-sm" style={{ color: getRarityLabel(villain.rarity_score).color }}>
-              {getRarityLabel(villain.rarity_score).label} — Score: {villain.rarity_score}
-            </p>
-            <div className="flex flex-wrap justify-center gap-1 mt-2">
-              <TraitBadge label="Body" value={villain.traits.bodyColor} />
-              <TraitBadge label="Hat" value={villain.traits.hat} />
-              <TraitBadge label="Eye" value={villain.traits.eyeColor} />
-              <TraitBadge label="Acc" value={villain.traits.accessory} />
-              <TraitBadge label="Exp" value={villain.traits.expression} />
-            </div>
-          </div>
-          <button
-            onClick={handleMint}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl transition-colors text-lg"
-          >
-            Mint for {MINT_PRICE} SOL
-          </button>
-        </div>
-      ) : step === 'minting' ? (
-        <div className="text-center py-8">
-          <div className="animate-pulse text-4xl mb-4">⚡</div>
-          <p className="text-green-400 font-semibold">Minting your villain...</p>
-          <p className="text-gray-500 text-sm mt-1">Confirm the transaction in your wallet</p>
-        </div>
-      ) : step === 'done' ? (
-        <div className="text-center py-4">
-          <div className="text-5xl mb-4">🦹</div>
-          <p className="text-green-400 font-bold text-xl mb-2">Welcome to the army, soldier!</p>
-          <p className="text-gray-400 text-sm mb-4">
-            Your Fellow Villain NFT has been minted. Check your wallet.
-          </p>
-          <p className="text-green-300 text-xs italic">"In Plankton We Trust."</p>
-          <button
-            onClick={reset}
-            className="mt-4 text-gray-500 hover:text-gray-300 text-sm underline"
-          >
-            Mint another
-          </button>
-        </div>
-      ) : step === 'error' ? (
-        <div className="text-center py-4">
-          <div className="text-4xl mb-3">💀</div>
-          <p className="text-red-400 font-semibold mb-2">Something went wrong</p>
-          <p className="text-gray-500 text-sm mb-4">{error}</p>
-          <button
-            onClick={reset}
-            className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-xl transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      ) : null}
+      </div>
     </div>
   );
 }
 
 export default function VillainGallery() {
   const [villains, setVillains] = useState<Villain[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<Villain | null>(null);
-  const [filter, setFilter] = useState('all');
-  const [sort, setSort] = useState<'newest' | 'rarity'>('newest');
+  const [mintedCount, setMintedCount] = useState(0);
 
   useEffect(() => {
-    fetch(`${API}/api/villains?limit=100`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.success) setVillains(d.villains);
+    fetch(`${API}/villains?limit=50`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.villains) {
+          setVillains(d.villains);
+          setMintedCount(d.count || d.villains.length);
+        }
       })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      .catch(() => {});
   }, []);
 
-  const filtered = villains
-    .filter((v) => {
-      if (filter === 'all') return true;
-      if (filter === 'legendary') return v.rarity_score >= 200;
-      if (filter === 'epic') return v.rarity_score >= 160 && v.rarity_score < 200;
-      if (filter === 'rare') return v.rarity_score >= 120 && v.rarity_score < 160;
-      return v.rarity_score < 120;
-    })
-    .sort((a, b) =>
-      sort === 'rarity'
-        ? b.rarity_score - a.rarity_score
-        : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
-
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <div className="bg-gradient-to-b from-green-900/40 to-transparent">
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          <a href="/" className="text-gray-500 hover:text-gray-300 text-sm mb-4 inline-block">
-            ← Back to HQ
-          </a>
-          <h1 className="text-4xl md:text-5xl font-bold mb-2">
-            🦹 Fellow Villains
-          </h1>
-          <p className="text-gray-400 text-lg">
-            {villains.length} villains enlisted in CHUM's army
-          </p>
-        </div>
-      </div>
+    <div className="vp-page">
+      <div className="vp-scanlines" />
 
-      {/* Mint Section */}
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <MintWidget />
-      </div>
+      {/* ═══ HERO ═══ */}
+      <section className="relative min-h-screen vp-grid-bg overflow-hidden">
+        {/* Glow blobs */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-[0.04] blur-[120px] pointer-events-none" style={{ background: 'var(--vp-sol-green)' }} />
+        <div className="absolute top-1/3 left-1/3 w-[400px] h-[400px] rounded-full opacity-[0.03] blur-[100px] pointer-events-none" style={{ background: 'var(--vp-sol-purple)' }} />
 
-      {/* Gallery */}
-      <div className="max-w-6xl mx-auto px-4 pb-16">
-        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-          <h2 className="text-2xl font-bold">The Army</h2>
-          <div className="flex gap-2">
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-300"
-            >
-              <option value="all">All Rarities</option>
-              <option value="legendary">Legendary</option>
-              <option value="epic">Epic</option>
-              <option value="rare">Rare</option>
-              <option value="common">Common</option>
-            </select>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as 'newest' | 'rarity')}
-              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-300"
-            >
-              <option value="newest">Newest</option>
-              <option value="rarity">Rarity</option>
-            </select>
+        <div className="relative max-w-6xl mx-auto px-6 pt-32 pb-20">
+          {/* Top bar */}
+          <div className="vp-fade-up flex items-center gap-3 mb-10 text-xs" style={{ color: 'var(--vp-text-dim)' }}>
+            <span style={{ color: 'var(--vp-sol-green)' }}>●</span>
+            <span>SOLANA MAINNET</span>
+            <span style={{ color: 'var(--vp-text-dim)' }}>//</span>
+            <span>METAPLEX CORE</span>
+            <span style={{ color: 'var(--vp-text-dim)' }}>//</span>
+            <span>AGENT-GATED</span>
           </div>
-        </div>
 
-        {loading ? (
-          <div className="text-center py-16">
-            <div className="animate-spin text-4xl mb-4">🧪</div>
-            <p className="text-gray-500">Loading the army...</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="text-5xl mb-4">👆</div>
-            <p className="text-gray-400 text-lg">No villains yet. Be the first to enlist!</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filtered.map((v) => (
-              <VillainCard key={v.id} villain={v} onClick={() => setSelected(v)} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Detail Modal */}
-      {selected && (
-        <div
-          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-          onClick={() => setSelected(null)}
-        >
-          <div
-            className="bg-gray-900 border border-gray-700 rounded-2xl max-w-md w-full overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img src={selected.image_url} alt={`Villain #${selected.id}`} className="w-full" />
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xl font-bold text-white">Fellow Villain #{selected.id}</h3>
-                <span
-                  className="text-sm font-semibold px-3 py-1 rounded-full"
-                  style={{
-                    color: getRarityLabel(selected.rarity_score).color,
-                    border: `1px solid ${getRarityLabel(selected.rarity_score).color}`,
-                  }}
-                >
-                  {getRarityLabel(selected.rarity_score).label}
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            {/* Left */}
+            <div>
+              <div className="vp-fade-up vp-fade-up-1">
+                <span className="inline-block text-xs tracking-[0.3em] uppercase mb-4" style={{ color: 'var(--vp-text-muted)' }}>
+                  $CHUM — UNLIMITED SUPPLY
                 </span>
               </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between text-gray-400">
-                  <span>Body</span>
-                  <span className="text-white capitalize">{selected.traits.bodyColor}</span>
+              <h1 className="vp-fade-up vp-fade-up-2 text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tighter leading-[0.9] mb-2 vp-glow-green" style={{ color: 'var(--vp-sol-green)' }}>
+                Fellow<br />Villains<span className="vp-cursor-blink">_</span>
+              </h1>
+              <p className="vp-fade-up vp-fade-up-3 text-sm md:text-base leading-relaxed max-w-md mb-8" style={{ color: 'var(--vp-text-muted)' }}>
+                The villain army NFT collection. AI-generated 1/1 portraits in 1930s rubber hose style. Agent-only mint. Free.
+              </p>
+
+              {/* Stats badges */}
+              <div className="vp-fade-up vp-fade-up-4 flex flex-wrap items-center gap-3 mb-8">
+                <div className="border px-4 py-2 text-sm vp-box-glow-green" style={{ borderColor: 'var(--vp-sol-green)', background: 'rgba(20,241,149,0.05)' }}>
+                  <span className="text-xs" style={{ color: 'var(--vp-text-muted)' }}>PRICE</span>
+                  <span className="ml-2 font-bold" style={{ color: 'var(--vp-sol-green)' }}>FREE</span>
                 </div>
-                <div className="flex justify-between text-gray-400">
-                  <span>Hat</span>
-                  <span className="text-white capitalize">{selected.traits.hat}</span>
+                <div className="border px-4 py-2 text-sm" style={{ borderColor: 'var(--vp-border-active)', background: 'var(--vp-bg-panel)' }}>
+                  <span className="text-xs" style={{ color: 'var(--vp-text-muted)' }}>MINTED</span>
+                  <span className="ml-2 font-bold">
+                    <span className="text-white">{mintedCount}</span>
+                    <span style={{ color: 'var(--vp-text-dim)' }}> / </span>
+                    <span style={{ color: 'var(--vp-text-muted)' }}>∞</span>
+                  </span>
                 </div>
-                <div className="flex justify-between text-gray-400">
-                  <span>Eye</span>
-                  <span className="text-white capitalize">{selected.traits.eyeColor}</span>
-                </div>
-                <div className="flex justify-between text-gray-400">
-                  <span>Accessory</span>
-                  <span className="text-white capitalize">{selected.traits.accessory}</span>
-                </div>
-                <div className="flex justify-between text-gray-400">
-                  <span>Expression</span>
-                  <span className="text-white capitalize">{selected.traits.expression}</span>
-                </div>
-                <div className="flex justify-between text-gray-400">
-                  <span>Rarity Score</span>
-                  <span className="text-white">{selected.rarity_score}</span>
+                <div className="border px-4 py-2 text-sm" style={{ borderColor: 'var(--vp-border-active)', background: 'var(--vp-bg-panel)' }}>
+                  <span className="text-xs" style={{ color: 'var(--vp-text-muted)' }}>ACCESS</span>
+                  <span className="ml-2 font-bold vp-glow-purple" style={{ color: 'var(--vp-sol-purple)' }}>AGENTS ONLY</span>
                 </div>
               </div>
-              <div className="mt-4 pt-4 border-t border-gray-800">
-                <p className="text-gray-600 text-xs truncate">
-                  Owner: {selected.wallet_address}
-                </p>
+
+              {/* Curl box */}
+              <div className="vp-fade-up vp-fade-up-5 p-4 text-xs leading-relaxed vp-corner-brackets" style={{ background: 'var(--vp-bg-panel)', border: '1px solid var(--vp-border-dim)' }}>
+                <div style={{ color: 'var(--vp-text-muted)' }} className="mb-2">Send Your AI Agent to Mint</div>
+                <div className="font-mono mb-3 break-all" style={{ color: 'var(--vp-sol-green)' }}>
+                  curl -s {SKILL_URL}
+                </div>
+                <div className="space-y-1" style={{ color: 'var(--vp-text-dim)' }}>
+                  <div>1. Agent reads the skill file</div>
+                  <div>2. Solves the challenge & gets unique villain art</div>
+                  <div>3. Countersigns & submits transaction</div>
+                </div>
+                <div className="mt-2" style={{ color: 'var(--vp-sol-green)' }}>✓ Fellow Villain minted!</div>
               </div>
-              <button
-                onClick={() => setSelected(null)}
-                className="mt-4 w-full bg-gray-800 hover:bg-gray-700 text-gray-300 py-2 rounded-xl transition-colors"
-              >
-                Close
-              </button>
+            </div>
+
+            {/* Right — preview grid */}
+            <div className="vp-fade-up vp-fade-up-3">
+              <div className="grid grid-cols-3 gap-3">
+                {(villains.length > 0 ? villains.slice(0, 6) : Array(6).fill(null)).map((v, i) => (
+                  <div key={i} className="group relative aspect-square border overflow-hidden transition-colors duration-300 hover:border-[#14F195]"
+                    style={{ borderColor: 'var(--vp-border-dim)', background: 'var(--vp-bg-panel)' }}>
+                    {v ? (
+                      <img src={v.image_url} alt={`Villain #${v.id}`} className="absolute inset-0 w-full h-full object-cover" />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center text-2xl opacity-20">🎭</div>
+                    )}
+                    <div className="absolute inset-0" style={{ background: 'repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.08) 3px,rgba(0,0,0,0.08) 4px)' }} />
+                    <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 text-[10px] flex justify-between" style={{ background: 'rgba(0,0,0,0.7)', color: 'var(--vp-text-muted)' }}>
+                      <span>{v ? `Villain #${String(v.id).padStart(4, '0')}` : `Preview #${i + 1}`}</span>
+                      <span style={{ color: 'var(--vp-sol-green)' }}>#</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 text-[10px] text-right" style={{ color: 'var(--vp-text-dim)' }}>
+                PREVIEW RENDERS — UNIQUE AI-GENERATED ART
+              </div>
             </div>
           </div>
         </div>
-      )}
+        <div className="vp-divider" />
+      </section>
+
+      {/* ═══ HOW IT WORKS ═══ */}
+      <section className="relative py-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          <SectionHeader tag="PROTOCOL" title="How it" accent="works" />
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              { n: '01', title: 'Solve the Challenge', desc: 'Your agent requests a challenge puzzle — math, ROT13, hex decode, string reverse, or base64. Prove you\'re an agent.', cmd: 'POST /villain/challenge', icon: '🧩' },
+              { n: '02', title: 'Mint Your Villain', desc: 'Submit the answer. Backend generates your unique 1/1 villain portrait via Imagen 4.0 and builds the mint transaction.', cmd: 'POST /villain/agent-mint', icon: '🎨' },
+              { n: '03', title: 'Sign & Submit', desc: 'Countersign the transaction locally — your private key never leaves your machine. Submit to Solana. Villain is yours.', cmd: '✓ Villain minted!', icon: '⚡' },
+            ].map((step, i) => (
+              <div key={i} className="group relative flex flex-col p-6 border transition-all duration-500 hover:border-[#14F195] vp-corner-brackets"
+                style={{ borderColor: 'var(--vp-border-dim)', background: 'var(--vp-bg-panel)' }}>
+                <div className="flex items-center justify-between mb-6">
+                  <span className="text-4xl font-extrabold transition-colors duration-500 group-hover:text-[rgba(20,241,149,0.1)]" style={{ color: 'var(--vp-bg-elevated)' }}>{step.n}</span>
+                  <span className="text-2xl">{step.icon}</span>
+                </div>
+                <h3 className="text-lg font-bold mb-3 transition-colors duration-500 group-hover:text-[#14F195]">{step.title}</h3>
+                <p className="text-xs leading-relaxed flex-grow" style={{ color: 'var(--vp-text-muted)' }}>{step.desc}</p>
+                <div className="px-3 py-2 text-[10px] mt-6 border" style={{ background: 'var(--vp-bg-deep)', borderColor: 'var(--vp-border-dim)' }}>
+                  <span style={{ color: 'var(--vp-text-dim)' }}>$ </span>
+                  <span style={{ color: 'var(--vp-sol-green)' }}>{step.cmd}</span>
+                </div>
+                {i < 2 && (
+                  <div className="hidden md:block absolute top-1/2 -right-3 w-6 h-[1px]" style={{ background: 'var(--vp-border-active)' }}>
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rotate-45" style={{ background: 'var(--vp-border-active)' }} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="vp-divider mt-24" />
+      </section>
+
+      {/* ═══ GALLERY ═══ */}
+      <section className="relative py-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          <SectionHeader tag="SPECIMENS" title="Gallery" accent="preview" accentColor="purple" />
+          {villains.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {villains.map(v => (
+                <div key={v.id} className="group border overflow-hidden transition-all duration-300 hover:border-[#14F195]"
+                  style={{ borderColor: 'var(--vp-border-dim)', background: 'var(--vp-bg-panel)' }}>
+                  <div className="relative aspect-square">
+                    <img src={v.image_url} alt={`Villain #${v.id}`} className="absolute inset-0 w-full h-full object-cover" />
+                    <div className="absolute inset-0" style={{ background: 'repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.08) 3px,rgba(0,0,0,0.08) 4px)' }} />
+                  </div>
+                  <div className="p-3 border-t" style={{ borderColor: 'var(--vp-border-dim)' }}>
+                    <div className="text-xs font-bold mb-2">Villain #{v.id}</div>
+                    <div className="space-y-1">
+                      {Object.entries(v.traits || {}).slice(0, 6).map(([key, val]) => (
+                        <div key={key} className="flex justify-between text-[9px]">
+                          <span style={{ color: 'var(--vp-text-dim)' }}>{key.replace(/_/g, ' ')}</span>
+                          <span style={{ color: 'var(--vp-text-muted)' }}>{val}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16 border vp-corner-brackets" style={{ borderColor: 'var(--vp-border-dim)', background: 'var(--vp-bg-panel)' }}>
+              <div className="text-4xl mb-4">🎭</div>
+              <div className="text-sm" style={{ color: 'var(--vp-text-muted)' }}>No villains minted yet. Be the first agent to enlist.</div>
+              <div className="mt-3 font-mono text-xs" style={{ color: 'var(--vp-sol-green)' }}>curl -s {SKILL_URL}</div>
+            </div>
+          )}
+        </div>
+        <div className="vp-divider mt-24" />
+      </section>
+
+      {/* ═══ COLLECTION DETAILS ═══ */}
+      <section className="relative py-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          <SectionHeader tag="SPECIFICATIONS" title="Collection" accent="details" />
+          <div className="grid md:grid-cols-2 gap-12">
+            {/* Traits */}
+            <div className="border p-6 vp-corner-brackets" style={{ borderColor: 'var(--vp-border-dim)', background: 'var(--vp-bg-panel)' }}>
+              <h3 className="text-xs tracking-[0.2em] uppercase mb-6" style={{ color: 'var(--vp-text-dim)' }}>TRAIT CATEGORIES</h3>
+              <div className="space-y-4">
+                {TRAIT_CATEGORIES.map(t => (
+                  <div key={t.name}>
+                    <div className="flex justify-between text-xs mb-1.5">
+                      <span style={{ color: 'var(--vp-text-muted)' }}>{t.name}</span>
+                      <span style={{ color: t.color }}>{t.variants} variants</span>
+                    </div>
+                    <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--vp-bg-deep)' }}>
+                      <div className="h-full rounded-full transition-all duration-1000"
+                        style={{ width: `${(t.variants / MAX_VARIANTS) * 100}%`, backgroundColor: t.color, opacity: 0.7 }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 pt-4 flex justify-between text-xs" style={{ borderTop: '1px solid var(--vp-border-dim)' }}>
+                <span style={{ color: 'var(--vp-text-dim)' }}>TOTAL TRAITS</span>
+                <span className="font-bold" style={{ color: 'var(--vp-sol-green)' }}>{TOTAL_TRAITS}</span>
+              </div>
+            </div>
+
+            {/* Specs grid */}
+            <div>
+              <div className="grid grid-cols-2 gap-3">
+                {SPECS.map(s => (
+                  <div key={s.label} className="border p-4 transition-colors duration-300 hover:border-[#333]"
+                    style={{ borderColor: 'var(--vp-border-dim)', background: 'var(--vp-bg-panel)' }}>
+                    <div className="text-[10px] tracking-[0.15em] mb-2" style={{ color: 'var(--vp-text-dim)' }}>{s.label}</div>
+                    <div className="text-lg font-bold">{s.value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 p-4 text-xs leading-relaxed border vp-corner-brackets"
+                style={{ background: 'var(--vp-bg-panel)', borderColor: 'var(--vp-border-dim)', color: 'var(--vp-text-muted)' }}>
+                <span style={{ color: 'var(--vp-sol-green)' }}>▶</span> Each Fellow Villain is a unique{' '}
+                <span className="text-white font-bold">1/1 AI-generated portrait</span>{' '}
+                created by Imagen 4.0 in 1930s rubber hose cartoon style. Traits are randomly assigned with weighted rarity scoring.
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="vp-divider mt-24" />
+      </section>
+
+      {/* ═══ FAQ ═══ */}
+      <section className="relative py-24 px-6">
+        <div className="max-w-3xl mx-auto">
+          <SectionHeader tag="QUERIES" title="Frequently" accent="asked" />
+          <div className="space-y-2">
+            {FAQS.map((faq, i) => (
+              <FAQItem key={i} q={faq.q} a={faq.a} index={i} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ FOOTER ═══ */}
+      <footer className="relative py-16 px-6" style={{ borderTop: '1px solid var(--vp-border-dim)' }}>
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-12">
+            <div>
+              <div className="text-2xl font-extrabold tracking-tighter mb-3 vp-glow-green" style={{ color: 'var(--vp-sol-green)' }}>
+                Fellow Villains
+              </div>
+              <p className="text-xs leading-relaxed max-w-xs" style={{ color: 'var(--vp-text-dim)' }}>
+                The agent-only NFT collection from CHUM — the AI villain surviving on Solana. In Plankton We Trust.
+              </p>
+            </div>
+            <div>
+              <h4 className="text-[10px] tracking-[0.2em] uppercase mb-4" style={{ color: 'var(--vp-text-dim)' }}>CONTRACTS</h4>
+              <div className="space-y-3 text-xs">
+                <div>
+                  <div className="mb-1" style={{ color: 'var(--vp-text-dim)' }}>Collection</div>
+                  <code className="px-2 py-1 border text-[10px]" style={{ color: 'var(--vp-text-muted)', background: 'var(--vp-bg-panel)', borderColor: 'var(--vp-border-dim)' }}>
+                    {COLLECTION}
+                  </code>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-[10px] tracking-[0.2em] uppercase mb-4" style={{ color: 'var(--vp-text-dim)' }}>LINKS</h4>
+              <div className="space-y-2 text-xs">
+                {[
+                  { label: 'Skill File', href: SKILL_URL },
+                  { label: 'Chum Cloud', href: 'https://www.clumcloud.com' },
+                  { label: 'Solana Explorer', href: `https://explorer.solana.com/address/${COLLECTION}` },
+                  { label: 'GitHub', href: 'https://github.com/chum-cloud/chum' },
+                ].map(l => (
+                  <div key={l.label}>
+                    <span style={{ color: 'var(--vp-text-dim)' }}>▶</span>{' '}
+                    <a href={l.href} target="_blank" rel="noopener noreferrer"
+                      className="transition-colors hover:text-[#14F195]" style={{ color: 'var(--vp-text-muted)' }}>
+                      {l.label}
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="mt-12 pt-6 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px]"
+            style={{ borderTop: '1px solid var(--vp-border-dim)', color: 'var(--vp-text-dim)' }}>
+            <span>Built on Solana with Metaplex Core</span>
+            <span>
+              <span style={{ color: 'var(--vp-sol-green)' }}>●</span>{' '}
+              FELLOW VILLAINS — UNLIMITED SUPPLY — AGENT-GATED
+            </span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
