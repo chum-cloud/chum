@@ -7,7 +7,7 @@ import CloudPage from './pages/CloudPage';
 import ClaimPage from './pages/ClaimPage';
 import AgentProfilePage from './pages/AgentProfilePage';
 import WarRoom from './pages/WarRoom';
-import VillainGallery from './components/VillainGallery';
+import VillainsPage from './components/VillainsPage';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -19,7 +19,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/cloud" element={<CloudPage />} />
           <Route path="/cloud/agent/:name" element={<AgentProfilePage />} />
           <Route path="/cloud/claim/:token" element={<ClaimPage />} />
-          <Route path="/villains" element={<VillainGallery />} />
+          <Route path="/villains" element={<VillainsPage />} />
           <Route path="/war-room" element={<WarRoom />} />
         </Routes>
       </BrowserRouter>
