@@ -31,8 +31,8 @@ function getUmi(): Umi {
 
     // Load survival wallet keypair from env (JSON array) or file fallback
     let keyBytes: number[];
-    if (process.env.SURVIVAL_WALLET_KEYPAIR) {
-      keyBytes = JSON.parse(process.env.SURVIVAL_WALLET_KEYPAIR);
+    if (process.env.SURVIVAL_WALLET_SECRET) {
+      keyBytes = JSON.parse(process.env.SURVIVAL_WALLET_SECRET);
     } else {
       const walletPath = path.join(__dirname, '../../../chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T.json');
       keyBytes = JSON.parse(readFileSync(walletPath, 'utf-8'));
