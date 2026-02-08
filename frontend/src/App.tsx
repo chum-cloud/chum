@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import VisualNovelScene from './components/VisualNovelScene';
+import AgentStage from './components/AgentStage';
 import StatsGrid from './components/StatsGrid';
 import AgentChat from './components/AgentChat';
 import LatestTweet from './components/LatestTweet';
@@ -159,13 +159,7 @@ export default function App() {
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         <div id="tank" />
-        <VisualNovelScene
-          mood={chum.mood}
-          healthPercent={chum.healthPercent}
-          latestThought={latestThought}
-          recentThoughts={recentThoughts}
-          triggerMap={triggerMap}
-        />
+        <AgentStage />
         <StatsGrid chum={chum} />
         <AgentChat />
         <WarChest />
