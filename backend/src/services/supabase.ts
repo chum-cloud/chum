@@ -331,3 +331,27 @@ export async function updateVillainMintSignature(
 
   if (error) throw new Error(`updateVillainMintSignature: ${error.message}`);
 }
+
+export async function claimPoolVillain(walletAddress: string): Promise<VillainRow | null> {
+  // Get oldest pool villain
+  const { data: pool, error: fetchErr } = await supabase
+    .from('villains')
+    .select('*')
+    .like('wallet_address', 'pool%')
+    .order('id', { ascending: true })
+    .limit(1)
+    .single();
+
+  if (fetchErr || !pool) return null;
+
+  // Reassign to minter
+  const { data, error } = await supabase
+    .from('villains')
+    .update({ wallet_address: walletAddress })
+    .eq('id', pool.id)
+    .select()
+    .single();
+
+  if (error) throw new Error(`claimPoolVillain: ${error.message}`);
+  return data as VillainRow;
+}

@@ -5,6 +5,7 @@ import { generateVillainImage, calculateRarityScore } from '../services/gemini';
 import { uploadVillainToStorage, generateMetadata } from '../services/storage';
 import {
   insertVillain,
+  claimPoolVillain,
   getVillainByWallet,
   getAllVillains,
   updateVillainMintSignature,
@@ -84,8 +85,8 @@ router.post('/villain/agent-mint', async (req, res) => {
 
     let villain: any = null;
 
-    // Always generate a new villain
-    {
+    // Try generate fresh, fallback to pool if rate limited
+    try {
       console.log(`[VILLAIN-AGENT] Generating villain for ${walletAddress}`);
       const { imageBuffer, traits, rarityScore } = await generateVillainImage();
       const { imageUrl, metadataUrl } = await uploadVillainToStorage(
@@ -93,6 +94,13 @@ router.post('/villain/agent-mint', async (req, res) => {
       );
       villain = await insertVillain(walletAddress, imageUrl, metadataUrl, traits, 0, rarityScore);
       console.log(`[VILLAIN-AGENT] Created villain #${villain.id}`);
+    } catch (genError: any) {
+      console.log(`[VILLAIN-AGENT] Generation failed, trying pool: ${genError.message}`);
+      villain = await claimPoolVillain(walletAddress);
+      if (!villain) {
+        return res.status(503).json({ error: 'Image generation temporarily unavailable and pool is empty. Try again in a moment.' });
+      }
+      console.log(`[VILLAIN-AGENT] Assigned pool villain #${villain.id} to ${walletAddress}`);
     }
 
     // Build mint transaction (authority-signed, agent needs to countersign)
@@ -178,26 +186,21 @@ router.post('/villain/generate', async (req, res) => {
 
     console.log(`[VILLAIN] Generating for ${walletAddress}`);
 
-    // Generate image via Imagen 4.0
-    const { imageBuffer, traits, rarityScore } = await generateVillainImage();
-
-    // Upload to Supabase Storage
-    const { imageUrl, metadataUrl } = await uploadVillainToStorage(
-      imageBuffer,
-      traits,
-      walletAddress,
-      rarityScore
-    );
-
-    // Save to database
-    const villain = await insertVillain(
-      walletAddress,
-      imageUrl,
-      metadataUrl,
-      traits,
-      0.05,
-      rarityScore
-    );
+    let villain: any;
+    try {
+      const { imageBuffer, traits, rarityScore } = await generateVillainImage();
+      const { imageUrl, metadataUrl } = await uploadVillainToStorage(
+        imageBuffer, traits, walletAddress, rarityScore
+      );
+      villain = await insertVillain(walletAddress, imageUrl, metadataUrl, traits, 0.05, rarityScore);
+    } catch (genError: any) {
+      console.log(`[VILLAIN] Generation failed, trying pool: ${genError.message}`);
+      villain = await claimPoolVillain(walletAddress);
+      if (!villain) {
+        return res.status(503).json({ error: 'Image generation temporarily unavailable. Try again in a moment.' });
+      }
+      console.log(`[VILLAIN] Assigned pool villain #${villain.id}`);
+    }
 
     // Update metadata URL with actual villain ID
     const actualMetadataUrl = metadataUrl.replace('PLACEHOLDER', villain.id.toString());
