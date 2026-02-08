@@ -17,6 +17,7 @@ import { Keypair } from '@solana/web3.js';
 import { readFileSync } from 'fs';
 import path from 'path';
 import { transactionBuilder } from '@metaplex-foundation/umi';
+import { SystemProgram, PublicKey } from '@solana/web3.js';
 import { config } from '../config';
 import type { VillainTraits } from '../types';
 
@@ -113,12 +114,20 @@ export async function buildMintTransaction(
     ],
   });
 
-  // Add 0.001 SOL mint fee: minter -> survival wallet
-  const { transferSol } = await import('@metaplex-foundation/mpl-toolbox');
-  const feeBuilder = transferSol(u, {
-    source: { publicKey: minterPubkey, signTransaction: async (tx: any) => tx, signMessage: async (msg: any) => msg, signAllTransactions: async (txs: any) => txs } as any,
-    destination: authorityPubkey,
-    amount: { basisPoints: BigInt(MINT_FEE_LAMPORTS), identifier: 'SOL', decimals: 9 },
+  // Add 0.001 SOL mint fee: minter -> survival wallet (raw SystemProgram transfer)
+  const feeInstruction = SystemProgram.transfer({
+    fromPubkey: new PublicKey(minterWallet),
+    toPubkey: new PublicKey(authorityPubkey.toString()),
+    lamports: MINT_FEE_LAMPORTS,
+  });
+
+  // Convert web3.js instruction to Umi instruction and append
+  const { fromWeb3JsInstruction } = await import('@metaplex-foundation/umi-web3js-adapters');
+  const umiFeeIx = fromWeb3JsInstruction(feeInstruction);
+  const feeBuilder = transactionBuilder().add({
+    instruction: umiFeeIx,
+    signers: [], // minter signs client-side
+    bytesCreatedOnChain: 0,
   });
 
   // Combine mint + fee into one transaction
