@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import { generateVillainImage, calculateRarityScore } from '../services/gemini';
 import { uploadVillainToStorage, generateMetadata } from '../services/storage';
+import { config } from '../config';
 import {
   insertVillain,
   claimPoolVillain,
@@ -559,6 +560,54 @@ router.post('/villains/sync', async (req, res) => {
   } catch (error: any) {
     console.error('[SYNC] Failed:', error);
     res.status(500).json({ error: 'Sync failed', details: error.message });
+  }
+});
+
+/**
+ * POST /api/villains/:id/fix-image
+ * Admin: Regenerate image for a villain with broken metadata
+ */
+router.post('/villains/:id/fix-image', async (req, res) => {
+  try {
+    const { adminKey } = req.body;
+    if (adminKey !== process.env.ADMIN_KEY) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const villainId = parseInt(req.params.id);
+    console.log(`[FIX] Regenerating image for villain #${villainId}`);
+
+    // Generate new image
+    const { imageBuffer, traits, rarityScore } = await generateVillainImage();
+    const { imageUrl, metadataUrl } = await uploadVillainToStorage(
+      imageBuffer, traits, `fix-${villainId}`, rarityScore
+    );
+
+    // Update DB
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(config.supabaseUrl, config.supabaseServiceKey);
+    const { error } = await supabase.from('villains').update({
+      image_url: imageUrl,
+      metadata_url: `${config.apiBaseUrl}/api/villain/${villainId}/metadata`,
+      traits,
+      rarity_score: rarityScore,
+      name: `Fellow Villain #${villainId}`,
+    }).eq('id', villainId);
+
+    if (error) throw error;
+
+    console.log(`[FIX] Villain #${villainId} image regenerated: ${imageUrl}`);
+    res.json({
+      success: true,
+      villainId,
+      imageUrl,
+      traits,
+      rarityScore,
+      message: `Villain #${villainId} fixed! Note: on-chain URI may also need updating.`
+    });
+  } catch (error: any) {
+    console.error('[FIX] Failed:', error);
+    res.status(500).json({ error: 'Fix failed', details: error.message });
   }
 });
 
