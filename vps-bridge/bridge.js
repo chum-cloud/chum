@@ -118,14 +118,9 @@ async function replyToTweet(page, replyToUrl, content) {
   console.log(`[bridge] Replying to: ${replyToUrl}`);
   
   await page.goto(replyToUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await sleep(2000);
+  await sleep(3000);
 
-  // Click reply button on the tweet
-  const replyBtn = await page.waitForSelector('[data-testid="reply"]', { timeout: 10000 });
-  await replyBtn.click();
-  await sleep(1500);
-
-  // Type reply
+  // Click the reply box directly on the tweet page
   const editor = await page.waitForSelector('[data-testid="tweetTextarea_0"]', { timeout: 10000 });
   await editor.click();
   await sleep(500);
@@ -135,13 +130,53 @@ async function replyToTweet(page, replyToUrl, content) {
   }
   await sleep(1000);
 
-  // Click reply/post button
-  const postBtn = await page.waitForSelector('[data-testid="tweetButton"]', { timeout: 5000 });
-  await postBtn.click();
-  await sleep(3000);
+  // Submit via Ctrl+Enter
+  console.log('[bridge] Submitting reply via Ctrl+Enter...');
+  await page.keyboard.down('Control');
+  await page.keyboard.press('Enter');
+  await page.keyboard.up('Control');
+  await sleep(4000);
 
   tweetsThisHour++;
   return { success: true, repliedTo: replyToUrl, postedAt: new Date().toISOString() };
+}
+
+/**
+ * Browse CT feed — scroll "For You" timeline and scrape posts
+ */
+async function browseFeed(page) {
+  console.log('[bridge] Browsing CT feed...');
+  
+  await page.goto('https://x.com/home', { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await sleep(3000);
+  
+  // Scroll down a few times to load more tweets
+  for (let i = 0; i < 3; i++) {
+    await page.evaluate(() => window.scrollBy(0, 800));
+    await sleep(1500);
+  }
+  
+  const posts = await page.evaluate(() => {
+    const tweets = document.querySelectorAll('[data-testid="tweet"]');
+    return Array.from(tweets).slice(0, 20).map(tweet => {
+      const text = tweet.querySelector('[data-testid="tweetText"]')?.textContent || '';
+      const authorEl = tweet.querySelector('[data-testid="User-Name"]');
+      const author = authorEl?.textContent || '';
+      // Extract handle from author text (e.g. "Username@handle·2h")
+      const handleMatch = author.match(/@(\w+)/);
+      const handle = handleMatch ? handleMatch[1] : '';
+      const links = tweet.querySelectorAll('a[href*="/status/"]');
+      const link = links.length > 0 ? links[links.length - 1]?.href || '' : '';
+      const time = tweet.querySelector('time')?.dateTime || '';
+      const likes = tweet.querySelector('[data-testid="like"]')?.textContent || '0';
+      const retweets = tweet.querySelector('[data-testid="retweet"]')?.textContent || '0';
+      const isRetweet = !!tweet.querySelector('[data-testid="socialContext"]');
+      return { text, author: handle, link, time, likes, retweets, isRetweet };
+    }).filter(t => t.text.length > 10 && t.link);
+  });
+
+  console.log(`[bridge] Found ${posts.length} posts on CT feed`);
+  return { success: true, posts, count: posts.length, scrapedAt: new Date().toISOString() };
 }
 
 async function readMentions(page) {
@@ -238,6 +273,10 @@ async function processTask(task) {
         
       case 'read_timeline':
         result = await readTimeline(page, task.search_query || 'chum_cloud');
+        break;
+
+      case 'browse_feed':
+        result = await browseFeed(page);
         break;
         
       default:

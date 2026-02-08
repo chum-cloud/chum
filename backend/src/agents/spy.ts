@@ -340,6 +340,86 @@ Provide a brief tactical assessment using spy terminology. End with a recommenda
   }
 
   /**
+   * Browse CT feed — queue a browse_feed task to scrape the "For You" timeline
+   */
+  async browseCTFeed(): Promise<Record<string, unknown>> {
+    const { queueTask, getTaskResults } = await import('../services/agent-tasks');
+    
+    try {
+      await queueTask({
+        task_type: 'browse_feed',
+        agent_id: 'spy',
+        payload: {},
+        priority: 1,
+      });
+      console.log('[SPY] Queued CT feed browse task');
+    } catch (err) {
+      console.error('[SPY] Failed to queue browse_feed:', err);
+    }
+
+    // Return results from previous browse (async pipeline)
+    try {
+      const results = await getTaskResults('spy', 'browse_feed', 3);
+      const latestDone = results.find(r => r.status === 'done' && r.result);
+      if (latestDone) {
+        const posts = (latestDone.result as any)?.posts || [];
+        return { posts, count: posts.length, scrapedAt: (latestDone.result as any)?.scrapedAt };
+      }
+    } catch {}
+
+    return { posts: [], count: 0 };
+  }
+
+  /**
+   * Pick posts from CT feed worth replying to — relevant to AI, crypto, Solana, agents, NFTs
+   */
+  async pickReplyTargets(posts: any[]): Promise<{ url: string; text: string; author: string }[]> {
+    if (!posts || posts.length === 0) return [];
+
+    // Filter out our own posts and retweets
+    const candidates = posts.filter((p: any) => 
+      p.author !== 'chum_cloud' && 
+      !p.isRetweet && 
+      p.text.length > 20
+    );
+
+    if (candidates.length === 0) return [];
+
+    // Use LLM to pick the best 2-3 posts to reply to
+    const postList = candidates.slice(0, 15).map((p: any, i: number) => 
+      `${i + 1}. @${p.author}: "${p.text.substring(0, 200)}" [${p.link}]`
+    ).join('\n');
+
+    const prompt = `
+CT FEED POSTS:
+${postList}
+
+Pick 2-3 posts that CHUM (an AI villain on Solana) could reply to NATURALLY.
+Good targets: posts about AI agents, crypto, Solana, NFTs, AI survival, memecoins, DeFi, web3, agent frameworks, trading bots.
+Bad targets: personal posts, non-English, just emojis, already about $CHUM.
+
+Reply with ONLY the numbers (e.g. "2, 5, 11"). Nothing else.`;
+
+    try {
+      const picks = await this.think(prompt);
+      const nums = picks.match(/\d+/g)?.map(Number).filter(n => n >= 1 && n <= candidates.length) || [];
+      
+      return nums.slice(0, 3).map(n => ({
+        url: candidates[n - 1].link,
+        text: candidates[n - 1].text,
+        author: candidates[n - 1].author,
+      }));
+    } catch {
+      // Fallback: pick first 2 candidates with relevant keywords
+      const keywords = ['agent', 'ai', 'solana', 'nft', 'crypto', 'token', 'defi', 'web3', 'bot', 'chain'];
+      return candidates
+        .filter((p: any) => keywords.some(k => p.text.toLowerCase().includes(k)))
+        .slice(0, 2)
+        .map((p: any) => ({ url: p.link, text: p.text, author: p.author }));
+    }
+  }
+
+  /**
    * Monitor engagement patterns for suspicious activity
    */
   async monitorEngagement(targetEvent: Record<string, unknown>): Promise<string> {

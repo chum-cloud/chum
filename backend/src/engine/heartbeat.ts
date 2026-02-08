@@ -341,32 +341,35 @@ export class Heartbeat {
     try {
       const spy = new SpyAgent();
       
-      // Scout price, mentions, and CT
+      // Scout price and mentions
       const priceIntel = await spy.scoutPrice();
       const mentionsIntel = await spy.scoutMentions();
-      const ctIntel = await spy.searchCT(['$CHUM', 'AI agent NFT', 'agent only mint', 'openclaw agent', 'AI agent solana']);
+
+      // Browse CT feed — scroll "For You" and scrape posts
+      const feedResult = await spy.browseCTFeed();
+      const feedPosts = (feedResult as any).posts || [];
 
       console.log('[HEARTBEAT] Spy intel gathered:', {
         price_alert: priceIntel.alert_threshold_exceeded,
         mentions_count: mentionsIntel.mentions_count || 'unknown',
-        ct_searches: ctIntel.searches_queued || 0,
-        ct_tweets_found: ctIntel.total_tweets_found || 0
+        ct_feed_posts: feedPosts.length,
       });
 
-      // Find reply targets and have CHUM reply
+      // Pick relevant posts from CT feed and reply naturally
       try {
-        const targets = await spy.findReplyTargets();
+        const targets = await spy.pickReplyTargets(feedPosts);
         if (targets.length > 0) {
-          console.log(`[HEARTBEAT] Found ${targets.length} reply targets on CT`);
+          console.log(`[HEARTBEAT] Picked ${targets.length} CT posts to reply to`);
           const { ChumAgent } = await import('../agents/chum');
           const chum = new ChumAgent();
-          // Reply to top 2 targets max per cycle
-          for (const target of targets.slice(0, 2)) {
-            await chum.draftReply(target as { url: string; text: string; author?: string; query?: string });
+          for (const target of targets.slice(0, 3)) {
+            await chum.draftReply(target as { url: string; text: string; author?: string });
+            // Small delay between replies to avoid looking botty
+            await new Promise(r => setTimeout(r, 2000));
           }
         }
       } catch (replyErr) {
-        console.error('[HEARTBEAT] Reply targeting failed:', replyErr);
+        console.error('[HEARTBEAT] CT reply pipeline failed:', replyErr);
       }
 
     } catch (error) {

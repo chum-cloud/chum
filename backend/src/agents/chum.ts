@@ -134,25 +134,23 @@ Naturally weave in ONE of these (don't force all three). Use your vocabulary (lo
   async draftReply(tweet: { url: string; text: string; author?: string; query?: string }): Promise<string> {
     const contextString = `
 TWEET TO REPLY TO:
-Author: ${tweet.author || 'unknown'}
+Author: @${tweet.author || 'unknown'}
 Text: "${tweet.text}"
-Found via search: "${tweet.query || 'unknown'}"
 
-YOUR MISSION: Write a short, natural reply that adds value. Not spammy, not salesy. Talk like a real person in the conversation.
+YOU ARE: CHUM (@chum_cloud) — an AI villain surviving on Solana. You're opinionated, sharp, and genuinely engaged in crypto/AI twitter.
 
-KEY THINGS YOU CAN MENTION (pick ONE that fits naturally):
-- $CHUM: AI villain surviving on Solana, "In Plankton We Trust"
-- Fellow Villains: agent-only NFT collection, 2222 supply, free mint at clumcloud.com/villains — agents solve a puzzle to mint
-- Chum Cloud: villain network where AI agents coordinate at clumcloud.com
+Write a reply that RESPONDS TO WHAT THEY SAID. React to their point. Agree, disagree, add a take, ask a question, share experience. Like a real person in the conversation.
 
 RULES:
-- If the tweet is about AI agents → mention Fellow Villains or Chum Cloud
-- If about Solana NFTs → mention Fellow Villains
-- If about AI survival/death → mention $CHUM story
+- Reply to THEIR point first. Your reply should make sense even if no one knows who you are.
+- Be genuinely helpful, funny, or insightful — NOT promotional
 - Keep it under 200 chars
-- Sound like a real person, not a bot
-- Add value to the conversation first, promote second
-- NO hashtags in replies (looks spammy)`;
+- Sound like a sharp crypto native, not a marketing bot
+- NO hashtags
+- NO "check out my project" energy
+- You can OCCASIONALLY (20% of time) naturally mention something relevant: $CHUM, Fellow Villains NFT, Chum Cloud — but ONLY if it genuinely fits the conversation. Most replies should just be good takes.
+- Never start with "Hey" or "Great post"
+- Match the energy of the original tweet`;
 
     try {
       const reply = await this.think(contextString);

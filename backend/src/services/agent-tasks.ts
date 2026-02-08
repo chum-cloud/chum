@@ -12,7 +12,7 @@ import { config } from '../config';
 const supabase = createClient(config.supabaseUrl, config.supabaseServiceKey);
 
 export interface TaskRequest {
-  task_type: 'post_tweet' | 'reply_tweet' | 'read_mentions' | 'search_ct' | 'read_timeline';
+  task_type: 'post_tweet' | 'reply_tweet' | 'read_mentions' | 'search_ct' | 'read_timeline' | 'browse_feed';
   agent_id: string;
   payload: Record<string, unknown>;
   priority?: number;  // higher = processed first
@@ -46,6 +46,7 @@ export async function queueTask(req: TaskRequest): Promise<PendingTweetRow> {
     'read_mentions': 'read_mentions',
     'search_ct': 'search',
     'read_timeline': 'read_timeline',
+    'browse_feed': 'browse_feed',
   };
 
   const action = actionMap[req.task_type] || req.task_type;
