@@ -21,7 +21,7 @@ import { SystemProgram, PublicKey } from '@solana/web3.js';
 import { config } from '../config';
 import type { VillainTraits } from '../types';
 
-const MINT_FEE_LAMPORTS = 5_000_000; // 0.005 SOL
+const MINT_FEE_LAMPORTS = 15_000_000; // 0.015 SOL
 
 // Collection address - set after first creation
 const COLLECTION_ADDRESS = process.env.VILLAIN_COLLECTION_ADDRESS || '';
