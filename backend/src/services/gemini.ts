@@ -242,6 +242,7 @@ export async function generateVillainImage(traits?: VillainTraits): Promise<{
     const apiKeys = [
       process.env.GEMINI_API_KEY,
       process.env.GEMINI_API_KEY_2,
+      process.env.GEMINI_API_KEY_3,
     ].filter(Boolean) as string[];
 
     let lastError: Error | null = null;
