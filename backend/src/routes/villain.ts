@@ -204,7 +204,7 @@ router.post('/villain/generate', async (req, res) => {
     }
 
     // Update metadata URL with actual villain ID
-    const actualMetadataUrl = metadataUrl.replace('PLACEHOLDER', villain.id.toString());
+    const actualMetadataUrl = (villain.metadata_url || '').replace('PLACEHOLDER', villain.id.toString());
 
     console.log(`[VILLAIN] Created villain #${villain.id} for ${walletAddress}`);
 

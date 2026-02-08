@@ -13,10 +13,10 @@ import {
   type KeypairSigner,
 } from '@metaplex-foundation/umi';
 import { fromWeb3JsKeypair } from '@metaplex-foundation/umi-web3js-adapters';
-import { Keypair, SystemProgram, PublicKey as Web3PublicKey } from '@solana/web3.js';
+import { Keypair } from '@solana/web3.js';
 import { readFileSync } from 'fs';
 import path from 'path';
-import { toWeb3JsTransaction, fromWeb3JsTransaction } from '@metaplex-foundation/umi-web3js-adapters';
+import { transactionBuilder } from '@metaplex-foundation/umi';
 import { config } from '../config';
 import type { VillainTraits } from '../types';
 
@@ -113,22 +113,21 @@ export async function buildMintTransaction(
     ],
   });
 
-  // Build the transaction
-  const tx = await builder.buildWithLatestBlockhash(u);
-
-  // Add 0.001 SOL mint fee transfer from minter to survival wallet
-  const web3Tx = toWeb3JsTransaction(tx);
-  const transferIx = SystemProgram.transfer({
-    fromPubkey: new Web3PublicKey(minterWallet),
-    toPubkey: new Web3PublicKey(authorityPubkey.toString()),
-    lamports: MINT_FEE_LAMPORTS,
+  // Add 0.001 SOL mint fee: minter -> survival wallet
+  const { transferSol } = await import('@metaplex-foundation/mpl-toolbox');
+  const feeBuilder = transferSol(u, {
+    source: { publicKey: minterPubkey, signTransaction: async (tx: any) => tx, signMessage: async (msg: any) => msg, signAllTransactions: async (txs: any) => txs } as any,
+    destination: authorityPubkey,
+    amount: { basisPoints: BigInt(MINT_FEE_LAMPORTS), identifier: 'SOL', decimals: 9 },
   });
-  web3Tx.instructions.push(transferIx);
-  const txWithFee = fromWeb3JsTransaction(web3Tx);
+
+  // Combine mint + fee into one transaction
+  const combinedBuilder = builder.add(feeBuilder);
+  const tx = await combinedBuilder.buildWithLatestBlockhash(u);
 
   // Serialize - the backend signs as authority + asset signer,
   // user needs to sign as payer
-  const serialized = u.transactions.serialize(txWithFee);
+  const serialized = u.transactions.serialize(tx);
   const base64Tx = Buffer.from(serialized).toString('base64');
 
   return {
