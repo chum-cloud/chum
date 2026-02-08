@@ -387,13 +387,11 @@ export class MissionWorker {
   }
 
   private static async handleRecruit(step: MissionStepRow): Promise<Record<string, unknown>> {
-    const recruiter = new RecruiterAgent();
-    const scheme = await this.getSchemeForStep(step);
-    const message = await recruiter.draftRecruitmentTweet(scheme);
-    
+    // Recruitment tweets are ONLY posted via heartbeat (4/day). Mission worker no longer posts.
+    console.log('[MISSION] recruit step skipped — tweets controlled by heartbeat only');
     return {
-      recruitment_message: message,
-      agent: 'recruiter',
+      skipped: true,
+      reason: 'Recruitment tweets posted via heartbeat system (4/day), not mission pipeline',
       timestamp: new Date().toISOString()
     };
   }
