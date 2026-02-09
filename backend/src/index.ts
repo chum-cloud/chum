@@ -78,7 +78,7 @@ app.listen(config.port, async () => {
   // Pool manager: Vertex drip (1/min) + burst refill when pool < 30
   const POOL_TARGET = 60;
   const POOL_HALF = POOL_TARGET / 2;
-  const POOL_CAP = 300; // Stop generating when pool hits this
+  const POOL_CAP = 668; // Stop generating when pool hits this
   let poolBurstRunning = false;
 
   // Vertex AI steady drip — 2 per minute (every 30s)
