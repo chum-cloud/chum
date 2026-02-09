@@ -81,20 +81,20 @@ app.listen(config.port, async () => {
   const POOL_CAP = 668; // Stop generating when pool hits this
   let poolBurstRunning = false;
 
-  // Vertex AI steady drip — 2 per minute (every 30s)
-  setInterval(async () => {
-    try {
-      const current = await getPoolCount();
-      if (current >= POOL_CAP) { return; }
-      const { imageBuffer, traits, rarityScore } = await generateVillainImageVertexOnly();
-      const poolAddr = `pool-vertex-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const { imageUrl } = await uploadVillainToStorage(imageBuffer, traits, poolAddr, rarityScore);
-      await insertVillain(poolAddr, imageUrl, '', traits, 0, rarityScore);
-      console.log(`[POOL-VERTEX] Drip OK, pool now ~${current + 1}, image: ${imageUrl.slice(-40)}`);
-    } catch (err: any) {
-      console.warn(`[POOL-VERTEX] Drip failed: ${err.message?.slice(0, 150)}`);
-    }
-  }, 30 * 1000);
+  // Vertex AI steady drip — DISABLED (all repairs complete, 659/659 done)
+  // setInterval(async () => {
+  //   try {
+  //     const current = await getPoolCount();
+  //     if (current >= POOL_CAP) { return; }
+  //     const { imageBuffer, traits, rarityScore } = await generateVillainImageVertexOnly();
+  //     const poolAddr = `pool-vertex-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  //     const { imageUrl } = await uploadVillainToStorage(imageBuffer, traits, poolAddr, rarityScore);
+  //     await insertVillain(poolAddr, imageUrl, '', traits, 0, rarityScore);
+  //     console.log(`[POOL-VERTEX] Drip OK, pool now ~${current + 1}, image: ${imageUrl.slice(-40)}`);
+  //   } catch (err: any) {
+  //     console.warn(`[POOL-VERTEX] Drip failed: ${err.message?.slice(0, 150)}`);
+  //   }
+  // }, 30 * 1000);
 
   // Burst refill DISABLED — pool has 2500+ villains ready
   /* setInterval(async () => {
