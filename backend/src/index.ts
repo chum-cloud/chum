@@ -81,7 +81,7 @@ app.listen(config.port, async () => {
   const POOL_CAP = 300; // Stop generating when pool hits this
   let poolBurstRunning = false;
 
-  // Vertex AI steady drip — 1 per minute
+  // Vertex AI steady drip — 2 per minute (every 30s)
   setInterval(async () => {
     try {
       const current = await getPoolCount();
@@ -96,7 +96,7 @@ app.listen(config.port, async () => {
     } catch (err: any) {
       console.warn(`[POOL-VERTEX] Drip failed: ${err.message?.slice(0, 150)}`);
     }
-  }, 60 * 1000);
+  }, 30 * 1000);
 
   // Burst refill DISABLED — pool has 2500+ villains ready
   /* setInterval(async () => {
