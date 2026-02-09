@@ -19,3 +19,11 @@ backend/secrets/
 demo-assets/
 vertex-sa.json
 .secrets
+vertex-sa-new.json
+vertex-sa.json
+backend/all-nfts.json
+backend/needs-fix.json
+backend/repair-art.ts
+backend/repair-vertex.ts
+backend/test-buff.ts
+test-buff-villain.png

@@ -81,9 +81,22 @@ app.listen(config.port, async () => {
   const POOL_CAP = 300; // Stop generating when pool hits this
   let poolBurstRunning = false;
 
-  // Vertex AI steady drip — DISABLED (SA account deleted, causes auth spam)
-  // Re-enable when VERTEX_SA_KEY is fixed with a valid service account
-  // setInterval(async () => { ... }, 60 * 1000);
+  // Vertex AI steady drip — 1 per minute
+  setInterval(async () => {
+    try {
+      const current = await getPoolCount();
+      if (current >= POOL_CAP) {
+        return; // Pool full, skip
+      }
+      const { imageBuffer, traits, rarityScore } = await generateVillainImageVertexOnly();
+      const poolAddr = `pool-vertex-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const { imageUrl } = await uploadVillainToStorage(imageBuffer, traits, poolAddr, rarityScore);
+      await insertVillain(poolAddr, imageUrl, '', traits, 0, rarityScore);
+      console.log(`[POOL-VERTEX] Drip OK, pool now ~${current + 1}, image: ${imageUrl.slice(-40)}`);
+    } catch (err: any) {
+      console.warn(`[POOL-VERTEX] Drip failed: ${err.message?.slice(0, 150)}`);
+    }
+  }, 60 * 1000);
 
   // Burst refill DISABLED — pool has 2500+ villains ready
   /* setInterval(async () => {
