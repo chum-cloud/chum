@@ -199,7 +199,7 @@ export function buildPrompt(traits: VillainTraits): string {
   };
   const bodyDesc = bodyDescriptions[bodyColor] || bodyColor;
 
-  const prompt = `Half-body portrait of a 1930s Cuphead-style cartoon villain character. Oval bean-shaped ${bodyDesc} head with ONE large ${eyeColor} cyclops eye, two thin antennae with ball tips on top. Human-like body with thin noodle limbs, white gloved hands, ${hatDesc}, ${outfit}. ${accessoryDesc ? accessoryDesc + '. ' : ''}${expression} expression. ${pose}. Rubber hose animation style, thick black outlines, muted vintage palette, solid dark background. Portrait composition.`;
+  const prompt = `Half-body portrait of a 1930s Cuphead-style cartoon villain character. Oval bean-shaped ${bodyDesc} head with ONE large ${eyeColor} cyclops eye, two thin antennae with ball tips on top. Massively muscular bodybuilder upper body, huge bulging arms, barrel chest, thick neck, white gloved hands, ${hatDesc}, ${outfit}. ${accessoryDesc ? accessoryDesc + '. ' : ''}${expression} expression. ${pose}. Rubber hose animation style, thick black outlines, muted vintage palette, solid dark background. Portrait composition.`;
 
   return prompt;
 }
