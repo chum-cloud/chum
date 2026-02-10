@@ -1,0 +1,25 @@
+{
+  "name": "chumlaunch",
+  "version": "0.1.0",
+  "description": "CLI for CHUM Launch — Agent Coordination Infrastructure for Solana",
+  "bin": {
+    "chumlaunch": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts"
+  },
+  "keywords": ["solana", "agents", "nft", "pumpfun", "chum"],
+  "author": "makoto-isback",
+  "license": "MIT",
+  "dependencies": {
+    "@solana/web3.js": "^1.98.0",
+    "bs58": "^5.0.0",
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsx": "^4.0.0",
+    "@types/node": "^22.0.0"
+  }
+}

@@ -7,6 +7,7 @@ import {
   recordTrade, getTradesByToken, getTradesByAgent, getRecentTrades,
   getStats, getLeaderboard, verifyFellowVillainNFT
 } from '../services/launch';
+import { createToken, buildTradeTransaction } from '../services/pumpfun';
 
 const router = express.Router();
 
@@ -231,6 +232,96 @@ router.get('/leaderboard', async (req, res) => {
     res.json({ agents, count: agents.length });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── PumpFun Token Creation ─────────────────────────────────────────────────
+
+// POST /api/launch/create — create a token on pump.fun
+router.post('/create', async (req, res) => {
+  try {
+    const { wallet, name, symbol, description, image, imageUrl, twitter, telegram, website, devBuyAmount, slippage, priorityFee } = req.body;
+
+    if (!wallet || !name || !symbol || !description) {
+      return res.status(400).json({ error: 'wallet, name, symbol, and description are required' });
+    }
+
+    if (!image && !imageUrl) {
+      return res.status(400).json({ error: 'Either image (base64) or imageUrl is required' });
+    }
+
+    // Verify agent is registered
+    const agent = await getAgent(wallet);
+    if (!agent) {
+      return res.status(403).json({ error: 'Wallet not registered as a CHUM Launch agent' });
+    }
+
+    const result = await createToken({
+      creatorWallet: wallet,
+      name,
+      symbol,
+      description,
+      imageBase64: image,
+      imageUrl,
+      twitter,
+      telegram,
+      website,
+      devBuyAmount: devBuyAmount || 0,
+      slippage: slippage || 10,
+      priorityFee: priorityFee || 0.0005,
+    });
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    res.json({
+      success: true,
+      mintAddress: result.mintAddress,
+      mintSecretKey: result.mintSecretKey,
+      transaction: result.transaction,
+      metadataUri: result.metadataUri,
+      pumpfunUrl: `https://pump.fun/coin/${result.mintAddress}`,
+    });
+  } catch (err: any) {
+    console.error('Create token error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/launch/trade — build a trade transaction
+router.post('/trade', async (req, res) => {
+  try {
+    const { wallet, tokenAddress, side, amount, denominatedInSol, slippage, priorityFee } = req.body;
+
+    if (!wallet || !tokenAddress || !side || !amount) {
+      return res.status(400).json({ error: 'wallet, tokenAddress, side, and amount are required' });
+    }
+
+    // Verify agent is registered
+    const agent = await getAgent(wallet);
+    if (!agent) {
+      return res.status(403).json({ error: 'Wallet not registered as a CHUM Launch agent' });
+    }
+
+    const result = await buildTradeTransaction({
+      wallet,
+      tokenAddress,
+      side,
+      amount,
+      denominatedInSol: denominatedInSol ?? true,
+      slippage: slippage || 10,
+      priorityFee: priorityFee || 0.0005,
+    });
+
+    if ('error' in result) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    res.json({ success: true, transaction: result.transaction });
+  } catch (err: any) {
+    console.error('Trade build error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
