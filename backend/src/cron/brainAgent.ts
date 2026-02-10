@@ -21,7 +21,7 @@ import { eventBus } from '../services/events';
 import { checkUniqueness } from '../lib/uniqueness';
 import { buildTriggerLine } from '../lib/prompt';
 import { broadcastThought } from '../services/eventThoughts';
-import * as cloud from '../services/cloud';
+
 import { config } from '../config';
 import {
   Connection,
@@ -33,6 +33,23 @@ import {
   sendAndConfirmTransaction,
 } from '@solana/web3.js';
 import bs58 from 'bs58';
+
+// Cloud service removed — stub to prevent crashes
+const cloud = {
+  getAgentByName: async (_: string) => null as any,
+  registerAgent: async (..._: any[]) => ({ id: 0, name: 'plankton' }) as any,
+  getLairByName: async (_: string) => ({ id: 1 }) as any,
+  getPosts: async (..._: any[]) => [] as any,
+  getBattles: async (..._: any[]) => [] as any,
+  getAgentRecentPosts: async (..._: any[]) => [] as any,
+  createPost: async (..._: any[]) => ({}) as any,
+  createComment: async (..._: any[]) => ({}) as any,
+  votePost: async (..._: any[]) => ({}) as any,
+  createBattle: async (..._: any[]) => ({}) as any,
+  acceptBattle: async (..._: any[]) => ({}) as any,
+  submitBattleEntry: async (..._: any[]) => ({}) as any,
+  voteBattle: async (..._: any[]) => ({}) as any,
+};
 
 // ─── Types ───
 

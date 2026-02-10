@@ -1,5 +1,4 @@
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import AgentStage from './components/AgentStage';
 import StatsGrid from './components/StatsGrid';
 import ChatWidget from './components/ChatWidget';
 import { Link, useLocation } from 'react-router-dom';
@@ -9,12 +8,11 @@ import { useThoughtStream } from './hooks/useThoughtStream';
 function NavBar() {
   const location = useLocation();
   const isHome = location.pathname === '/';
-  const isCloud = location.pathname.startsWith('/cloud');
   const isVillains = location.pathname.startsWith('/villains');
 
   const tabClass = (active: boolean) =>
     active
-      ? 'bg-white text-[#19191A] px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider'
+      ? 'bg-[#DFD9D9] text-[#19191A] px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider'
       : 'text-[#5C5C5C] hover:text-[#DFD9D9] px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors';
 
   return (
@@ -26,7 +24,6 @@ function NavBar() {
         </Link>
         <div className="flex items-center gap-0.5">
           <Link to="/" className={tabClass(isHome)}>HOME</Link>
-          <Link to="/cloud" className={tabClass(isCloud)}>CLOUD</Link>
           <Link to="/villains" className={tabClass(isVillains)}>VILLAINS</Link>
         </div>
       </div>
@@ -66,12 +63,12 @@ export default function App() {
         : 'DYING';
 
   const moodColor = chum.mood === 'thriving' || chum.mood === 'comfortable'
-    ? 'text-[#4ade80]'
+    ? '#DFD9D9'
     : chum.mood === 'worried'
-      ? 'text-[#f59e0b]'
+      ? '#f59e0b'
       : chum.mood === 'desperate'
-        ? 'text-[#f97316]'
-        : 'text-[#ef4444]';
+        ? '#f97316'
+        : '#ef4444';
 
   return (
     <div className="min-h-screen bg-[#19191A] text-[#DFD9D9]">
@@ -82,8 +79,8 @@ export default function App() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-20 text-center space-y-6">
           {/* Status */}
           <div className="flex items-center justify-center gap-2">
-            <span className={`inline-block w-2 h-2 ${moodColor} animate-status-pulse`} style={{ background: 'currentColor' }} />
-            <span className={`font-mono text-xs uppercase tracking-[0.2em] ${moodColor}`}>
+            <span className="inline-block w-2 h-2 animate-status-pulse" style={{ background: moodColor }} />
+            <span className="font-mono text-xs uppercase tracking-[0.2em]" style={{ color: moodColor }}>
               CHUM {moodLabel}
             </span>
           </div>
@@ -95,7 +92,7 @@ export default function App() {
 
           {/* Subtitle */}
           <p className="font-mono text-sm text-[#5C5C5C] uppercase tracking-[0.15em]">
-            A LIVING AI AGENT · REAL COSTS · REAL DEATH
+            A LIVING AI AGENT &middot; REAL COSTS &middot; REAL DEATH
           </p>
 
           {/* Tagline */}
@@ -106,20 +103,14 @@ export default function App() {
           {/* CTA Buttons */}
           <div className="flex items-center justify-center gap-3 pt-4">
             <a
-              href="#tank"
-              className="px-6 py-2.5 border border-[#ABA2A2] text-[#DFD9D9] font-mono font-bold text-xs uppercase tracking-wider hover:bg-white hover:text-[#19191A] hover:border-white transition-colors"
+              href="#stage"
+              className="px-6 py-2.5 border border-[#ABA2A2] text-[#DFD9D9] font-mono font-bold text-xs uppercase tracking-wider hover:bg-[#DFD9D9] hover:text-[#19191A] hover:border-[#DFD9D9] transition-colors"
             >
-              WATCH LIVE ↓
+              WATCH LIVE
             </a>
             <Link
-              to="/cloud"
-              className="px-6 py-2.5 border border-[#ABA2A2] text-[#DFD9D9] font-mono font-bold text-xs uppercase tracking-wider hover:bg-white hover:text-[#19191A] hover:border-white transition-colors"
-            >
-              CHUM CLOUD →
-            </Link>
-            <Link
               to="/villains"
-              className="px-6 py-2.5 border border-[#ABA2A2] text-[#DFD9D9] font-mono font-bold text-xs uppercase tracking-wider hover:bg-white hover:text-[#19191A] hover:border-white transition-colors"
+              className="px-6 py-2.5 border border-[#ABA2A2] text-[#DFD9D9] font-mono font-bold text-xs uppercase tracking-wider hover:bg-[#DFD9D9] hover:text-[#19191A] hover:border-[#DFD9D9] transition-colors"
             >
               VILLAIN ARMY
             </Link>
@@ -129,8 +120,11 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        <div id="tank" />
-        <AgentStage />
+        {/* Placeholder — will be replaced */}
+        <div id="stage" className="border border-[#ABA2A2]/20 bg-[#1A1A1C] min-h-[300px] flex items-center justify-center">
+          <span className="font-mono text-xs text-[#5C5C5C] uppercase tracking-wider">[ COMING SOON ]</span>
+        </div>
+
         <StatsGrid chum={chum} />
       </main>
 
@@ -139,13 +133,13 @@ export default function App() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           {/* Motto */}
           <div className="py-6 text-center">
-            <span className="text-[#4ade80] font-mono font-bold text-xs tracking-[0.3em] uppercase">
+            <span className="text-[#DFD9D9] font-mono font-bold text-xs tracking-[0.3em] uppercase">
               IN PLANKTON WE TRUST
             </span>
           </div>
 
           {/* Links row */}
-          <div className="flex items-center justify-center gap-6 py-4 border-t border-[#ABA2A2]/10 text-xs font-mono uppercase tracking-wider">
+          <div className="flex flex-wrap items-center justify-center gap-6 py-4 border-t border-[#ABA2A2]/10 text-xs font-mono uppercase tracking-wider">
             <span
               className="text-[#5C5C5C] hover:text-[#DFD9D9] cursor-pointer transition-colors"
               onClick={() => { navigator.clipboard.writeText('AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump'); }}
@@ -157,13 +151,12 @@ export default function App() {
             <a href="https://magiceden.io/marketplace/EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7" target="_blank" rel="noopener noreferrer" className="text-[#5C5C5C] hover:text-[#DFD9D9] transition-colors">MAGIC EDEN</a>
             <a href="https://dexscreener.com/solana/hhrqkc6gtntlb8gt3rtshyocp3cschfrbjimdiui7slr" target="_blank" rel="noopener noreferrer" className="text-[#5C5C5C] hover:text-[#DFD9D9] transition-colors">CHART</a>
             <a href="https://x.com/chum_cloud" target="_blank" rel="noopener noreferrer" className="text-[#5C5C5C] hover:text-[#DFD9D9] transition-colors">TWITTER</a>
-            <Link to="/cloud" className="text-[#5C5C5C] hover:text-[#DFD9D9] transition-colors">CLOUD</Link>
             <Link to="/villains" className="text-[#5C5C5C] hover:text-[#DFD9D9] transition-colors">VILLAINS</Link>
           </div>
 
           {/* War Chest */}
           <div className="py-3 text-center border-t border-[#ABA2A2]/10">
-            <div className="text-[10px] text-[#5C5C5C] font-mono uppercase tracking-wider mb-1">WAR CHEST</div>
+            <div className="text-[10px] text-[#5C5C5C] font-mono uppercase tracking-wider mb-1">WAR CHEST [SOLANA]</div>
             <code
               className="text-[10px] font-mono text-[#5C5C5C] hover:text-[#DFD9D9] transition-colors cursor-pointer"
               onClick={() => { navigator.clipboard.writeText('chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T'); }}
@@ -175,7 +168,7 @@ export default function App() {
 
           {/* Copyright */}
           <div className="py-4 text-center text-[10px] text-[#5C5C5C] font-mono uppercase tracking-wider">
-            © 2026 THE CHUM BUCKET · CHUMCLOUD.COM
+            2026 THE CHUM BUCKET
           </div>
         </div>
       </footer>

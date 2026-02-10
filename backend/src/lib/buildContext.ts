@@ -8,7 +8,6 @@ import {
 } from '../services/supabase';
 import { getSolPrice, usdToSol } from '../services/price';
 import { getMarketData } from '../services/market';
-import { getCloudStatsForContext } from '../services/cloud';
 import { BASE_DAILY_COST_USD, DEFAULT_DAILY_OPS_USD } from '../config/costs';
 import type { ThoughtContext } from '../services/groq';
 
@@ -23,7 +22,7 @@ export async function buildThoughtContext(): Promise<ThoughtContext> {
       getSolPrice(),
       getRecentExpenses(7),
       getMarketData(),
-      getCloudStatsForContext(),
+      Promise.resolve({ agents: 0, posts_today: 0, active_battles: 0, top_agent: null }),
     ]);
 
   const balance = Number(state.balance);
@@ -66,9 +65,9 @@ export async function buildThoughtContext(): Promise<ThoughtContext> {
     ethChange24h: market.ethChange24h,
 
     // Cloud stats
-    agentCount: cloudStats.agentCount,
-    postsToday: cloudStats.postsToday,
-    activeBattles: cloudStats.activeBattles,
-    topAgentName: cloudStats.topAgentName,
+    agentCount: cloudStats.agents,
+    postsToday: cloudStats.posts_today,
+    activeBattles: cloudStats.active_battles,
+    topAgentName: cloudStats.top_agent,
   };
 }
