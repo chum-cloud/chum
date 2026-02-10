@@ -2,8 +2,6 @@
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import AgentStage from './components/AgentStage';
 import StatsGrid from './components/StatsGrid';
-import LatestTweet from './components/LatestTweet';
-import CloudPreview from './components/CloudPreview';
 import ChatWidget from './components/ChatWidget';
 import { Link } from 'react-router-dom';
 import { useChum } from './hooks/useChum';
@@ -149,9 +147,7 @@ export default function App() {
         <StatsGrid chum={chum} />
 
         {/* CHUM Cloud with live preview */}
-        <CloudPreview />
 
-        <LatestTweet />
       </main>
 
       {/* Footer */}
