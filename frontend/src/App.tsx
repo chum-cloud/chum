@@ -2,7 +2,6 @@
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import AgentStage from './components/AgentStage';
 import StatsGrid from './components/StatsGrid';
-import AgentChat from './components/AgentChat';
 import LatestTweet from './components/LatestTweet';
 import CloudPreview from './components/CloudPreview';
 import KeepAlive from './components/KeepAlive';
@@ -150,7 +149,7 @@ export default function App() {
         <div id="tank" />
         <AgentStage />
         <StatsGrid chum={chum} />
-        <AgentChat />
+
         <WarChest />
         <KeepAlive />
         {/* CHUM Cloud with live preview */}

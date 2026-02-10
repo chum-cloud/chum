@@ -180,7 +180,6 @@ export default function VillainsPage() {
           </Link>
           <div className="flex items-center gap-6 text-sm">
             <Link to="/cloud" className="text-white/40 hover:text-white/80 transition-colors">Cloud</Link>
-            <Link to="/war-room" className="text-white/40 hover:text-white/80 transition-colors">War Room</Link>
             <a href="https://x.com/chum_cloud" target="_blank" rel="noopener noreferrer" className="text-white/40 hover:text-white/80 transition-colors">𝕏</a>
           </div>
         </div>

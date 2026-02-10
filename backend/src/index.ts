@@ -20,8 +20,6 @@ import tradingRouter from './routes/trading';
 import chatRouter from './routes/chat';
 import tasksRouter from './routes/tasks';
 import { startEventThoughtListener } from './services/eventThoughts';
-import { Heartbeat } from './engine/heartbeat';
-import { seedAgentSystem, checkSeedingNeeded } from './engine/seed';
 import { generateVillainImageVertexOnly, generateVillainImageGeminiFal, generateRandomTraits, buildPrompt, calculateRarityScore } from './services/gemini';
 import { uploadVillainToStorage } from './services/storage';
 import { insertVillain, getPoolCount } from './services/supabase';
@@ -176,25 +174,5 @@ app.listen(config.port, async () => {
     console.log(`[CHUM] Started ${workerCount} fal.ai workers across ${falKeys.length} keys (delayed 60s)`);
   }, 60000);
 
-  // Initialize agent system
-  try {
-    console.log('[CHUM] Initializing agent system...');
-    
-    // Check if seeding is needed and seed if necessary
-    if (await checkSeedingNeeded()) {
-      console.log('[CHUM] Seeding agent system...');
-      await seedAgentSystem();
-    } else {
-      console.log('[CHUM] Agent system already seeded');
-    }
-    
-    // Start the heartbeat orchestrator
-    console.log('[CHUM] Starting agent heartbeat...');
-    Heartbeat.startHeartbeat();
-    
-    console.log('[CHUM] ✅ Agent system initialized successfully');
-    
-  } catch (error) {
-    console.error('[CHUM] ❌ Failed to initialize agent system:', error);
-  }
+
 });
