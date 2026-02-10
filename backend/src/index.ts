@@ -15,6 +15,7 @@ import streamRouter from './routes/stream';
 import verifyRouter from './routes/verify';
 import chatRouter from './routes/chat';
 import tasksRouter from './routes/tasks';
+import launchRouter from './routes/launch';
 import { startEventThoughtListener } from './services/eventThoughts';
 import { generateVillainImageVertexOnly, generateVillainImageGeminiFal, generateRandomTraits, buildPrompt, calculateRarityScore } from './services/gemini';
 import { uploadVillainToStorage } from './services/storage';
@@ -44,6 +45,7 @@ app.use('/api/verify', verifyRouter);
 app.use('/api', chatRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api', tasksRouter);
+app.use('/api/launch', launchRouter);
 
 app.listen(config.port, async () => {
   console.log(`[CHUM] Server running on port ${config.port}`);
