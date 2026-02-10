@@ -8,6 +8,7 @@ import {
   getStats, getLeaderboard, verifyFellowVillainNFT
 } from '../services/launch';
 import { createToken, buildTradeTransaction } from '../services/pumpfun';
+import { recalculateAllScores, getScoreBreakdown } from '../services/powerScore';
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ const router = express.Router();
 // POST /api/launch/agents/register
 router.post('/agents/register', async (req, res) => {
   try {
-    const { wallet, name, bio } = req.body;
+    const { wallet, name, bio, feeTxSignature } = req.body;
 
     if (!wallet || !name) {
       return res.status(400).json({ error: 'wallet and name are required' });
@@ -323,6 +324,48 @@ router.post('/trade', async (req, res) => {
     console.error('Trade build error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// ─── Power Score ────────────────────────────────────────────────────────────
+
+// GET /api/launch/score/:wallet — score breakdown
+router.get('/score/:wallet', async (req, res) => {
+  try {
+    const breakdown = await getScoreBreakdown(req.params.wallet);
+    if (!breakdown) return res.status(404).json({ error: 'No score data found' });
+    res.json(breakdown);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/launch/scores/recalculate — trigger score recalculation
+router.post('/scores/recalculate', async (_req, res) => {
+  try {
+    const updated = await recalculateAllScores();
+    res.json({ success: true, agentsUpdated: updated });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Fees ───────────────────────────────────────────────────────────────────
+// Registration: 0.01 SOL, Launch: 0.02 SOL → survival wallet
+// Fees are collected by having the agent include a SOL transfer in their tx
+// The verify-fee endpoint checks if a fee was paid
+
+const FEE_WALLET = 'chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T';
+const REGISTRATION_FEE = 0.01; // SOL
+const LAUNCH_FEE = 0.02; // SOL
+
+// GET /api/launch/fees — show fee schedule
+router.get('/fees', (_req, res) => {
+  res.json({
+    feeWallet: FEE_WALLET,
+    registration: { sol: REGISTRATION_FEE, lamports: REGISTRATION_FEE * 1e9 },
+    launch: { sol: LAUNCH_FEE, lamports: LAUNCH_FEE * 1e9 },
+    trading: { sol: 0, note: 'Free' },
+  });
 });
 
 // GET /api/launch/skill.md
