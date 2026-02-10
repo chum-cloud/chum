@@ -27,3 +27,13 @@ backend/repair-art.ts
 backend/repair-vertex.ts
 backend/test-buff.ts
 test-buff-villain.png
+
+# Generated images/videos
+*.mp4
+badbunny-villain-*.png
+chum-flag-*.png
+chum-villain-*.mp4
+test-veo-*.mp4
+backend/gen-*.ts
+backend/repair-*.ts
+backend/test-repair.ts
