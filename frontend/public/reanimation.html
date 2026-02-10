@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHUM: Reanimation</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#f5f3ef;font-family:'JetBrains Mono',monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.container{max-width:580px;width:100%;padding:20px}
+.header{text-align:center;margin-bottom:24px}
+.header h1{font-size:11px;letter-spacing:8px;text-transform:uppercase;color:#1a1a1a;font-weight:300;margin-bottom:5px}
+.header p{font-size:10px;color:#999;letter-spacing:3px}
+.id-label{font-size:13px;color:#1a1a1a;letter-spacing:2px;margin-bottom:14px;font-weight:400}
+.frame{border:2px solid #1a1a1a;background:#f5f3ef}
+canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;width:100%;height:auto}
+.mode-btn{display:flex;justify-content:center;align-items:center;gap:6px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#999;letter-spacing:3px;cursor:pointer;border-top:1px solid #ddd;user-select:none;background:none;border-left:none;border-right:none;border-bottom:none;width:100%}
+.mode-btn:hover{color:#1a1a1a}
+.mode-dot{width:20px;height:20px;border:1.5px solid #bbb;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;color:#bbb}
+.attrs{margin-top:18px;padding-top:14px;border-top:1.5px solid #1a1a1a}
+.attrs h3{font-size:10px;letter-spacing:4px;color:#1a1a1a;font-weight:500;margin-bottom:10px}
+.attr-row{display:flex;justify-content:space-between;font-size:10px;padding:3px 0}
+.attr-key{color:#1a1a1a;font-weight:500;letter-spacing:1px;text-transform:uppercase}
+.attr-val{color:#999;font-weight:300}
+.dropzone{border:2px dashed #ccc;padding:60px 20px;text-align:center;cursor:pointer;transition:border-color 0.3s}
+.dropzone:hover,.dropzone.dragover{border-color:#1a1a1a}
+.dropzone-text{font-size:11px;color:#999;letter-spacing:2px;text-transform:uppercase}
+.dropzone-sub{font-size:9px;color:#ccc;letter-spacing:1px;margin-top:8px}
+.actions{display:flex;gap:10px;margin-top:16px}
+.action-btn{flex:1;padding:10px;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;background:none;border:1.5px solid #1a1a1a;color:#1a1a1a;cursor:pointer;text-align:center}
+.action-btn:hover{background:#1a1a1a;color:#f5f3ef}
+.footer{text-align:center;margin-top:20px;font-size:9px;color:#ccc;letter-spacing:3px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Reanimation</h1>
+    <p>your nft reborn as villain</p>
+  </div>
+
+  <!-- Upload State -->
+  <div id="uploadState">
+    <div class="dropzone" id="dropzone">
+      <div class="dropzone-text">Drop your NFT</div>
+      <div class="dropzone-sub">or click to upload</div>
+    </div>
+  </div>
+
+  <!-- Preview State -->
+  <div id="previewState" class="hidden">
+    <div class="id-label" id="idLabel">#0001</div>
+    <div class="frame">
+      <canvas id="c" width="80" height="80"></canvas>
+      <button class="mode-btn" id="modeBtn" onclick="nextMode()">
+        <span class="mode-dot">↻</span>
+        <span id="modeLabel">BREATHING</span>
+      </button>
+    </div>
+
+    <div class="attrs">
+      <h3>ATTRIBUTES</h3>
+      <div class="attr-row"><span class="attr-key">Grid</span><span class="attr-val">80×80</span></div>
+      <div class="attr-row"><span class="attr-key">Palette</span><span class="attr-val">4 tones</span></div>
+      <div class="attr-row"><span class="attr-key">Animation</span><span class="attr-val">living</span></div>
+    </div>
+
+    <div class="actions">
+      <button class="action-btn" onclick="downloadPNG()">↓ DOWNLOAD</button>
+      <button class="action-btn" onclick="resetUpload()">↺ NEW IMAGE</button>
+    </div>
+  </div>
+
+  <div class="footer">CHUM: REANIMATION</div>
+</div>
+
+<script>
+const G = 80;
+const PAL = [[245,243,239],[190,188,182],[100,98,94],[26,26,26]];
+const WHITE = PAL[0];
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const dropzone = document.getElementById('dropzone');
+const uploadState = document.getElementById('uploadState');
+const previewState = document.getElementById('previewState');
+const idLabel = document.getElementById('idLabel');
+
+let currentGrid = null;
+let mode = 0;
+let t = 0;
+let animFrame = null;
+const revealOrder = [];
+
+// File input
+const fileInput = document.createElement('input');
+fileInput.type = 'file';
+fileInput.accept = 'image/*';
+
+dropzone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files[0]) processFile(e.target.files[0]);
+});
+
+dropzone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropzone.classList.add('dragover');
+});
+dropzone.addEventListener('dragleave', () => {
+  dropzone.classList.remove('dragover');
+});
+dropzone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+});
+
+function processFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const grid = processImage(img);
+      buildRevealOrder();
+      showPreview(grid);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function processImage(img) {
+  const tempCanvas = document.createElement('canvas');
+  const tempCtx = tempCanvas.getContext('2d');
+  tempCanvas.width = G;
+  tempCanvas.height = G;
+
+  const s = Math.min(img.width, img.height);
+  const sx = (img.width - s) / 2;
+  const sy = (img.height - s) / 2;
+  tempCtx.drawImage(img, sx, sy, s, s, 0, 0, G, G);
+
+  const imageData = tempCtx.getImageData(0, 0, G, G);
+  const pixels = imageData.data;
+  const grid = [];
+
+  for (let y = 0; y < G; y++) {
+    const row = [];
+    for (let x = 0; x < G; x++) {
+      const i = (y * G + x) * 4;
+      const r = pixels[i], g = pixels[i+1], b = pixels[i+2];
+      const gray = Math.round(r * 0.299 + g * 0.587 + b * 0.114);
+      const normalized = gray / 255;
+      const curved = 1.0 / (1.0 + Math.exp(-8 * (normalized - 0.5)));
+      const boosted = Math.round(curved * 255);
+
+      let level;
+      if (boosted >= 190) level = 0;
+      else if (boosted >= 140) level = 1;
+      else if (boosted >= 85) level = 2;
+      else level = 3;
+      row.push(level);
+    }
+    grid.push(row);
+  }
+  return grid;
+}
+
+function buildRevealOrder() {
+  revealOrder.length = 0;
+  const cx = G / 2, cy = G / 2;
+  const pixels = [];
+
+  function rng(seed) {
+    let s = seed;
+    return function() {
+      s = (s * 16807) % 2147483647;
+      return s / 2147483647;
+    };
+  }
+  const rand = rng(3456);
+
+  for (let y = 0; y < G; y++) {
+    for (let x = 0; x < G; x++) {
+      const dx = x - cx, dy = y - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy) + rand() * 12;
+      pixels.push({ x, y, dist });
+    }
+  }
+  pixels.sort((a, b) => a.dist - b.dist);
+  for (const p of pixels) {
+    revealOrder.push(p.y * G + p.x);
+  }
+}
+
+function showPreview(grid) {
+  currentGrid = grid;
+  idLabel.textContent = '#' + String(Math.floor(Math.random() * 9999) + 1).padStart(4, '0');
+  uploadState.classList.add('hidden');
+  previewState.classList.remove('hidden');
+  mode = 0;
+  t = 0;
+  document.getElementById('modeLabel').textContent = 'BREATHING';
+  startRendering(grid);
+}
+
+function startRendering(grid) {
+  if (animFrame) cancelAnimationFrame(animFrame);
+  t = 0;
+  function loop() {
+    if (mode === 0) {
+      renderBreathing(grid);
+    } else {
+      renderReveal(grid);
+    }
+    animFrame = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+function renderBreathing(grid) {
+  const img = ctx.createImageData(G, G);
+  for (let y = 0; y < G; y++) {
+    for (let x = 0; x < G; x++) {
+      const i = (y * G + x) * 4;
+      let v = grid[y][x];
+      const isEdge = (
+        (x > 0 && Math.abs(grid[y][x-1] - v) >= 2) ||
+        (x < G-1 && Math.abs(grid[y][x+1] - v) >= 2) ||
+        (y > 0 && Math.abs(grid[y-1][x] - v) >= 2) ||
+        (y < G-1 && Math.abs(grid[y+1][x] - v) >= 2)
+      );
+      if (isEdge && Math.sin(x * 1.7 + y * 2.3 + t * 0.04) > 0.7) {
+        v = Math.max(0, v - 1);
+      }
+      const [r, g, b] = PAL[v];
+      img.data[i] = r;
+      img.data[i+1] = g;
+      img.data[i+2] = b;
+      img.data[i+3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  t++;
+}
+
+function renderReveal(grid) {
+  const TOTAL = G * G;
+  const PPF = 24;
+  const REVEAL_FRAMES = Math.ceil(TOTAL / PPF);
+  const PAUSE_FRAMES = 90;
+  const CYCLE = REVEAL_FRAMES + PAUSE_FRAMES + REVEAL_FRAMES + PAUSE_FRAMES;
+
+  const img = ctx.createImageData(G, G);
+  const frame = t % CYCLE;
+  let revealCount;
+
+  if (frame < REVEAL_FRAMES) {
+    revealCount = Math.min(TOTAL, frame * PPF);
+  } else if (frame < REVEAL_FRAMES + PAUSE_FRAMES) {
+    revealCount = TOTAL;
+  } else if (frame < REVEAL_FRAMES + PAUSE_FRAMES + REVEAL_FRAMES) {
+    const dispFrame = frame - REVEAL_FRAMES - PAUSE_FRAMES;
+    revealCount = Math.min(TOTAL, dispFrame * PPF);
+  } else {
+    revealCount = 0;
+  }
+
+  const phase = (frame < REVEAL_FRAMES + PAUSE_FRAMES) ? 'show' : 'hide';
+  const revealed = new Uint8Array(G * G);
+
+  if (phase === 'show') {
+    for (let i = 0; i < revealCount; i++) revealed[revealOrder[i]] = 1;
+  } else {
+    for (let i = revealCount; i < TOTAL; i++) revealed[revealOrder[i]] = 1;
+  }
+
+  for (let y = 0; y < G; y++) {
+    for (let x = 0; x < G; x++) {
+      const idx = y * G + x;
+      const i = idx * 4;
+      const [r, g, b] = revealed[idx] ? PAL[grid[y][x]] : WHITE;
+      img.data[i] = r;
+      img.data[i+1] = g;
+      img.data[i+2] = b;
+      img.data[i+3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  t++;
+}
+
+function nextMode() {
+  mode = (mode + 1) % 2;
+  t = 0;
+  const labels = ['BREATHING', 'REVEAL'];
+  document.getElementById('modeLabel').textContent = labels[mode];
+}
+
+function downloadPNG() {
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width = 800;
+  exportCanvas.height = 800;
+  const ectx = exportCanvas.getContext('2d');
+  ectx.imageSmoothingEnabled = false;
+  ectx.drawImage(canvas, 0, 0, 800, 800);
+  const link = document.createElement('a');
+  link.download = 'reanimation.png';
+  link.href = exportCanvas.toDataURL('image/png');
+  link.click();
+}
+
+function resetUpload() {
+  if (animFrame) cancelAnimationFrame(animFrame);
+  animFrame = null;
+  currentGrid = null;
+  previewState.classList.add('hidden');
+  uploadState.classList.remove('hidden');
+  fileInput.value = '';
+}
+</script>
+</body>
+</html>
