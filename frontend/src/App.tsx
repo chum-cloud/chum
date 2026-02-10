@@ -1,5 +1,5 @@
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import StatsGrid from './components/StatsGrid';
+// StatsGrid removed
 import ChatWidget from './components/ChatWidget';
 import { Link, useLocation } from 'react-router-dom';
 import { useChum } from './hooks/useChum';
@@ -125,7 +125,6 @@ export default function App() {
           <span className="font-mono text-xs text-[#5C5C5C] uppercase tracking-wider">[ COMING SOON ]</span>
         </div>
 
-        <StatsGrid chum={chum} />
       </main>
 
       {/* Footer */}
