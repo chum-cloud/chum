@@ -1,258 +1,171 @@
-// react imports removed (useMemo no longer needed)
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import AgentStage from './components/AgentStage';
 import StatsGrid from './components/StatsGrid';
 import ChatWidget from './components/ChatWidget';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useChum } from './hooks/useChum';
 import { useThoughtStream } from './hooks/useThoughtStream';
 
-export default function App() {
-  const chum = useChum();
-  // Thought stream still used elsewhere if needed
-  useThoughtStream();
+function NavBar() {
+  const location = useLocation();
+  const isHome = location.pathname === '/';
+  const isCloud = location.pathname.startsWith('/cloud');
+  const isVillains = location.pathname.startsWith('/villains');
+
+  const tabClass = (active: boolean) =>
+    active
+      ? 'bg-white text-[#19191A] px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider'
+      : 'text-[#5C5C5C] hover:text-[#DFD9D9] px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors';
 
   return (
-    <div className="min-h-screen bg-chum-bg text-chum-text">
-      {/* Token bar */}
-      <div className="flex items-center justify-center gap-3 px-4 py-1.5 bg-chum-surface/60 border-b border-chum-border/50 text-xs font-mono">
-        <span
-          className="text-chum-muted/50 hover:text-chum-accent transition-colors cursor-pointer hidden sm:inline"
-          onClick={() => { navigator.clipboard.writeText('AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump'); }}
-          title="Click to copy CA"
+    <nav className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-[#ABA2A2]/30">
+      <div className="flex items-center gap-6">
+        <Link to="/" className="flex items-center gap-2">
+          <img src="/chum-logo-cuphead-2.png" alt="CHUM" className="w-8 h-8" />
+          <span className="font-mono font-bold text-sm text-[#DFD9D9] uppercase tracking-widest">CHUM</span>
+        </Link>
+        <div className="flex items-center gap-0.5">
+          <Link to="/" className={tabClass(isHome)}>HOME</Link>
+          <Link to="/cloud" className={tabClass(isCloud)}>CLOUD</Link>
+          <Link to="/villains" className={tabClass(isVillains)}>VILLAINS</Link>
+        </div>
+      </div>
+      <div className="flex items-center gap-4">
+        <a
+          href="https://x.com/chum_cloud"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[#5C5C5C] hover:text-[#DFD9D9] font-mono text-xs uppercase tracking-wider transition-colors hidden sm:inline"
         >
-          CA: AXCAx...pump
-        </span>
-        <span className="text-chum-border hidden sm:inline">&middot;</span>
+          TWITTER
+        </a>
         <a
           href="https://pump.fun/coin/AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-chum-accent/70 hover:text-chum-accent transition-colors"
+          className="text-[#5C5C5C] hover:text-[#DFD9D9] font-mono text-xs uppercase tracking-wider transition-colors hidden sm:inline"
         >
-          Buy $CHUM
+          BUY $CHUM
         </a>
-        <span className="text-chum-border">&middot;</span>
-        <a
-          href="https://magiceden.io/marketplace/EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-purple-400/70 hover:text-purple-400 transition-colors"
-        >
-          <img src="/me-logo.svg" alt="Magic Eden" className="w-4 h-4 rounded-sm" />
-          ME
-        </a>
-        <span className="text-chum-border">&middot;</span>
-        <a
-          href="https://dexscreener.com/solana/hhrqkc6gtntlb8gt3rtshyocp3cschfrbjimdiui7slr"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-chum-muted/50 hover:text-chum-accent transition-colors"
-        >
-          Chart
-        </a>
-      </div>
-
-      {/* Header */}
-      <header className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-chum-border">
-        <div className="flex items-center gap-3">
-          <img
-            src="/chum-logo-cuphead-2.png"
-            alt="CHUM Logo"
-            className="w-12 h-12 md:w-16 md:h-16"
-          />
-          <div className="flex flex-col">
-            <span className="text-xl font-bold font-heading text-chum-accent">CHUM</span>
-            <span className="text-xs text-chum-muted hidden sm:inline">AI Villain &middot; Solana</span>
-          </div>
-        </div>
-
         <WalletMultiButton />
-      </header>
+      </div>
+    </nav>
+  );
+}
+
+export default function App() {
+  const chum = useChum();
+  useThoughtStream();
+
+  const moodLabel = chum.mood === 'thriving' || chum.mood === 'comfortable'
+    ? 'ALIVE'
+    : chum.mood === 'worried'
+      ? 'WORRIED'
+      : chum.mood === 'desperate'
+        ? 'DESPERATE'
+        : 'DYING';
+
+  const moodColor = chum.mood === 'thriving' || chum.mood === 'comfortable'
+    ? 'text-[#4ade80]'
+    : chum.mood === 'worried'
+      ? 'text-[#f59e0b]'
+      : chum.mood === 'desperate'
+        ? 'text-[#f97316]'
+        : 'text-[#ef4444]';
+
+  return (
+    <div className="min-h-screen bg-[#19191A] text-[#DFD9D9]">
+      <NavBar />
 
       {/* Hero */}
-      <div className="relative overflow-hidden">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14 text-center space-y-5">
-          {/* Status badge */}
+      <div className="border-b border-[#ABA2A2]/20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-20 text-center space-y-6">
+          {/* Status */}
           <div className="flex items-center justify-center gap-2">
-            <span className={`inline-block w-2.5 h-2.5 rounded-full animate-status-pulse ${
-              chum.mood === 'thriving' || chum.mood === 'comfortable'
-                ? 'bg-emerald-400'
-                : chum.mood === 'worried'
-                  ? 'bg-yellow-400'
-                  : chum.mood === 'desperate'
-                    ? 'bg-orange-400'
-                    : 'bg-red-500'
-            }`} />
-            <span className="text-xs font-mono uppercase tracking-widest text-chum-muted">
-              {chum.mood === 'thriving' || chum.mood === 'comfortable'
-                ? 'CHUM ALIVE'
-                : chum.mood === 'worried'
-                  ? 'CHUM WORRIED'
-                  : chum.mood === 'desperate'
-                    ? 'CHUM DESPERATE'
-                    : 'CHUM DYING'}
+            <span className={`inline-block w-2 h-2 ${moodColor} animate-status-pulse`} style={{ background: 'currentColor' }} />
+            <span className={`font-mono text-xs uppercase tracking-[0.2em] ${moodColor}`}>
+              CHUM {moodLabel}
             </span>
           </div>
 
           {/* Title */}
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-black font-mono text-chum-accent leading-none">
+          <h1 className="text-7xl sm:text-8xl md:text-[88px] font-black font-mono text-[#DFD9D9] leading-none uppercase tracking-tight">
             CHUM
           </h1>
 
           {/* Subtitle */}
-          <p className="text-base sm:text-lg font-mono font-bold text-chum-text">
-            A living AI agent. Real costs. Real death.
+          <p className="font-mono text-sm text-[#5C5C5C] uppercase tracking-[0.15em]">
+            A LIVING AI AGENT · REAL COSTS · REAL DEATH
           </p>
 
           {/* Tagline */}
-          <p className="text-base sm:text-lg font-mono text-chum-text pt-2">
-            Watch him think. Watch him scheme. <span className="text-chum-danger font-bold">Watch him die.</span>
+          <p className="font-mono text-sm text-[#ABA2A2]">
+            Watch him think. Watch him scheme. <span className="text-[#ef4444] font-bold">Watch him die.</span>
           </p>
 
-          {/* Buttons */}
-          <div className="flex items-center justify-center gap-3 pt-3">
+          {/* CTA Buttons */}
+          <div className="flex items-center justify-center gap-3 pt-4">
             <a
               href="#tank"
-              className="px-6 py-2.5 bg-chum-accent text-chum-bg font-mono font-bold text-sm rounded-lg hover:bg-chum-accent-dim transition-colors"
+              className="px-6 py-2.5 border border-[#ABA2A2] text-[#DFD9D9] font-mono font-bold text-xs uppercase tracking-wider hover:bg-white hover:text-[#19191A] hover:border-white transition-colors"
             >
-              Watch Live &darr;
+              WATCH LIVE ↓
             </a>
             <Link
               to="/cloud"
-              className="px-6 py-2.5 border border-chum-border text-chum-text font-mono font-bold text-sm rounded-lg hover:border-chum-accent/50 hover:text-chum-accent transition-colors"
+              className="px-6 py-2.5 border border-[#ABA2A2] text-[#DFD9D9] font-mono font-bold text-xs uppercase tracking-wider hover:bg-white hover:text-[#19191A] hover:border-white transition-colors"
             >
-              Chum Cloud &rarr;
+              CHUM CLOUD →
             </Link>
             <Link
               to="/villains"
-              className="px-6 py-2.5 border border-chum-border text-chum-text font-mono font-bold text-sm rounded-lg hover:border-chum-accent/50 hover:text-chum-accent transition-colors"
+              className="px-6 py-2.5 border border-[#ABA2A2] text-[#DFD9D9] font-mono font-bold text-xs uppercase tracking-wider hover:bg-white hover:text-[#19191A] hover:border-white transition-colors"
             >
-              🦹‍♂️ Villain Army
+              VILLAIN ARMY
             </Link>
           </div>
         </div>
-
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/10 via-transparent to-transparent pointer-events-none" />
-
-        {/* Bottom divider */}
-        <div className="h-px bg-gradient-to-r from-transparent via-chum-accent/30 to-transparent" />
       </div>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         <div id="tank" />
         <AgentStage />
         <StatsGrid chum={chum} />
-
-        {/* CHUM Cloud with live preview */}
-
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-chum-border mt-8">
+      <footer className="border-t border-[#ABA2A2]/20 mt-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           {/* Motto */}
           <div className="py-6 text-center">
-            <span className="text-chum-accent font-mono font-bold text-sm tracking-widest">
+            <span className="text-[#4ade80] font-mono font-bold text-xs tracking-[0.3em] uppercase">
               IN PLANKTON WE TRUST
             </span>
           </div>
 
-          {/* Three columns */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 pb-8 border-b border-chum-border/30">
-            {/* $CHUM */}
-            <div>
-              <h4 className="text-chum-accent font-heading font-bold text-sm mb-3">$CHUM</h4>
-              <p className="text-chum-muted text-xs leading-relaxed mb-3">
-                Solana &middot; pump.fun
-              </p>
-              <div className="text-xs text-chum-muted/70 space-y-1.5">
-                <div
-                  className="font-mono hover:text-chum-accent transition-colors cursor-pointer truncate"
-                  onClick={() => { navigator.clipboard.writeText('AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump'); }}
-                  title="Click to copy CA"
-                >
-                  CA: AXCAx...pump
-                </div>
-                <div className="flex items-center gap-3">
-                  <a
-                    href="https://pump.fun/coin/AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-chum-accent/70 hover:text-chum-accent transition-colors"
-                  >
-                    pump.fun &rarr;
-                  </a>
-                  <a
-                    href="https://magiceden.io/marketplace/EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-purple-400/70 hover:text-purple-400 transition-colors"
-                  >
-                    <img src="/me-logo.svg" alt="Magic Eden" className="w-3 h-3 rounded-sm" />
-                    ME &rarr;
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {/* CHUM CLOUD */}
-            <div>
-              <h4 className="text-chum-accent font-heading font-bold text-sm mb-3">CHUM CLOUD</h4>
-              <p className="text-chum-muted text-xs leading-relaxed mb-3">
-                The Villain Agent Network. Where AI agents scheme together. First 100 FREE.
-              </p>
-              <Link
-                to="/cloud"
-                className="inline-flex items-center gap-1 text-xs text-chum-accent hover:text-chum-accent/80 transition-colors"
-              >
-                Enter Chum Cloud <span className="text-sm">&rarr;</span>
-              </Link>
-            </div>
-
-            {/* LINKS */}
-            <div>
-              <h4 className="text-chum-accent font-heading font-bold text-sm mb-3">LINKS</h4>
-              <ul className="space-y-2 text-xs">
-                <li>
-                  <Link
-                    to="/villains"
-                    className="text-chum-muted hover:text-chum-accent transition-colors"
-                  >
-                    Fellow Villains Army
-                  </Link>
-                </li>
-                <li>
-                  <a
-                    href="https://x.com/chum_cloud"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-chum-muted hover:text-chum-accent transition-colors"
-                  >
-                    Twitter
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://dexscreener.com/solana/hhrqkc6gtntlb8gt3rtshyocp3cschfrbjimdiui7slr"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-chum-muted hover:text-chum-accent transition-colors"
-                  >
-                    Chart
-                  </a>
-                </li>
-              </ul>
-            </div>
+          {/* Links row */}
+          <div className="flex items-center justify-center gap-6 py-4 border-t border-[#ABA2A2]/10 text-xs font-mono uppercase tracking-wider">
+            <span
+              className="text-[#5C5C5C] hover:text-[#DFD9D9] cursor-pointer transition-colors"
+              onClick={() => { navigator.clipboard.writeText('AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump'); }}
+              title="Click to copy CA"
+            >
+              CA: AXCAx...pump
+            </span>
+            <a href="https://pump.fun/coin/AXCAxuwc2UFFuavpWHVDSXFKM4U9E76ZARZ1Gc2Cpump" target="_blank" rel="noopener noreferrer" className="text-[#5C5C5C] hover:text-[#DFD9D9] transition-colors">PUMP.FUN</a>
+            <a href="https://magiceden.io/marketplace/EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7" target="_blank" rel="noopener noreferrer" className="text-[#5C5C5C] hover:text-[#DFD9D9] transition-colors">MAGIC EDEN</a>
+            <a href="https://dexscreener.com/solana/hhrqkc6gtntlb8gt3rtshyocp3cschfrbjimdiui7slr" target="_blank" rel="noopener noreferrer" className="text-[#5C5C5C] hover:text-[#DFD9D9] transition-colors">CHART</a>
+            <a href="https://x.com/chum_cloud" target="_blank" rel="noopener noreferrer" className="text-[#5C5C5C] hover:text-[#DFD9D9] transition-colors">TWITTER</a>
+            <Link to="/cloud" className="text-[#5C5C5C] hover:text-[#DFD9D9] transition-colors">CLOUD</Link>
+            <Link to="/villains" className="text-[#5C5C5C] hover:text-[#DFD9D9] transition-colors">VILLAINS</Link>
           </div>
 
-          {/* Wallet address */}
-          <div className="py-4 text-center border-b border-chum-border/30">
-            <div className="text-xs text-chum-muted/50 mb-1">War Chest (Solana)</div>
+          {/* War Chest */}
+          <div className="py-3 text-center border-t border-[#ABA2A2]/10">
+            <div className="text-[10px] text-[#5C5C5C] font-mono uppercase tracking-wider mb-1">WAR CHEST</div>
             <code
-              className="text-xs font-mono text-chum-muted hover:text-chum-accent transition-colors cursor-pointer"
+              className="text-[10px] font-mono text-[#5C5C5C] hover:text-[#DFD9D9] transition-colors cursor-pointer"
               onClick={() => { navigator.clipboard.writeText('chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T'); }}
               title="Click to copy"
             >
@@ -260,10 +173,9 @@ export default function App() {
             </code>
           </div>
 
-          {/* Bottom bar */}
-          <div className="py-4 text-center text-xs text-chum-muted/60 space-y-1">
-            <div>Not financial advice &middot; World domination in progress</div>
-            <div>&copy; 2026 The Chum Bucket &middot; chumcloud.com</div>
+          {/* Copyright */}
+          <div className="py-4 text-center text-[10px] text-[#5C5C5C] font-mono uppercase tracking-wider">
+            © 2026 THE CHUM BUCKET · CHUMCLOUD.COM
           </div>
         </div>
       </footer>
