@@ -37,3 +37,11 @@ test-veo-*.mp4
 backend/gen-*.ts
 backend/repair-*.ts
 backend/test-repair.ts
+
+# Auction wallets
+.vault-wallet.json
+.team-wallet.json
+.treasury-wallet.json
+
+# Anchor/Rust build
+target/

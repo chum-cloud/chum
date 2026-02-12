@@ -216,7 +216,7 @@ export async function joinVoting(
   if (
     !asset.updateAuthority ||
     asset.updateAuthority.type !== 'Collection' ||
-    asset.updateAuthority.address.toString() !== cfg.collection_address
+    (asset.updateAuthority as any).address?.toString() !== cfg.collection_address
   ) {
     throw new Error('NFT is not from the CHUM art collection');
   }
@@ -225,8 +225,8 @@ export async function joinVoting(
 
   // Build transfer: user → vault
   const transferBuilder = transfer(u, {
-    asset: publicKey(mintAddress),
-    collection,
+    asset: publicKey(mintAddress) as any,
+    collection: collection as any,
     newOwner: u.identity.publicKey, // vault
   });
 
@@ -258,7 +258,7 @@ export async function joinVoting(
   let animationUrl: string | null = null;
   try {
     const resp = await fetch(asset.uri);
-    const metadata = await resp.json();
+    const metadata = await resp.json() as any;
     imageUrl = metadata.image || null;
     animationUrl = metadata.animation_url || null;
   } catch {}
@@ -855,7 +855,7 @@ async function verifyHolder(wallet: string, collectionAddress: string): Promise<
         },
       }),
     });
-    const json = await resp.json();
+    const json = await resp.json() as any;
     return (json.result?.total || 0) > 0;
   } catch {
     // If DAS fails, allow the vote (permissive)

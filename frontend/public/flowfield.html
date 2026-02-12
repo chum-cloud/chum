@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>*{margin:0;padding:0}body{background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:100vh}canvas{display:block}</style>
+</head><body>
+<canvas id="c"></canvas>
+<script>
+var SIZE = 800;
+var c = document.getElementById('c');
+c.width = SIZE; c.height = SIZE;
+var ctx = c.getContext('2d');
+
+var FIELD_RES = 120;
+var NUM_PARTICLES = 6000;
+var PARTICLE_LIFE = 100;
+var SPEED = 1.8;
+var TRAIL_ALPHA = 0.012;
+
+var field = new Float32Array(FIELD_RES * FIELD_RES);
+var edgeStr = new Float32Array(FIELD_RES * FIELD_RES);
+var particles = [];
+
+// === STEP 1: Draw character on offscreen canvas ===
+var charSize = 600;
+var offscreen = document.createElement('canvas');
+offscreen.width = charSize; offscreen.height = charSize;
+var octx = offscreen.getContext('2d');
+
+function drawCharacter(seed) {
+  var rng = mulberry32(seed);
+  octx.clearRect(0, 0, charSize, charSize);
+  
+  // Traits based on seed
+  var bodyColors = ['#e8d5b7','#c4a882','#8B6914','#f5e6d0','#d4a574','#a0785a','#6b4423'];
+  var eyeStyles = ['round','narrow','wide','dot','x'];
+  var mouthStyles = ['smile','neutral','open','frown','smirk'];
+  var headwear = ['none','beanie','horns','halo','crown','antenna','tophat','bandana'];
+  var clothing = ['none','hoodie','suit','cape','armor','tshirt','scarf'];
+  var bgPatterns = ['dots','lines','circles','none'];
+  
+  var bodyColor = bodyColors[Math.floor(rng() * bodyColors.length)];
+  var eyeStyle = eyeStyles[Math.floor(rng() * eyeStyles.length)];
+  var mouthStyle = mouthStyles[Math.floor(rng() * mouthStyles.length)];
+  var hat = headwear[Math.floor(rng() * headwear.length)];
+  var cloth = clothing[Math.floor(rng() * clothing.length)];
+  
+  var cx = charSize/2, cy = charSize/2;
+  
+  // Body/torso
+  octx.fillStyle = bodyColor;
+  octx.beginPath();
+  octx.ellipse(cx, cy + 100, 90, 120, 0, 0, Math.PI * 2);
+  octx.fill();
+  octx.strokeStyle = '#000';
+  octx.lineWidth = 3;
+  octx.stroke();
+  
+  // Clothing
+  if (cloth === 'hoodie') {
+    var hColors = ['#4a90d9','#d94a4a','#4ad97a','#9b59b6','#e67e22'];
+    octx.fillStyle = hColors[Math.floor(rng() * hColors.length)];
+    octx.beginPath();
+    octx.ellipse(cx, cy + 130, 95, 100, 0, 0, Math.PI);
+    octx.fill();
+    octx.strokeStyle = '#000'; octx.lineWidth = 3; octx.stroke();
+    // Hood strings
+    octx.strokeStyle = '#fff'; octx.lineWidth = 2;
+    octx.beginPath(); octx.moveTo(cx-15, cy+50); octx.lineTo(cx-20, cy+90); octx.stroke();
+    octx.beginPath(); octx.moveTo(cx+15, cy+50); octx.lineTo(cx+20, cy+90); octx.stroke();
+  } else if (cloth === 'suit') {
+    octx.fillStyle = '#2c3e50';
+    octx.beginPath();
+    octx.ellipse(cx, cy + 130, 95, 100, 0, 0, Math.PI);
+    octx.fill();
+    octx.strokeStyle = '#000'; octx.lineWidth = 3; octx.stroke();
+    // Lapels
+    octx.strokeStyle = '#fff'; octx.lineWidth = 2;
+    octx.beginPath(); octx.moveTo(cx, cy+40); octx.lineTo(cx-30, cy+100); octx.stroke();
+    octx.beginPath(); octx.moveTo(cx, cy+40); octx.lineTo(cx+30, cy+100); octx.stroke();
+    // Tie
+    octx.fillStyle = '#c0392b';
+    octx.beginPath(); octx.moveTo(cx, cy+45); octx.lineTo(cx-10, cy+70); octx.lineTo(cx, cy+120); octx.lineTo(cx+10, cy+70); octx.closePath(); octx.fill();
+  } else if (cloth === 'cape') {
+    octx.fillStyle = '#8e44ad';
+    octx.beginPath();
+    octx.moveTo(cx-80, cy); octx.quadraticCurveTo(cx-130, cy+100, cx-100, cy+230);
+    octx.lineTo(cx+100, cy+230); octx.quadraticCurveTo(cx+130, cy+100, cx+80, cy);
+    octx.fill();
+    octx.strokeStyle = '#000'; octx.lineWidth = 2; octx.stroke();
+  } else if (cloth === 'armor') {
+    octx.fillStyle = '#7f8c8d';
+    octx.beginPath();
+    octx.ellipse(cx, cy + 130, 95, 100, 0, 0, Math.PI);
+    octx.fill();
+    octx.strokeStyle = '#bdc3c7'; octx.lineWidth = 3; octx.stroke();
+    // Chest plate lines
+    octx.strokeStyle = '#95a5a6'; octx.lineWidth = 2;
+    octx.beginPath(); octx.moveTo(cx-40, cy+50); octx.lineTo(cx-40, cy+150); octx.stroke();
+    octx.beginPath(); octx.moveTo(cx+40, cy+50); octx.lineTo(cx+40, cy+150); octx.stroke();
+  }
+  
+  // Neck
+  octx.fillStyle = bodyColor;
+  octx.fillRect(cx-20, cy-20, 40, 40);
+  
+  // Head
+  octx.fillStyle = bodyColor;
+  octx.beginPath();
+  octx.ellipse(cx, cy - 60, 75, 85, 0, 0, Math.PI * 2);
+  octx.fill();
+  octx.strokeStyle = '#000';
+  octx.lineWidth = 3;
+  octx.stroke();
+  
+  // Eyes
+  var eyeY = cy - 70;
+  var eyeL = cx - 25, eyeR = cx + 25;
+  octx.fillStyle = '#fff';
+  
+  if (eyeStyle === 'round') {
+    octx.beginPath(); octx.arc(eyeL, eyeY, 14, 0, Math.PI*2); octx.fill(); octx.stroke();
+    octx.beginPath(); octx.arc(eyeR, eyeY, 14, 0, Math.PI*2); octx.fill(); octx.stroke();
+    octx.fillStyle = '#000';
+    octx.beginPath(); octx.arc(eyeL+3, eyeY, 6, 0, Math.PI*2); octx.fill();
+    octx.beginPath(); octx.arc(eyeR+3, eyeY, 6, 0, Math.PI*2); octx.fill();
+  } else if (eyeStyle === 'narrow') {
+    octx.beginPath(); octx.ellipse(eyeL, eyeY, 16, 8, 0, 0, Math.PI*2); octx.fill(); octx.stroke();
+    octx.beginPath(); octx.ellipse(eyeR, eyeY, 16, 8, 0, 0, Math.PI*2); octx.fill(); octx.stroke();
+    octx.fillStyle = '#000';
+    octx.beginPath(); octx.arc(eyeL+2, eyeY, 5, 0, Math.PI*2); octx.fill();
+    octx.beginPath(); octx.arc(eyeR+2, eyeY, 5, 0, Math.PI*2); octx.fill();
+  } else if (eyeStyle === 'wide') {
+    octx.beginPath(); octx.arc(eyeL, eyeY, 18, 0, Math.PI*2); octx.fill(); octx.stroke();
+    octx.beginPath(); octx.arc(eyeR, eyeY, 18, 0, Math.PI*2); octx.fill(); octx.stroke();
+    octx.fillStyle = '#000';
+    octx.beginPath(); octx.arc(eyeL, eyeY+2, 8, 0, Math.PI*2); octx.fill();
+    octx.beginPath(); octx.arc(eyeR, eyeY+2, 8, 0, Math.PI*2); octx.fill();
+    // Highlight
+    octx.fillStyle = '#fff';
+    octx.beginPath(); octx.arc(eyeL+3, eyeY-2, 3, 0, Math.PI*2); octx.fill();
+    octx.beginPath(); octx.arc(eyeR+3, eyeY-2, 3, 0, Math.PI*2); octx.fill();
+  } else if (eyeStyle === 'dot') {
+    octx.fillStyle = '#000';
+    octx.beginPath(); octx.arc(eyeL, eyeY, 5, 0, Math.PI*2); octx.fill();
+    octx.beginPath(); octx.arc(eyeR, eyeY, 5, 0, Math.PI*2); octx.fill();
+  } else if (eyeStyle === 'x') {
+    octx.strokeStyle = '#000'; octx.lineWidth = 3;
+    octx.beginPath(); octx.moveTo(eyeL-8,eyeY-8); octx.lineTo(eyeL+8,eyeY+8); octx.stroke();
+    octx.beginPath(); octx.moveTo(eyeL+8,eyeY-8); octx.lineTo(eyeL-8,eyeY+8); octx.stroke();
+    octx.beginPath(); octx.moveTo(eyeR-8,eyeY-8); octx.lineTo(eyeR+8,eyeY+8); octx.stroke();
+    octx.beginPath(); octx.moveTo(eyeR+8,eyeY-8); octx.lineTo(eyeR-8,eyeY+8); octx.stroke();
+  }
+  
+  // Mouth
+  var mouthY = cy - 30;
+  octx.strokeStyle = '#000'; octx.lineWidth = 3;
+  if (mouthStyle === 'smile') {
+    octx.beginPath(); octx.arc(cx, mouthY-10, 20, 0.2, Math.PI-0.2); octx.stroke();
+  } else if (mouthStyle === 'neutral') {
+    octx.beginPath(); octx.moveTo(cx-15, mouthY); octx.lineTo(cx+15, mouthY); octx.stroke();
+  } else if (mouthStyle === 'open') {
+    octx.fillStyle = '#000';
+    octx.beginPath(); octx.ellipse(cx, mouthY, 15, 10, 0, 0, Math.PI*2); octx.fill();
+  } else if (mouthStyle === 'frown') {
+    octx.beginPath(); octx.arc(cx, mouthY+15, 20, Math.PI+0.3, -0.3); octx.stroke();
+  } else if (mouthStyle === 'smirk') {
+    octx.beginPath(); octx.arc(cx+10, mouthY-5, 18, 0.3, Math.PI-0.8); octx.stroke();
+  }
+  
+  // Headwear
+  if (hat === 'beanie') {
+    var bColors = ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6'];
+    octx.fillStyle = bColors[Math.floor(rng() * bColors.length)];
+    octx.beginPath();
+    octx.ellipse(cx, cy-120, 80, 35, 0, Math.PI, 0);
+    octx.lineTo(cx+80, cy-100);
+    octx.ellipse(cx, cy-100, 80, 15, 0, 0, Math.PI);
+    octx.closePath();
+    octx.fill();
+    octx.strokeStyle = '#000'; octx.lineWidth = 2; octx.stroke();
+    // Pom pom
+    octx.beginPath(); octx.arc(cx, cy-155, 12, 0, Math.PI*2); octx.fill(); octx.stroke();
+  } else if (hat === 'horns') {
+    octx.fillStyle = '#c0392b';
+    octx.beginPath(); octx.moveTo(cx-50, cy-120); octx.lineTo(cx-70, cy-190); octx.lineTo(cx-20, cy-130); octx.closePath(); octx.fill(); octx.stroke();
+    octx.beginPath(); octx.moveTo(cx+50, cy-120); octx.lineTo(cx+70, cy-190); octx.lineTo(cx+20, cy-130); octx.closePath(); octx.fill(); octx.stroke();
+  } else if (hat === 'halo') {
+    octx.strokeStyle = '#f1c40f'; octx.lineWidth = 4;
+    octx.beginPath(); octx.ellipse(cx, cy-155, 45, 12, 0, 0, Math.PI*2); octx.stroke();
+  } else if (hat === 'crown') {
+    octx.fillStyle = '#f1c40f';
+    octx.beginPath();
+    octx.moveTo(cx-50, cy-120); octx.lineTo(cx-55, cy-170); octx.lineTo(cx-30, cy-145);
+    octx.lineTo(cx-10, cy-180); octx.lineTo(cx, cy-150); octx.lineTo(cx+10, cy-180);
+    octx.lineTo(cx+30, cy-145); octx.lineTo(cx+55, cy-170); octx.lineTo(cx+50, cy-120);
+    octx.closePath(); octx.fill();
+    octx.strokeStyle = '#000'; octx.lineWidth = 2; octx.stroke();
+    // Gems
+    octx.fillStyle = '#e74c3c';
+    octx.beginPath(); octx.arc(cx, cy-135, 5, 0, Math.PI*2); octx.fill();
+  } else if (hat === 'antenna') {
+    octx.strokeStyle = '#000'; octx.lineWidth = 3;
+    octx.beginPath(); octx.moveTo(cx, cy-145); octx.lineTo(cx, cy-200); octx.stroke();
+    octx.fillStyle = '#e74c3c';
+    octx.beginPath(); octx.arc(cx, cy-205, 8, 0, Math.PI*2); octx.fill(); octx.stroke();
+  } else if (hat === 'tophat') {
+    octx.fillStyle = '#2c3e50';
+    octx.fillRect(cx-40, cy-195, 80, 70);
+    octx.fillRect(cx-55, cy-128, 110, 15);
+    octx.strokeStyle = '#000'; octx.lineWidth = 2;
+    octx.strokeRect(cx-40, cy-195, 80, 70);
+    octx.strokeRect(cx-55, cy-128, 110, 15);
+    // Band
+    octx.fillStyle = '#c0392b';
+    octx.fillRect(cx-40, cy-140, 80, 12);
+  } else if (hat === 'bandana') {
+    var bandColors = ['#e74c3c','#2ecc71','#3498db','#f39c12'];
+    octx.fillStyle = bandColors[Math.floor(rng() * bandColors.length)];
+    octx.beginPath();
+    octx.moveTo(cx-75, cy-90); octx.quadraticCurveTo(cx, cy-115, cx+75, cy-90);
+    octx.quadraticCurveTo(cx, cy-100, cx-75, cy-90);
+    octx.fill();
+    octx.strokeStyle = '#000'; octx.lineWidth = 2; octx.stroke();
+  }
+  
+  // Arms (simple lines)
+  octx.strokeStyle = bodyColor; octx.lineWidth = 12; octx.lineCap = 'round';
+  octx.beginPath(); octx.moveTo(cx-85, cy+60); octx.quadraticCurveTo(cx-130, cy+120, cx-110, cy+180); octx.stroke();
+  octx.beginPath(); octx.moveTo(cx+85, cy+60); octx.quadraticCurveTo(cx+130, cy+120, cx+110, cy+180); octx.stroke();
+  octx.strokeStyle = '#000'; octx.lineWidth = 3;
+  octx.beginPath(); octx.moveTo(cx-85, cy+60); octx.quadraticCurveTo(cx-130, cy+120, cx-110, cy+180); octx.stroke();
+  octx.beginPath(); octx.moveTo(cx+85, cy+60); octx.quadraticCurveTo(cx+130, cy+120, cx+110, cy+180); octx.stroke();
+  
+  return { bodyColor, eyeStyle, mouthStyle, hat, cloth };
+}
+
+function mulberry32(a) {
+  return function() {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
+}
+
+// Draw character with random seed
+var seed = Math.floor(Math.random() * 999999);
+var traits = drawCharacter(seed);
+
+// === STEP 2: Process character image for flow field ===
+var GRID = 200;
+var tmpCanvas = document.createElement('canvas');
+tmpCanvas.width = GRID; tmpCanvas.height = GRID;
+var tctx = tmpCanvas.getContext('2d');
+tctx.drawImage(offscreen, 0, 0, charSize, charSize, 0, 0, GRID, GRID);
+var imgData = tctx.getImageData(0, 0, GRID, GRID).data;
+
+var gray = new Float32Array(GRID * GRID);
+for (var i = 0; i < GRID * GRID; i++) {
+  gray[i] = imgData[i*4] * 0.299 + imgData[i*4+1] * 0.587 + imgData[i*4+2] * 0.114;
+}
+
+// Sobel → flow field
+var scX = GRID / FIELD_RES, scY = GRID / FIELD_RES;
+for (var fy = 0; fy < FIELD_RES; fy++) {
+  for (var fx = 0; fx < FIELD_RES; fx++) {
+    var gx = Math.floor(fx * scX), gy = Math.floor(fy * scY);
+    var dx = 0, dy = 0;
+    for (var ky = -1; ky <= 1; ky++) {
+      for (var kx = -1; kx <= 1; kx++) {
+        var px = Math.min(Math.max(gx+kx,0),GRID-1);
+        var py = Math.min(Math.max(gy+ky,0),GRID-1);
+        var v = gray[py*GRID+px];
+        var wx = kx===-1?(ky===0?-2:-1):kx===1?(ky===0?2:1):0;
+        var wy = ky===-1?(kx===0?-2:-1):ky===1?(kx===0?2:1):0;
+        dx += v*wx; dy += v*wy;
+      }
+    }
+    var mag = Math.sqrt(dx*dx+dy*dy);
+    var idx = fy*FIELD_RES+fx;
+    edgeStr[idx] = Math.min(mag/400,1);
+    field[idx] = mag > 15 ? Math.atan2(dx,-dy) : noise(fx*0.04,fy*0.04)*Math.PI*2;
+  }
+}
+
+function noise(x,y){var ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy;fx=fx*fx*(3-2*fx);fy=fy*fy*(3-2*fy);var a=pr(ix,iy),b=pr(ix+1,iy),c=pr(ix,iy+1),d=pr(ix+1,iy+1);return a+(b-a)*fx+(c-a)*fy+(a-b-c+d)*fx*fy}
+function pr(x,y){var h=Math.sin(x*127.1+y*311.7)*43758.5453;return h-Math.floor(h)}
+
+function getField(px,py){
+  var fx=(px/SIZE)*FIELD_RES,fy=(py/SIZE)*FIELD_RES;
+  var ix=Math.floor(fx),iy=Math.floor(fy);
+  if(ix<0||ix>=FIELD_RES||iy<0||iy>=FIELD_RES)return{angle:0,strength:0};
+  var idx=iy*FIELD_RES+ix;
+  return{angle:field[idx],strength:edgeStr[idx]};
+}
+
+// Particles
+function spawn(){
+  var x,y,att=0;
+  do{x=Math.random()*SIZE;y=Math.random()*SIZE;var f=getField(x,y);if(f.strength>0.08||att>15)break;att++}while(true);
+  return{x:x,y:y,px:x,py:y,life:Math.random()*PARTICLE_LIFE,maxLife:PARTICLE_LIFE+Math.random()*60};
+}
+for(var i=0;i<NUM_PARTICLES;i++)particles.push(spawn());
+
+function update(){
+  for(var i=0;i<particles.length;i++){
+    var p=particles[i];
+    p.px=p.x;p.py=p.y;
+    var f=getField(p.x,p.y);
+    var spd=SPEED*(0.4+f.strength*2.5);
+    p.x+=Math.cos(f.angle)*spd;
+    p.y+=Math.sin(f.angle)*spd;
+    p.life++;
+    if(p.x<0||p.x>=SIZE||p.y<0||p.y>=SIZE||p.life>p.maxLife){
+      var np=spawn();p.x=np.x;p.y=np.y;p.px=np.x;p.py=np.y;p.life=0;p.maxLife=PARTICLE_LIFE+Math.random()*60;
+    }
+  }
+}
+
+function render(){
+  ctx.fillStyle='rgba(0,0,0,'+TRAIL_ALPHA+')';
+  ctx.fillRect(0,0,SIZE,SIZE);
+  for(var i=0;i<particles.length;i++){
+    var p=particles[i];
+    var f=getField(p.x,p.y);
+    var alpha=0.08+f.strength*0.8;
+    var lp=p.life/p.maxLife;
+    if(lp<0.1)alpha*=lp/0.1;
+    if(lp>0.8)alpha*=(1-lp)/0.2;
+    ctx.strokeStyle='rgba(255,255,255,'+alpha.toFixed(3)+')';
+    ctx.lineWidth=0.5+f.strength*1.5;
+    ctx.beginPath();ctx.moveTo(p.px,p.py);ctx.lineTo(p.x,p.y);ctx.stroke();
+  }
+}
+
+ctx.fillStyle='#000';ctx.fillRect(0,0,SIZE,SIZE);
+(function loop(){update();render();requestAnimationFrame(loop)})();
+</script>
+</body></html>

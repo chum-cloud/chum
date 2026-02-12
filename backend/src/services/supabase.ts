@@ -34,7 +34,7 @@ export async function insertThought(
   let signingKey: string | null = null;
   try {
     const { signMessage, getSigningPublicKey } = await import('./signing');
-    signature = signMessage(content);
+    signature = signMessage(Buffer.from(content)).toString('base64');
     signingKey = getSigningPublicKey();
   } catch (err) {
     console.warn('[SUPABASE] Signing not configured, inserting unsigned thought');
