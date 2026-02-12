@@ -45,3 +45,6 @@ backend/test-repair.ts
 
 # Anchor/Rust build
 target/
+
+# Anchor/Rust build artifacts
+target/

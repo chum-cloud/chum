@@ -29,8 +29,6 @@ import {
   VersionedTransaction,
 } from '@solana/web3.js';
 import { createClient } from '@supabase/supabase-js';
-import { readFileSync } from 'fs';
-import path from 'path';
 import { config } from '../config';
 
 // ─── Supabase Client ───
@@ -39,28 +37,35 @@ const supabase = createClient(config.supabaseUrl, config.supabaseServiceKey);
 // ─── Solana Connection ───
 const connection = new Connection(config.heliusRpcUrl, 'confirmed');
 
-// ─── Vault Wallet (authority for collection + NFT transfers) ───
+// ─── Authority Wallet (collection authority + NFT transfers) ───
+// Uses CHUM_SIGNING_KEY from Railway env (same key used for villain minting)
 let umi: Umi;
-let vaultSigner: KeypairSigner;
-let vaultKeypair: Keypair;
+let authoritySigner: KeypairSigner;
+let authorityKeypair: Keypair;
 
 function getUmi(): Umi {
   if (!umi) {
     umi = createUmi(config.heliusRpcUrl);
 
+    const signingKey = config.chumSigningKey;
     let keyBytes: number[];
-    if (process.env.VAULT_WALLET_SECRET) {
-      keyBytes = JSON.parse(process.env.VAULT_WALLET_SECRET);
-    } else {
-      const walletPath = process.env.VAULT_WALLET_PATH
-        || path.join(__dirname, '../../../vault-wallet.json');
-      keyBytes = JSON.parse(readFileSync(walletPath, 'utf-8'));
-    }
-    vaultKeypair = Keypair.fromSecretKey(Uint8Array.from(keyBytes));
-    vaultSigner = fromWeb3JsKeypair(vaultKeypair) as unknown as KeypairSigner;
-    umi.use(keypairIdentity(vaultSigner));
 
-    console.log('[AUCTION] Vault wallet:', vaultKeypair.publicKey.toString());
+    // Support JSON array [1,2,3...], comma-separated, and base58 formats
+    if (signingKey.startsWith('[')) {
+      keyBytes = JSON.parse(signingKey);
+    } else if (signingKey.includes(',')) {
+      keyBytes = signingKey.split(',').map(Number);
+    } else {
+      const bs58 = require('bs58');
+      const decode = bs58.default?.decode || bs58.decode;
+      keyBytes = Array.from(decode(signingKey));
+    }
+
+    authorityKeypair = Keypair.fromSecretKey(Uint8Array.from(keyBytes));
+    authoritySigner = fromWeb3JsKeypair(authorityKeypair) as unknown as KeypairSigner;
+    umi.use(keypairIdentity(authoritySigner));
+
+    console.log('[AUCTION] Authority wallet:', authorityKeypair.publicKey.toString());
   }
   return umi;
 }
@@ -467,20 +472,20 @@ async function refundBidder(
   auctionId: number,
 ): Promise<void> {
   const ix = SystemProgram.transfer({
-    fromPubkey: vaultKeypair.publicKey, // vault sends refund
+    fromPubkey: authorityKeypair.publicKey, // vault sends refund
     toPubkey: new PublicKey(bidderWallet),
     lamports: amount,
   });
 
   const blockhash = await connection.getLatestBlockhash();
   const msg = new TransactionMessage({
-    payerKey: vaultKeypair.publicKey,
+    payerKey: authorityKeypair.publicKey,
     recentBlockhash: blockhash.blockhash,
     instructions: [ix],
   }).compileToV0Message();
 
   const tx = new VersionedTransaction(msg);
-  tx.sign([vaultKeypair]);
+  tx.sign([authorityKeypair]);
 
   const sig = await connection.sendRawTransaction(tx.serialize(), {
     skipPreflight: true,
@@ -611,7 +616,7 @@ export async function settleAuction(): Promise<{
       asset: publicKey(auction.art_mint),
       collection,
       newOwner: publicKey(auction.art_creator),
-      authority: vaultSigner,
+      authority: authoritySigner,
     });
     await transferBack.sendAndConfirm(u);
 
@@ -641,7 +646,7 @@ export async function settleAuction(): Promise<{
     asset: publicKey(auction.art_mint),
     collection,
     newOwner: publicKey(winnerWallet),
-    authority: vaultSigner,
+    authority: authoritySigner,
   });
   await transferToWinner.sendAndConfirm(u);
 
@@ -650,7 +655,7 @@ export async function settleAuction(): Promise<{
     const updateAttr = updatePlugin(u, {
       asset: publicKey(auction.art_mint),
       collection: publicKey(cfg.collection_address),
-      authority: vaultSigner,
+      authority: authoritySigner,
       plugin: {
         type: 'Attributes',
         attributeList: [
@@ -671,18 +676,18 @@ export async function settleAuction(): Promise<{
   if (creatorShare > 0) {
     try {
       const payIx = SystemProgram.transfer({
-        fromPubkey: vaultKeypair.publicKey,
+        fromPubkey: authorityKeypair.publicKey,
         toPubkey: new PublicKey(auction.art_creator),
         lamports: creatorShare,
       });
       const blockhash = await connection.getLatestBlockhash();
       const msg = new TransactionMessage({
-        payerKey: vaultKeypair.publicKey,
+        payerKey: authorityKeypair.publicKey,
         recentBlockhash: blockhash.blockhash,
         instructions: [payIx],
       }).compileToV0Message();
       const payTx = new VersionedTransaction(msg);
-      payTx.sign([vaultKeypair]);
+      payTx.sign([authorityKeypair]);
       const paySig = await connection.sendRawTransaction(payTx.serialize(), {
         skipPreflight: true,
         maxRetries: 3,

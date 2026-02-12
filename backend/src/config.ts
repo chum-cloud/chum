@@ -18,14 +18,12 @@ export const config = {
 
   apiBaseUrl: optional('API_BASE_URL', 'https://api.chumcoin.me'),
 
-  groqApiKey: required('GROQ_API_KEY'),
-
   supabaseUrl: required('SUPABASE_URL'),
   supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || required('SUPABASE_ANON_KEY'),
 
   heliusApiKey: required('HELIUS_API_KEY'),
   get heliusRpcUrl() {
-    return `https://mainnet.helius-rpc.com/?api-key=${this.heliusApiKey}`;
+    return `https://devnet.helius-rpc.com/?api-key=${this.heliusApiKey}`;
   },
 
   chumWalletAddress: optional(
@@ -33,14 +31,16 @@ export const config = {
     'chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T'
   ),
 
-  twitterApiKey: required('TWITTER_API_KEY'),
-  twitterApiSecret: required('TWITTER_API_SECRET'),
-  twitterAccessToken: required('TWITTER_ACCESS_TOKEN'),
-  twitterAccessSecret: required('TWITTER_ACCESS_SECRET'),
-
-  // Message signing keypair (for verifiable CHUM identity)
-  chumSigningKey: process.env.CHUM_SIGNING_KEY || '',
+  // Signing keypair (base58 or JSON array) — used for NFT minting, transfers, auction ops
+  chumSigningKey: required('CHUM_SIGNING_KEY'),
 
   // FairScale API for reputation scoring
   fairscaleApiKey: process.env.FAIRSCALE_API_KEY || '',
+
+  // Wallet addresses for fee routing
+  teamWallet: optional('TEAM_WALLET', 'chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T'),
+  treasuryWallet: optional('TREASURY_WALLET', 'chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T'),
+
+  // Fellow Villains collection for free vote verification
+  fellowVillainsCollection: optional('VILLAIN_COLLECTION_ADDRESS', 'EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7'),
 } as const;
