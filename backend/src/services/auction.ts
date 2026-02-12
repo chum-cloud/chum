@@ -140,7 +140,7 @@ export async function mintArt(
 
   // Increment mint counter
   const mintNumber = cfg.total_minted + 1;
-  const nftName = name || `CHUM: Reanimated #${String(mintNumber).padStart(4, '0')}`;
+  const nftName = name || `CHUM: Reanimation #${String(mintNumber).padStart(4, '0')}`;
 
   // Build create instruction — vault is authority/update authority, user is owner
   const createBuilder = create(u, {

@@ -1,5 +1,5 @@
 /**
- * Create the "CHUM: ARTWORK" collection on Solana devnet using Metaplex Core.
+ * Create the "CHUM: Reanimation" collection on Solana devnet using Metaplex Core.
  * Run: npx tsx scripts/create-art-collection.ts
  */
 import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
@@ -44,7 +44,7 @@ async function main() {
 
   const builder = createCollection(umi, {
     collection: collectionSigner,
-    name: 'CHUM: ARTWORK',
+    name: 'CHUM: Reanimation',
     uri: 'https://arweave.net/placeholder', // TODO: upload collection metadata
   });
 

@@ -57,7 +57,7 @@ export default function MintPage() {
 
   return (
     <div className="flex flex-col min-h-screen pb-[56px]">
-      <Header title="CHUM: ARTWORK" />
+      <Header title="CHUM: Reanimation" />
 
       <main className="flex-1 flex flex-col items-center px-4 py-6 max-w-[480px] mx-auto w-full">
         {/* Video Preview */}
