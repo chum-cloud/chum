@@ -289,7 +289,36 @@ export async function joinVoting(
   // But we sign anyway in case collection authority is needed
   const signedTx = await u.identity.signTransaction(tx);
 
-  // Get current epoch
+  // Do NOT insert candidate here — wait for confirmJoin after user signs
+
+  return {
+    transaction: serializeUmiTx(signedTx, u),
+  };
+}
+
+/**
+ * Confirm join voting after user signed and submitted the tx.
+ * Verifies the NFT is now owned by vault, then inserts candidate.
+ */
+export async function confirmJoin(
+  creatorWallet: string,
+  mintAddress: string,
+  signature: string,
+): Promise<{ confirmed: boolean; name: string }> {
+  const sig = await connection.confirmTransaction(signature, 'confirmed');
+  if (sig.value.err) {
+    throw new Error(`Transaction failed: ${JSON.stringify(sig.value.err)}`);
+  }
+
+  const u = getUmi();
+  const cfg = await getConfig();
+  const asset = await fetchAssetV1(u, publicKey(mintAddress));
+
+  // Verify NFT is now owned by our authority (vault)
+  if (asset.owner.toString() !== u.identity.publicKey.toString()) {
+    throw new Error('NFT was not transferred to vault — join not confirmed');
+  }
+
   const epoch = await getCurrentEpoch();
 
   // Fetch metadata for image_url / animation_url
@@ -302,7 +331,7 @@ export async function joinVoting(
     animationUrl = metadata.animation_url || null;
   } catch {}
 
-  // Insert candidate into DB
+  // Now safe to insert candidate
   await supabase.from('art_candidates').upsert({
     mint_address: mintAddress,
     creator_wallet: creatorWallet,
@@ -316,9 +345,7 @@ export async function joinVoting(
     withdrawn: false,
   }, { onConflict: 'mint_address' });
 
-  return {
-    transaction: serializeUmiTx(signedTx, u),
-  };
+  return { confirmed: true, name: asset.name };
 }
 
 /**

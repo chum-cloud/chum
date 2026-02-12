@@ -3,6 +3,7 @@ import {
   mintArt,
   confirmMint,
   joinVoting,
+  confirmJoin,
   voteFree,
   votePaid,
   confirmVotePaid,
@@ -84,6 +85,26 @@ router.post('/auction/join', async (req, res) => {
     });
   } catch (error: any) {
     console.error('[AUCTION] Join failed:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/auction/join/confirm
+ * Confirm join after user signed and submitted the tx.
+ * Body: { creatorWallet, mintAddress, signature }
+ */
+router.post('/auction/join/confirm', async (req, res) => {
+  try {
+    const { creatorWallet, mintAddress, signature } = req.body;
+    if (!creatorWallet || !mintAddress || !signature) {
+      return res.status(400).json({ error: 'creatorWallet, mintAddress, and signature are required' });
+    }
+
+    const result = await confirmJoin(creatorWallet, mintAddress, signature);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('[AUCTION] Join confirm failed:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
