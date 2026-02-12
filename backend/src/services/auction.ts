@@ -372,10 +372,10 @@ export async function voteFree(
     .single();
   if (candErr || !candidate) throw new Error('Candidate not found or withdrawn');
 
-  // Verify voter holds a Fellow Villains NFT (optional: check via Helius DAS)
-  if (cfg.fellow_villains_collection) {
-    const isHolder = await verifyHolder(voterWallet, cfg.fellow_villains_collection);
-    if (!isHolder) throw new Error('Must hold a Fellow Villains NFT to vote for free');
+  // Verify voter holds a Fellow Villains NFT or Founder Key
+  const eligible = await verifyVoteEligibility(voterWallet, cfg);
+  if (!eligible) {
+    throw new Error('Must hold a Fellow Villains NFT or Founder Key to vote for free');
   }
 
   // Insert free vote (unique constraint will reject duplicates)
@@ -970,28 +970,45 @@ export async function getCandidates() {
 /**
  * Verify wallet holds an NFT from a given collection via Helius DAS API.
  */
+/**
+ * Check if wallet holds an NFT from a specific collection via Helius DAS.
+ * Fails RESTRICTIVE — if DAS errors, returns false (no free vote).
+ */
 async function verifyHolder(wallet: string, collectionAddress: string): Promise<boolean> {
-  try {
-    const resp = await fetch(config.heliusRpcUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 'holder-check',
-        method: 'searchAssets',
-        params: {
-          ownerAddress: wallet,
-          grouping: ['collection', collectionAddress],
-          page: 1,
-          limit: 1,
-        },
-      }),
-    });
-    const json = await resp.json() as any;
-    return (json.result?.total || 0) > 0;
-  } catch {
-    // If DAS fails, allow the vote (permissive)
-    console.warn(`[AUCTION] DAS holder check failed for ${wallet}`);
-    return true;
+  const resp = await fetch(config.heliusRpcUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 'holder-check',
+      method: 'searchAssets',
+      params: {
+        ownerAddress: wallet,
+        grouping: ['collection', collectionAddress],
+        page: 1,
+        limit: 1,
+      },
+    }),
+  });
+  const json = await resp.json() as any;
+  return (json.result?.total || 0) > 0;
+}
+
+/**
+ * Check if wallet holds a Fellow Villains NFT OR a Founder Key (art collection NFT).
+ */
+async function verifyVoteEligibility(wallet: string, cfg: any): Promise<boolean> {
+  // Check Fellow Villains collection
+  if (cfg.fellow_villains_collection) {
+    const holdsFV = await verifyHolder(wallet, cfg.fellow_villains_collection);
+    if (holdsFV) return true;
   }
+
+  // Check art collection (Founder Key holders)
+  if (cfg.collection_address) {
+    const holdsArt = await verifyHolder(wallet, cfg.collection_address);
+    if (holdsArt) return true;
+  }
+
+  return false;
 }
