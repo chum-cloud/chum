@@ -128,7 +128,7 @@ export async function mintArt(
   creatorWallet: string,
   name: string,
   uri: string,
-): Promise<{ transaction: string; assetAddress: string }> {
+): Promise<{ transaction: string; assetAddress: string; mintNumber: number }> {
   const cfg = await getConfig();
   if (cfg.paused) throw new Error('Auction system is paused');
 
@@ -182,20 +182,54 @@ export async function mintArt(
   const combined = createBuilder.add(feeBuilder);
   const tx = await combined.buildWithLatestBlockhash(u);
 
-  // Sign with vault (authority) + asset signer on backend
+  // Sign with authority + asset signer on backend
   const signedTx = await u.identity.signTransaction(tx);
   const fullySignedTx = await assetSigner.signTransaction(signedTx);
 
-  // Update total_minted
-  await supabase
-    .from('auction_config')
-    .update({ total_minted: mintNumber, updated_at: new Date().toISOString() })
-    .eq('id', 1);
+  // Do NOT increment total_minted here — wait for confirmMint after user signs + submits
 
   return {
     transaction: serializeUmiTx(fullySignedTx, u),
     assetAddress: assetSigner.publicKey.toString(),
+    mintNumber,
   };
+}
+
+/**
+ * Confirm a mint after user has signed and submitted the transaction.
+ * Verifies the asset exists on-chain, then increments total_minted.
+ */
+export async function confirmMint(
+  assetAddress: string,
+  signature: string,
+): Promise<{ confirmed: boolean; name: string }> {
+  // Wait for tx confirmation
+  const sig = await connection.confirmTransaction(signature, 'confirmed');
+  if (sig.value.err) {
+    throw new Error(`Transaction failed: ${JSON.stringify(sig.value.err)}`);
+  }
+
+  // Verify the asset exists on-chain and belongs to our collection
+  const u = getUmi();
+  const asset = await fetchAssetV1(u, publicKey(assetAddress));
+  const cfg = await getConfig();
+
+  if (
+    !asset.updateAuthority ||
+    asset.updateAuthority.type !== 'Collection' ||
+    (asset.updateAuthority as any).address?.toString() !== cfg.collection_address
+  ) {
+    throw new Error('Asset is not from the CHUM art collection');
+  }
+
+  // Now safe to increment
+  const newTotal = cfg.total_minted + 1;
+  await supabase
+    .from('auction_config')
+    .update({ total_minted: newTotal, updated_at: new Date().toISOString() })
+    .eq('id', 1);
+
+  return { confirmed: true, name: asset.name };
 }
 
 /**
@@ -351,7 +385,7 @@ export async function votePaid(
   voterWallet: string,
   candidateMint: string,
   numVotes: number = 1,
-): Promise<{ transaction: string; cost: number; totalVotes: number }> {
+): Promise<{ transaction: string; cost: number; currentVotes: number; epochNumber: number }> {
   const cfg = await getConfig();
   if (cfg.paused) throw new Error('Auction system is paused');
 
@@ -376,11 +410,49 @@ export async function votePaid(
   // Build SOL transfer: voter → treasury
   const transaction = await buildTransferTx(voterWallet, cfg.treasury_wallet, totalCost);
 
-  // Insert vote record (will be confirmed after tx lands)
+  // Do NOT insert vote here — wait for confirmVotePaid after user signs
+
+  return { transaction, cost: totalCost, currentVotes, epochNumber: epoch.epoch_number };
+}
+
+/**
+ * Confirm a paid vote after user signed and submitted the tx.
+ */
+export async function confirmVotePaid(
+  voterWallet: string,
+  candidateMint: string,
+  numVotes: number,
+  epochNumber: number,
+  signature: string,
+): Promise<{ confirmed: boolean; totalVotes: number }> {
+  const sig = await connection.confirmTransaction(signature, 'confirmed');
+  if (sig.value.err) {
+    throw new Error(`Transaction failed: ${JSON.stringify(sig.value.err)}`);
+  }
+
+  const cfg = await getConfig();
+
+  // Get candidate fresh
+  const { data: candidate, error: candErr } = await supabase
+    .from('art_candidates')
+    .select('*')
+    .eq('mint_address', candidateMint)
+    .eq('withdrawn', false)
+    .single();
+  if (candErr || !candidate) throw new Error('Candidate not found or withdrawn');
+
+  // Calculate cost for verification
+  let totalCost = 0;
+  const currentVotes = candidate.votes || 0;
+  for (let i = 0; i < numVotes; i++) {
+    totalCost += calculateVotePrice(Number(cfg.base_vote_price), currentVotes + i);
+  }
+
+  // Insert vote record
   await supabase.from('art_votes').insert({
     voter_wallet: voterWallet,
     candidate_mint: candidateMint,
-    epoch_number: epoch.epoch_number,
+    epoch_number: epochNumber,
     num_votes: numVotes,
     is_paid: true,
     cost_lamports: totalCost,
@@ -393,7 +465,7 @@ export async function votePaid(
     .update({ votes: newVotes })
     .eq('mint_address', candidateMint);
 
-  return { transaction, cost: totalCost, totalVotes: newVotes };
+  return { confirmed: true, totalVotes: newVotes };
 }
 
 /**
@@ -404,7 +476,7 @@ export async function placeBid(
   bidderWallet: string,
   epochNumber: number,
   bidAmount: number,
-): Promise<{ transaction: string; auctionId: number }> {
+): Promise<{ transaction: string; auctionId: number; minBid: number }> {
   const cfg = await getConfig();
   if (cfg.paused) throw new Error('Auction system is paused');
 
@@ -433,13 +505,41 @@ export async function placeBid(
   // Build bid tx: bidder → treasury
   const transaction = await buildTransferTx(bidderWallet, cfg.treasury_wallet, bidAmount);
 
+  // Do NOT record bid or refund here — wait for confirmBid after user signs
+
+  return { transaction, auctionId: auction.id, minBid };
+}
+
+/**
+ * Confirm a bid after user signed and submitted the tx.
+ * Refunds previous bidder, records bid, updates auction.
+ */
+export async function confirmBid(
+  bidderWallet: string,
+  epochNumber: number,
+  bidAmount: number,
+  signature: string,
+): Promise<{ confirmed: boolean; auctionId: number }> {
+  const sig = await connection.confirmTransaction(signature, 'confirmed');
+  if (sig.value.err) {
+    throw new Error(`Transaction failed: ${JSON.stringify(sig.value.err)}`);
+  }
+
+  // Get auction fresh
+  const { data: auction, error: aErr } = await supabase
+    .from('art_auctions')
+    .select('*')
+    .eq('epoch_number', epochNumber)
+    .eq('settled', false)
+    .single();
+  if (aErr || !auction) throw new Error('No active auction for this epoch');
+
   // Refund previous bidder if exists
   if (auction.current_bidder && Number(auction.current_bid) > 0) {
     try {
       await refundBidder(auction.current_bidder, Number(auction.current_bid), auction.id);
     } catch (err: any) {
       console.error(`[AUCTION] Failed to refund previous bidder: ${err.message}`);
-      // Continue anyway — refund can be retried
     }
   }
 
@@ -460,7 +560,7 @@ export async function placeBid(
     })
     .eq('id', auction.id);
 
-  return { transaction, auctionId: auction.id };
+  return { confirmed: true, auctionId: auction.id };
 }
 
 /**

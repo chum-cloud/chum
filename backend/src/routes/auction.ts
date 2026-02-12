@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import {
   mintArt,
+  confirmMint,
   joinVoting,
   voteFree,
   votePaid,
+  confirmVotePaid,
   placeBid,
+  confirmBid,
   getLeaderboard,
   getCurrentEpoch,
   getAuction,
@@ -37,6 +40,26 @@ router.post('/auction/mint', async (req, res) => {
     });
   } catch (error: any) {
     console.error('[AUCTION] Mint failed:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/auction/mint/confirm
+ * Confirm a mint after user signed and submitted the tx.
+ * Body: { assetAddress, signature }
+ */
+router.post('/auction/mint/confirm', async (req, res) => {
+  try {
+    const { assetAddress, signature } = req.body;
+    if (!assetAddress || !signature) {
+      return res.status(400).json({ error: 'assetAddress and signature are required' });
+    }
+
+    const result = await confirmMint(assetAddress, signature);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('[AUCTION] Mint confirm failed:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -83,7 +106,7 @@ router.post('/auction/vote', async (req, res) => {
         success: true,
         transaction: result.transaction,
         cost: result.cost,
-        totalVotes: result.totalVotes,
+        epochNumber: result.epochNumber,
         message: `Sign to cast ${numVotes} paid vote(s) (${result.cost} lamports)`,
       });
     }
@@ -186,6 +209,46 @@ router.post('/auction/bid', async (req, res) => {
     });
   } catch (error: any) {
     console.error('[AUCTION] Bid failed:', error.message);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/auction/vote/confirm
+ * Confirm a paid vote after user signed and submitted the tx.
+ * Body: { voterWallet, candidateMint, numVotes, epochNumber, signature }
+ */
+router.post('/auction/vote/confirm', async (req, res) => {
+  try {
+    const { voterWallet, candidateMint, numVotes, epochNumber, signature } = req.body;
+    if (!voterWallet || !candidateMint || !signature || !epochNumber) {
+      return res.status(400).json({ error: 'voterWallet, candidateMint, epochNumber, and signature are required' });
+    }
+
+    const result = await confirmVotePaid(voterWallet, candidateMint, numVotes || 1, epochNumber, signature);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('[AUCTION] Vote confirm failed:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/auction/bid/confirm
+ * Confirm a bid after user signed and submitted the tx.
+ * Body: { bidderWallet, epochNumber, bidAmount, signature }
+ */
+router.post('/auction/bid/confirm', async (req, res) => {
+  try {
+    const { bidderWallet, epochNumber, bidAmount, signature } = req.body;
+    if (!bidderWallet || !epochNumber || !bidAmount || !signature) {
+      return res.status(400).json({ error: 'bidderWallet, epochNumber, bidAmount, and signature are required' });
+    }
+
+    const result = await confirmBid(bidderWallet, epochNumber, bidAmount, signature);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('[AUCTION] Bid confirm failed:', error.message);
     res.status(400).json({ error: error.message });
   }
 });
