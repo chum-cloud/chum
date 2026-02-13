@@ -194,6 +194,16 @@ export default function AuctionPage() {
             </div>
           </div>
         )}
+        {/* Why win? */}
+        <div className="mt-8 mb-4 space-y-2">
+          <p className="font-mono text-sm text-chum-text font-bold">Why win?</p>
+          <div className="space-y-0.5">
+            <p className="font-mono text-[11px] text-chum-muted">Own a 1/1 Founder Key NFT.</p>
+            <p className="font-mono text-[11px] text-chum-muted">Your art upgrades from Artwork to Founder Key status.</p>
+            <p className="font-mono text-[11px] text-chum-muted">Founder Key holders get free daily votes forever.</p>
+            <p className="font-mono text-[11px] text-chum-muted">Platform revenue share for Founder Key holders -- coming soon.</p>
+          </div>
+        </div>
       </main>
     </div>
   );
