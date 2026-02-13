@@ -234,6 +234,16 @@ export default function MintPage() {
             </button>
           )}
 
+          {/* Why mint? */}
+          <div className="w-full mt-4 mb-2 space-y-2">
+            <p className="font-mono text-sm text-chum-text font-bold">Why mint?</p>
+            <div className="space-y-0.5">
+              <p className="font-mono text-[11px] text-chum-muted">Mint a 1/1 art piece.</p>
+              <p className="font-mono text-[11px] text-chum-muted">Join the daily leaderboard. Win the vote → get auctioned → earn 60%.</p>
+              <p className="font-mono text-[11px] text-chum-muted">Every auction starts with a 0.2 SOL bid by the team.</p>
+            </div>
+          </div>
+
           {stage === 'minting' && (
             <div className="w-full min-h-[48px] border border-chum-border flex items-center justify-center">
               <span className="font-mono text-xs text-chum-muted animate-pulse">MINTING YOUR PIECE...</span>
