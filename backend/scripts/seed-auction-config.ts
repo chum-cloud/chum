@@ -14,6 +14,7 @@ const supabase = createClient(
 );
 
 async function main() {
+  // TODO: Swap to mainnet collection address before launch
   const collectionAddress = '4fycGHogpTBAV9ipRrdyNJxzf9zeiSsnkGTqsVcfHVso'; // devnet
   const vaultWallet = 'Ag6N1tdR6NLFfEhZ8CtxGYRAzdpkncQkBY25FXdfqYNM';
   const teamWallet = process.env.TEAM_WALLET || vaultWallet;

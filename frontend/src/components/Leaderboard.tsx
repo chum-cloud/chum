@@ -52,7 +52,10 @@ export default function Leaderboard() {
           <div className="flex-1 min-w-0">
             <p className="font-mono text-xs text-chum-text truncate">{c.name || truncateWallet(c.mint_address)}</p>
           </div>
-          <span className="font-mono text-xs text-chum-accent-dim">{c.votes} votes</span>
+          <span className="font-mono text-xs">
+            <span style={{ color: '#33ff33' }}>▲ {c.votes}</span>
+            {c.agent_votes ? <span className="text-chum-muted ml-2">AGT · {c.agent_votes}</span> : null}
+          </span>
         </button>
       ))}
     </div>

@@ -390,6 +390,7 @@ export async function voteFree(
     num_votes: 1,
     is_paid: false,
     cost_lamports: 0,
+    vote_type: 'free',
   });
 
   if (voteErr) {
@@ -407,6 +408,34 @@ export async function voteFree(
     .eq('mint_address', candidateMint);
 
   return { success: true, totalVotes: newVotes };
+}
+
+/**
+ * Agent vote: free, unlimited, zero ranking weight. Social proof only.
+ */
+export async function voteAgent(
+  agentWallet: string,
+  candidateMint: string,
+): Promise<{ success: boolean; agentVotes: number }> {
+  const cfg = await getConfig();
+  if (cfg.paused) throw new Error('Auction system is paused');
+
+  // Verify candidate exists
+  const { data: candidate, error: candErr } = await supabase
+    .from('art_candidates')
+    .select('agent_votes')
+    .eq('mint_address', candidateMint)
+    .eq('withdrawn', false)
+    .single();
+  if (candErr || !candidate) throw new Error('Candidate not found or withdrawn');
+
+  const newAgentVotes = (candidate.agent_votes || 0) + 1;
+  await supabase
+    .from('art_candidates')
+    .update({ agent_votes: newAgentVotes })
+    .eq('mint_address', candidateMint);
+
+  return { success: true, agentVotes: newAgentVotes };
 }
 
 /**
@@ -487,6 +516,7 @@ export async function confirmVotePaid(
     num_votes: numVotes,
     is_paid: true,
     cost_lamports: totalCost,
+    vote_type: 'paid',
   });
 
   // Update candidate votes
@@ -802,31 +832,51 @@ export async function settleAuction(): Promise<{
     // Non-fatal — NFT transferred successfully
   }
 
-  // 3. Pay creator 60% of winning bid
+  // 3. Revenue split: 60% creator, 20% voter rewards, 10% team, 10% growth
   const creatorShare = Math.floor(winAmount * 0.6);
-  if (creatorShare > 0) {
+  const voterRewardsPool = Math.floor(winAmount * 0.2);
+  const teamShare = Math.floor(winAmount * 0.1);
+  const growthShare = Math.floor(winAmount * 0.1);
+
+  const teamWallet = process.env.TEAM_WALLET || authorityKeypair.publicKey.toString();
+  const growthWallet = process.env.GROWTH_WALLET || authorityKeypair.publicKey.toString();
+
+  // Helper to send SOL from authority
+  const sendSol = async (to: string, lamports: number, label: string) => {
+    if (lamports <= 0) return;
     try {
-      const payIx = SystemProgram.transfer({
+      const ix = SystemProgram.transfer({
         fromPubkey: authorityKeypair.publicKey,
-        toPubkey: new PublicKey(auction.art_creator),
-        lamports: creatorShare,
+        toPubkey: new PublicKey(to),
+        lamports,
       });
       const blockhash = await connection.getLatestBlockhash();
       const msg = new TransactionMessage({
         payerKey: authorityKeypair.publicKey,
         recentBlockhash: blockhash.blockhash,
-        instructions: [payIx],
+        instructions: [ix],
       }).compileToV0Message();
-      const payTx = new VersionedTransaction(msg);
-      payTx.sign([authorityKeypair]);
-      const paySig = await connection.sendRawTransaction(payTx.serialize(), {
+      const tx = new VersionedTransaction(msg);
+      tx.sign([authorityKeypair]);
+      const sig = await connection.sendRawTransaction(tx.serialize(), {
         skipPreflight: true,
         maxRetries: 3,
       });
-      console.log(`[AUCTION] Paid creator ${creatorShare} lamports: ${paySig}`);
+      console.log(`[AUCTION] Paid ${label} ${lamports} lamports: ${sig}`);
     } catch (err: any) {
-      console.error(`[AUCTION] Failed to pay creator: ${err.message}`);
+      console.error(`[AUCTION] Failed to pay ${label}: ${err.message}`);
     }
+  };
+
+  await sendSol(auction.art_creator, creatorShare, 'creator');
+  await sendSol(teamWallet, teamShare, 'team');
+  await sendSol(growthWallet, growthShare, 'growth');
+
+  // Calculate and store voter rewards (20% pool)
+  try {
+    await calculateVoterRewards(auction.epoch_number, voterRewardsPool, auction.art_mint);
+  } catch (err: any) {
+    console.error(`[AUCTION] Failed to calculate voter rewards: ${err.message}`);
   }
 
   // 4. Record founder key entry
@@ -1023,4 +1073,162 @@ export async function verifyVoteEligibility(wallet: string, cfg: any): Promise<b
   }
 
   return false;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VOTER REWARDS
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Calculate and store voter rewards for an epoch.
+ * Only voters who voted FOR the winning art get rewards.
+ * Free votes (holder) = 2x weight, paid votes = 1x weight.
+ */
+export async function calculateVoterRewards(
+  epochNumber: number,
+  rewardsPoolLamports: number,
+  winnerMint: string,
+): Promise<void> {
+  if (rewardsPoolLamports <= 0) return;
+
+  // Get all votes for the winning candidate in this epoch
+  const { data: votes, error } = await supabase
+    .from('art_votes')
+    .select('*')
+    .eq('epoch_number', epochNumber)
+    .eq('candidate_mint', winnerMint);
+
+  if (error) throw new Error(`calculateVoterRewards: ${error.message}`);
+  if (!votes || votes.length === 0) {
+    console.log(`[AUCTION] No votes for winner in epoch ${epochNumber}, voter rewards pool returned to protocol`);
+    return;
+  }
+
+  // Calculate weighted shares
+  // vote_type 'free' = 2x weight per vote, 'paid' = 1x weight per vote
+  const voterWeights: Record<string, number> = {};
+  let totalWeight = 0;
+
+  for (const vote of votes) {
+    const weight = vote.vote_type === 'free' ? 2 * (vote.num_votes || 1) : 1 * (vote.num_votes || 1);
+    voterWeights[vote.voter_wallet] = (voterWeights[vote.voter_wallet] || 0) + weight;
+    totalWeight += weight;
+  }
+
+  if (totalWeight === 0) return;
+
+  // Insert reward records
+  const rewards = Object.entries(voterWeights).map(([wallet, weight]) => ({
+    voter_wallet: wallet,
+    epoch_number: epochNumber,
+    weight,
+    total_weight: totalWeight,
+    reward_lamports: Math.floor((weight / totalWeight) * rewardsPoolLamports),
+    claimed: false,
+  }));
+
+  const { error: insertErr } = await supabase.from('voter_rewards').insert(rewards);
+  if (insertErr) throw new Error(`calculateVoterRewards insert: ${insertErr.message}`);
+
+  console.log(`[AUCTION] Voter rewards calculated for epoch ${epochNumber}: ${rewards.length} voters, ${rewardsPoolLamports} lamports pool`);
+}
+
+/**
+ * Get voter rewards for a wallet (pending + claimed).
+ */
+export async function getVoterRewards(wallet: string): Promise<{
+  pending: Array<{ epoch_number: number; reward_lamports: number; weight: number; total_weight: number }>;
+  claimed: Array<{ epoch_number: number; reward_lamports: number; claim_tx: string }>;
+  totalPending: number;
+  totalClaimed: number;
+}> {
+  const { data: all, error } = await supabase
+    .from('voter_rewards')
+    .select('*')
+    .eq('voter_wallet', wallet)
+    .order('epoch_number', { ascending: false });
+
+  if (error) throw new Error(`getVoterRewards: ${error.message}`);
+
+  const pending = (all || []).filter((r: any) => !r.claimed).map((r: any) => ({
+    epoch_number: r.epoch_number,
+    reward_lamports: r.reward_lamports,
+    weight: r.weight,
+    total_weight: r.total_weight,
+  }));
+
+  const claimed = (all || []).filter((r: any) => r.claimed).map((r: any) => ({
+    epoch_number: r.epoch_number,
+    reward_lamports: r.reward_lamports,
+    claim_tx: r.claim_tx,
+  }));
+
+  return {
+    pending,
+    claimed,
+    totalPending: pending.reduce((sum: number, r: any) => sum + r.reward_lamports, 0),
+    totalClaimed: claimed.reduce((sum: number, r: any) => sum + r.reward_lamports, 0),
+  };
+}
+
+/**
+ * Claim all pending voter rewards for a wallet.
+ * Server-signed SOL transfer from authority to voter.
+ */
+export async function claimVoterRewards(wallet: string): Promise<{
+  claimed: boolean;
+  amount: number;
+  signature?: string;
+}> {
+  getUmi(); // ensure authority is initialized
+
+  const { data: pending, error } = await supabase
+    .from('voter_rewards')
+    .select('*')
+    .eq('voter_wallet', wallet)
+    .eq('claimed', false);
+
+  if (error) throw new Error(`claimVoterRewards: ${error.message}`);
+  if (!pending || pending.length === 0) {
+    return { claimed: false, amount: 0 };
+  }
+
+  const totalAmount = pending.reduce((sum: number, r: any) => sum + Number(r.reward_lamports), 0);
+  if (totalAmount <= 0) return { claimed: false, amount: 0 };
+
+  // Send SOL from authority to voter
+  const ix = SystemProgram.transfer({
+    fromPubkey: authorityKeypair.publicKey,
+    toPubkey: new PublicKey(wallet),
+    lamports: totalAmount,
+  });
+
+  const blockhash = await connection.getLatestBlockhash();
+  const msg = new TransactionMessage({
+    payerKey: authorityKeypair.publicKey,
+    recentBlockhash: blockhash.blockhash,
+    instructions: [ix],
+  }).compileToV0Message();
+
+  const tx = new VersionedTransaction(msg);
+  tx.sign([authorityKeypair]);
+
+  const sig = await connection.sendRawTransaction(tx.serialize(), {
+    skipPreflight: true,
+    maxRetries: 3,
+  });
+
+  // Wait for confirmation
+  await connection.confirmTransaction(sig, 'confirmed');
+
+  // Mark all as claimed
+  const ids = pending.map((r: any) => r.id);
+  await supabase
+    .from('voter_rewards')
+    .update({ claimed: true, claim_tx: sig, claimed_at: new Date().toISOString() })
+    .in('id', ids);
+
+  console.log(`[AUCTION] Voter rewards claimed: ${wallet} received ${totalAmount} lamports (${sig})`);
+
+  return { claimed: true, amount: totalAmount, signature: sig };
 }

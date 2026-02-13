@@ -1,13 +1,14 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { POOL, randomPiece } from '../lib/pool';
-import type { PoolPiece } from '../lib/types';
+import type { PoolPiece, Candidate } from '../lib/types';
 import { api } from '../lib/api';
 import { signAndSend } from '../lib/tx';
 
 type Stage = 'idle' | 'generating' | 'ready' | 'minting' | 'success' | 'error';
+type LeaderboardTab = 'hot' | 'trending' | 'new';
 
 export default function MintPage() {
   const { publicKey, signTransaction } = useWallet();
@@ -20,6 +21,44 @@ export default function MintPage() {
   const [mintedAsset, setMintedAsset] = useState('');
   const [showMeatballPopup, setShowMeatballPopup] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [lbTab, setLbTab] = useState<LeaderboardTab>('hot');
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [lbLoading, setLbLoading] = useState(true);
+
+  useEffect(() => {
+    api.getCandidates()
+      .then((data) => {
+        const list: Candidate[] = data?.candidates || data || [];
+        setCandidates(list);
+      })
+      .catch(() => {})
+      .finally(() => setLbLoading(false));
+  }, []);
+
+  const sortedCandidates = (() => {
+    const list = [...candidates];
+    if (lbTab === 'hot') {
+      return list.sort((a, b) => (b.votes || 0) - (a.votes || 0));
+    }
+    if (lbTab === 'trending') {
+      // Sort by recent votes — use recent_votes if available, fallback to votes
+      return list.sort((a, b) => ((b as any).recent_votes || b.votes || 0) - ((a as any).recent_votes || a.votes || 0));
+    }
+    // new — newest first
+    return list.sort((a, b) => {
+      const ta = new Date((a as any).created_at || 0).getTime();
+      const tb = new Date((b as any).created_at || 0).getTime();
+      return tb - ta;
+    });
+  })();
+
+  const rankBadge = (i: number) => {
+    if (lbTab !== 'hot') return null;
+    if (i === 0) return <span className="text-yellow-400 font-bold">1</span>;
+    if (i === 1) return <span className="text-gray-400 font-bold">2</span>;
+    if (i === 2) return <span className="text-orange-400 font-bold">3</span>;
+    return null;
+  };
 
   const generate = () => {
     setStage('generating');
@@ -188,6 +227,77 @@ export default function MintPage() {
 
           {error && (
             <p className="font-mono text-xs text-chum-danger text-center px-2">{error}</p>
+          )}
+        </div>
+
+        {/* ── Leaderboard ── */}
+        <div className="w-full mt-8 border-t border-chum-border pt-6">
+          {/* Tabs */}
+          <div className="flex border border-chum-border mb-4">
+            {(['hot', 'trending', 'new'] as LeaderboardTab[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setLbTab(tab)}
+                className={`flex-1 py-2 font-mono text-xs uppercase tracking-wider transition-colors ${
+                  lbTab === tab
+                    ? 'bg-chum-text text-chum-bg'
+                    : 'text-chum-muted hover:text-chum-text'
+                }`}
+              >
+                {tab === 'hot' ? 'HOT' : tab === 'trending' ? 'TRENDING' : 'NEW'}
+              </button>
+            ))}
+          </div>
+
+          {/* List */}
+          {lbLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="w-8 h-8 border-2 border-chum-border border-t-chum-text animate-spin" />
+            </div>
+          ) : sortedCandidates.length === 0 ? (
+            <p className="font-mono text-xs text-chum-muted text-center py-8">No art this epoch yet. Be the first to mint!</p>
+          ) : (
+            <div className="space-y-2">
+              {sortedCandidates.map((c, i) => (
+                <button
+                  key={c.mint_address}
+                  onClick={() => navigate(`/art/${c.mint_address}`)}
+                  className="w-full flex items-center gap-3 p-2 border border-chum-border hover:bg-chum-surface transition-colors text-left"
+                >
+                  {/* Rank / badge */}
+                  <div className="w-8 text-center font-mono text-xs shrink-0">
+                    {rankBadge(i) || (
+                      <span className="text-chum-muted">{i + 1}</span>
+                    )}
+                  </div>
+
+                  {/* Thumbnail */}
+                  <div className="w-12 h-12 bg-black border border-chum-border overflow-hidden shrink-0">
+                    {c.animation_url ? (
+                      <video src={c.animation_url} muted playsInline autoPlay loop className="w-full h-full object-cover" />
+                    ) : c.image_url ? (
+                      <img src={c.image_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-chum-surface" />
+                    )}
+                  </div>
+
+                  {/* Name + votes */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-mono text-xs text-chum-text truncate">
+                      {c.name || `CHUM #${c.mint_address.slice(-4)}`}
+                    </p>
+                    <p className="font-mono text-[10px]">
+                      <span style={{ color: '#33ff33' }}>▲ {c.votes || 0}</span>
+                      {c.agent_votes ? <span className="text-chum-muted ml-2">AGT · {c.agent_votes}</span> : null}
+                    </p>
+                  </div>
+
+                  {/* Arrow */}
+                  <span className="text-chum-muted text-xs shrink-0">→</span>
+                </button>
+              ))}
+            </div>
           )}
         </div>
       </main>

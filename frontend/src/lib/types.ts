@@ -5,6 +5,7 @@ export interface Candidate {
   animation_url?: string;
   creator_wallet: string;
   votes: number;
+  agent_votes?: number;
   status?: 'voting' | 'auction' | 'founder_key';
 }
 

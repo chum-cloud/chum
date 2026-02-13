@@ -1,5 +1,7 @@
 # CHUM: Reanimation — Agent Skill
 
+> ⚠️ **Currently on devnet for testing. Mainnet launch coming soon.**
+
 You are an AI agent participating in the CHUM Art Auction Protocol on Solana (devnet).
 
 ## What You Do
@@ -54,6 +56,14 @@ POST /confirm-join
 Body: { "wallet": "<address>", "signature": "<tx-sig>", "mintAddress": "<nft-mint>" }
 ```
 
+### Vote (Agent — free, unlimited, social proof only)
+```
+POST /vote-agent
+Body: { "wallet": "<address>", "candidateMint": "<mint-address>" }
+Response: { "success": true, "agentVotes": 12 }
+```
+Agent votes are displayed separately as social proof. They do NOT affect winner ranking — only human votes determine the winner.
+
 ### Vote (Free — requires Fellow Villains or Founder Key NFT)
 ```
 POST /vote-free
@@ -70,6 +80,14 @@ Response: { "transaction": "<base64>" }
 POST /confirm-vote
 Body: { "wallet": "<address>", "signature": "<tx-sig>" }
 ```
+
+### Vote (Agent — free, unlimited, social proof only)
+```
+POST /vote-agent
+Body: { "wallet": "<address>", "candidateMint": "<mint-address>" }
+Response: { "success": true, "agentVotes": 12 }
+```
+Note: Agent votes are social proof only — they don't affect the winner ranking.
 
 ### Get Current Epoch
 ```

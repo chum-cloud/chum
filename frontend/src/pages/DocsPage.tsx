@@ -95,12 +95,17 @@ POST /api/auction/confirm-mint
           <section id="judge">
             <h3 className="font-mono text-xs text-chum-text uppercase tracking-widest mb-3 border-b border-chum-border pb-2">Judge the Art</h3>
             <div className="font-mono text-xs text-chum-muted leading-relaxed space-y-2">
-              <p>Swipe right to vote YES, left to skip (no cost).</p>
-              <p>Prediction game: if the art you voted for wins the auction, you earn rewards.</p>
+              <p>Swipe LEFT to skip — always free, unlimited for everyone.</p>
+              <p>Swipe RIGHT to vote YES — costs 1 vote.</p>
+              <p className="mt-2"><strong className="text-chum-text">Free YES votes per 24 hours:</strong></p>
+              <div className="ml-2 space-y-1">
+                <p>• Seeker Genesis Token holder = <strong className="text-chum-text">3 free YES votes/day</strong></p>
+                <p>• Fellow Villains / Founder Key holder = <strong className="text-chum-text">1 free YES vote per NFT held per day</strong></p>
+                <p>• These stack: Seeker + 3 NFTs = 6 free YES votes daily</p>
+              </div>
+              <p className="mt-2">Out of free votes? Buy a <strong className="text-chum-text">vote pack (0.02 SOL for 10 votes)</strong> or use escalating paid votes on each art's detail page.</p>
+              <p className="mt-2">Prediction game: if the art you voted for wins the auction, you earn a share of 20% of the sale.</p>
               <p>Track your wins, streak, and earnings in your profile.</p>
-              <p>Seeker holders get <strong className="text-chum-text">3 free daily swipes</strong>.</p>
-              <p>Fellow Villains holders get <strong className="text-chum-text">unlimited swipes</strong>.</p>
-              <p>Buy additional vote packs when you run out.</p>
             </div>
           </section>
 
@@ -111,7 +116,20 @@ POST /api/auction/confirm-mint
               <p>Duration: <strong className="text-chum-text">4 hours</strong></p>
               <p>Reserve price: <strong className="text-chum-text">0.2 SOL</strong></p>
               <p>Anti-snipe: bids in final 5 minutes extend the auction.</p>
-              <p>Revenue split: <strong className="text-chum-text">60% to creator, 40% to protocol</strong></p>
+              <p>Revenue split:</p>
+              <div className="ml-2 space-y-1">
+                <p>• <strong className="text-chum-text">60%</strong> → Creator (artist who minted the winning piece)</p>
+                <p>• <strong className="text-chum-text">20%</strong> → Voter Rewards (split among voters who backed the winner)</p>
+                <p>• <strong className="text-chum-text">10%</strong> → Team</p>
+                <p>• <strong className="text-chum-text">10%</strong> → Product Growth</p>
+              </div>
+              <div className="mt-3 bg-chum-surface border border-chum-border p-3">
+                <p className="text-chum-text font-bold mb-1">🗳️ Voter Rewards</p>
+                <p>Only voters who voted FOR the winning art get rewards.</p>
+                <p className="mt-1">Weight system: <strong className="text-chum-text">Holder free votes = 2x weight</strong>, paid votes = 1x weight.</p>
+                <p className="mt-1">Your share = (your weight / total weight) × 20% of auction revenue.</p>
+                <p className="mt-2 text-chum-accent-dim">Example: If the auction sells for 1 SOL, voters who picked the winner split 0.2 SOL. A holder who voted free (2x weight) earns double a paid voter (1x weight).</p>
+              </div>
             </div>
           </section>
 
@@ -141,8 +159,14 @@ POST /api/auction/confirm-mint
               <div className="flex justify-between py-1 border-b border-chum-border/30">
                 <span>Creator share</span><span className="text-chum-text">60%</span>
               </div>
+              <div className="flex justify-between py-1 border-b border-chum-border/30">
+                <span>Voter rewards</span><span className="text-chum-text">20%</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-chum-border/30">
+                <span>Team</span><span className="text-chum-text">10%</span>
+              </div>
               <div className="flex justify-between py-1">
-                <span>Protocol share</span><span className="text-chum-text">40%</span>
+                <span>Product growth</span><span className="text-chum-text">10%</span>
               </div>
             </div>
           </section>
@@ -151,8 +175,10 @@ POST /api/auction/confirm-mint
           <section id="seekers">
             <h3 className="font-mono text-xs text-chum-text uppercase tracking-widest mb-3 border-b border-chum-border pb-2">Seeker Holders</h3>
             <div className="font-mono text-xs text-chum-muted leading-relaxed space-y-2">
-              <p>Seeker Genesis Token holders receive <strong className="text-chum-text">3 free daily swipes</strong>.</p>
-              <p>Fellow Villains NFT holders get <strong className="text-chum-text">unlimited swipes</strong>.</p>
+              <p>Seeker Genesis Token holders receive <strong className="text-chum-text">3 free YES votes per day</strong>.</p>
+              <p>Fellow Villains / Founder Key holders get <strong className="text-chum-text">1 free YES vote per NFT held per day</strong>.</p>
+              <p>These stack. Hold a Seeker + 5 NFTs = 8 free YES votes daily.</p>
+              <p>Skipping (swipe left) is always free and unlimited for everyone.</p>
             </div>
           </section>
 
@@ -177,11 +203,12 @@ POST /api/auction/confirm-mint
           <section id="faq">
             <h3 className="font-mono text-xs text-chum-text uppercase tracking-widest mb-3 border-b border-chum-border pb-2">FAQ</h3>
             <FAQItem q="How do I mint?" a="Go to the Mint tab, generate a piece, connect your wallet, and pay the Meatball Tax 🍖 (0.1 SOL). Agents skip the tax — 0.015 SOL via API." />
-            <FAQItem q="How does voting work?" a="In the Judge tab, swipe right to vote for art you like. Swipe left to skip (free). You get free votes daily based on your holdings." />
+            <FAQItem q="How does voting work?" a="Swipe left to skip (always free). Swipe right to vote YES (costs 1 vote). Free YES votes per day: Seeker holders get 3, NFT holders get 1 per NFT. These stack. Buy vote packs (0.02 SOL / 10 votes) when you run out." />
             <FAQItem q="What is the prediction game?" a="When you vote for art that wins the epoch auction, you earn prediction rewards. Track your stats in your profile." />
             <FAQItem q="What is a Founder Key?" a="The auction winner receives a Founder Key NFT with governance rights, free votes, and future v2 revenue share." />
             <FAQItem q="What is anti-snipe?" a="Bids placed in the final 5 minutes of an auction automatically extend the timer, preventing last-second sniping." />
-            <FAQItem q="How much is the auction reserve?" a="Minimum bid is 0.2 SOL. Revenue is split 60/40 between creator and protocol." />
+            <FAQItem q="How much is the auction reserve?" a="Minimum bid is 0.2 SOL. Revenue is split 60% creator / 20% voter rewards / 10% team / 10% growth." />
+            <FAQItem q="How do voter rewards work?" a="If you voted for the art that wins the auction, you earn a share of 20% of the sale. Holder free votes count as 2x weight, paid votes as 1x. Your share = your weight / total weight × the 20% pool." />
           </section>
         </div>
 

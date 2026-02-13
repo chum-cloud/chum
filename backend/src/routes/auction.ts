@@ -6,6 +6,7 @@ import {
   joinVoting,
   confirmJoin,
   voteFree,
+  voteAgent,
   votePaid,
   confirmVotePaid,
   placeBid,
@@ -14,6 +15,8 @@ import {
   getCurrentEpoch,
   getAuction,
   getCandidates,
+  getVoterRewards,
+  claimVoterRewards,
 } from '../services/auction';
 import {
   getNextSwipe,
@@ -206,6 +209,25 @@ router.post('/auction/vote', async (req, res) => {
 });
 
 /**
+ * POST /api/auction/vote-agent
+ * Agent vote: free, unlimited, zero ranking weight.
+ * Body: { wallet, candidateMint }
+ */
+router.post('/auction/vote-agent', async (req, res) => {
+  try {
+    const { wallet, candidateMint } = req.body;
+    if (!wallet || !candidateMint) {
+      return res.status(400).json({ error: 'wallet and candidateMint are required' });
+    }
+    const result = await voteAgent(wallet, candidateMint);
+    res.json(result);
+  } catch (error: any) {
+    console.error('[AUCTION] Agent vote failed:', error.message);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/auction/leaderboard
  * Get current epoch leaderboard sorted by votes.
  * Query: ?epoch=N (optional)
@@ -392,6 +414,44 @@ router.get('/auction/skill.md', (_req, res) => {
   }
   const content = fs.readFileSync(skillPath, 'utf-8');
   res.type('text/markdown').send(content);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// VOTER REWARDS ENDPOINTS
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/auction/voter-rewards?wallet=X
+ * Get pending + claimed voter rewards for a wallet.
+ */
+router.get('/auction/voter-rewards', async (req, res) => {
+  try {
+    const wallet = req.query.wallet as string;
+    if (!wallet) return res.status(400).json({ error: 'wallet is required' });
+
+    const result = await getVoterRewards(wallet);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/auction/claim-voter-rewards
+ * Claim all pending voter rewards for a wallet.
+ * Body: { wallet }
+ */
+router.post('/auction/claim-voter-rewards', async (req, res) => {
+  try {
+    const { wallet } = req.body;
+    if (!wallet) return res.status(400).json({ error: 'wallet is required' });
+
+    const result = await claimVoterRewards(wallet);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('[AUCTION] Claim voter rewards failed:', error.message);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════
