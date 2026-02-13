@@ -3,6 +3,7 @@ import {
   createCollection,
   create,
   transfer,
+  transferV1,
   updatePlugin,
   addPlugin,
   fetchAssetV1,
@@ -301,15 +302,13 @@ export async function confirmJoin(
 
   // Step 2: Server-side NFT transfer using PermanentTransferDelegate
   // Vault (update authority) can transfer any NFT in the collection without owner signature
-  const collection = await fetchCollectionV1(u, publicKey(cfg.collection_address));
-  const transferBuilder = transfer(u, {
-    asset: publicKey(mintAddress) as any,
-    collection: collection as any,
+  // Use transferV1 directly — the `transfer` helper has issues with collection object serialization
+  const transferResult = await transferV1(u, {
+    asset: publicKey(mintAddress),
+    collection: publicKey(cfg.collection_address),
     newOwner: u.identity.publicKey, // vault
-    // authority defaults to umi.identity (vault) which has PermanentTransferDelegate
-  });
-
-  const transferResult = await transferBuilder.sendAndConfirm(u);
+    authority: u.identity,
+  }).sendAndConfirm(u);
   const transferSig = Buffer.from(transferResult.signature).toString('base64');
   console.log(`[AUCTION] NFT ${mintAddress} transferred to vault: ${transferSig}`);
 
@@ -806,14 +805,12 @@ export async function settleAuction(): Promise<{
   // No bids — return NFT to creator, skip
   if (!auction.current_bidder || Number(auction.current_bid) === 0) {
     // Transfer NFT back to creator
-    const collection = await fetchCollectionV1(u, publicKey(cfg.collection_address));
-    const transferBack = transfer(u, {
+    await transferV1(u, {
       asset: publicKey(auction.art_mint),
-      collection,
+      collection: publicKey(cfg.collection_address),
       newOwner: publicKey(auction.art_creator),
-      authority: authoritySigner,
-    });
-    await transferBack.sendAndConfirm(u);
+      authority: u.identity,
+    }).sendAndConfirm(u);
 
     await supabase
       .from('art_auctions')
@@ -836,14 +833,12 @@ export async function settleAuction(): Promise<{
   const winAmount = Number(auction.current_bid);
 
   // 1. Transfer NFT from vault to winner
-  const collection = await fetchCollectionV1(u, publicKey(cfg.collection_address));
-  const transferToWinner = transfer(u, {
+  await transferV1(u, {
     asset: publicKey(auction.art_mint),
-    collection,
+    collection: publicKey(cfg.collection_address),
     newOwner: publicKey(winnerWallet),
-    authority: authoritySigner,
-  });
-  await transferToWinner.sendAndConfirm(u);
+    authority: u.identity,
+  }).sendAndConfirm(u);
 
   // 2. Update Status attribute to "Founder Key"
   try {
