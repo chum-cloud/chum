@@ -21,7 +21,7 @@ export default function PoolPreviewPage() {
   const [pieces, setPieces] = useState<PoolPiece[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState<'all' | 'madlads' | 'critters' | 'smb' | 'slimes' | 'boogle' | 'hothead' | 'guides'>('all');
+  const [filter, setFilter] = useState<'all' | 'madlads' | 'critters' | 'smb' | 'slimes' | 'boogle' | 'guides'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selected, setSelected] = useState<PoolPiece | null>(null);
   const [page, setPage] = useState(0);
@@ -88,7 +88,6 @@ export default function PoolPreviewPage() {
     smb: pieces.filter(p => getSource(p) === 'smb').length,
     slimes: pieces.filter(p => getSource(p) === 'slimes').length,
     boogle: pieces.filter(p => getSource(p) === 'boogle').length,
-    hothead: pieces.filter(p => getSource(p) === 'hothead').length,
     guides: pieces.filter(p => getSource(p) === 'guides').length,
   };
 
@@ -116,7 +115,7 @@ export default function PoolPreviewPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-4">
-        {(['all', 'madlads', 'critters', 'smb', 'slimes', 'boogle', 'hothead', 'guides'] as const).map(f => (
+        {(['all', 'madlads', 'critters', 'smb', 'slimes', 'boogle', 'guides'] as const).map(f => (
           <button
             key={f}
             onClick={() => { setFilter(f); setPage(0); }}
