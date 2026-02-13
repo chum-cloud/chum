@@ -21,7 +21,7 @@ export default function PoolPreviewPage() {
   const [pieces, setPieces] = useState<PoolPiece[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState<'all' | 'madlads' | 'critters' | 'smb' | 'slimes' | 'boogle' | 'chimpers'>('all');
+  const [filter, setFilter] = useState<'all' | 'originals' | 'madlads' | 'critters' | 'smb' | 'slimes' | 'boogle' | 'chimpers'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selected, setSelected] = useState<PoolPiece | null>(null);
   const [page, setPage] = useState(0);
@@ -58,25 +58,16 @@ export default function PoolPreviewPage() {
 
   const getSource = (p: PoolPiece): string => {
     const id = getId(p);
-    if (id.startsWith('slimes-') || id.includes('slimes')) return 'slimes';
-    if (id.startsWith('boogle-') || id.includes('boogle')) return 'boogle';
-    if (id.startsWith('hothead-') || id.includes('hothead')) return 'hothead';
-    if (id.startsWith('guides-') || id.includes('guides')) return 'guides';
-    if (id.startsWith('chimpers-') || id.includes('chimpers')) return 'chimpers';
-    if (id.includes('madlads') || id.includes('Madlads')) return 'madlads';
-    if (id.includes('critters') || id.includes('Critters')) return 'critters';
-    if (id.includes('SMB') || id.includes('smb')) return 'smb';
-    // Fallback: check URL
     const url = getMp4(p);
-    if (url.includes('madlads')) return 'madlads';
-    if (url.includes('critters')) return 'critters';
-    if (url.includes('smb-') || url.includes('SMB')) return 'smb';
-    if (url.includes('slimes')) return 'slimes';
-    if (url.includes('boogle')) return 'boogle';
-    if (url.includes('hothead')) return 'hothead';
-    if (url.includes('guides')) return 'guides';
-    if (url.includes('chimpers')) return 'chimpers';
-    return 'unknown';
+    const all = id + ' ' + url;
+    if (all.includes('slimes')) return 'slimes';
+    if (all.includes('boogle')) return 'boogle';
+    if (all.includes('chimpers')) return 'chimpers';
+    if (all.includes('madlads') || all.includes('Madlads')) return 'madlads';
+    if (all.includes('critters') || all.includes('Critters')) return 'critters';
+    if (all.includes('smb-') || all.includes('SMB')) return 'smb';
+    // Original batch uses CHUM-xxxx IDs with no source tag
+    return 'originals';
   };
 
   const filtered = filter === 'all' ? pieces : pieces.filter(p => getSource(p) === filter);
@@ -85,6 +76,7 @@ export default function PoolPreviewPage() {
 
   const counts = {
     all: pieces.length,
+    originals: pieces.filter(p => getSource(p) === 'originals').length,
     madlads: pieces.filter(p => getSource(p) === 'madlads').length,
     critters: pieces.filter(p => getSource(p) === 'critters').length,
     smb: pieces.filter(p => getSource(p) === 'smb').length,
@@ -117,7 +109,7 @@ export default function PoolPreviewPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-4">
-        {(['all', 'madlads', 'critters', 'smb', 'slimes', 'boogle', 'chimpers'] as const).map(f => (
+        {(['all', 'originals', 'madlads', 'critters', 'smb', 'slimes', 'boogle', 'chimpers'] as const).map(f => (
           <button
             key={f}
             onClick={() => { setFilter(f); setPage(0); }}
