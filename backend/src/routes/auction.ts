@@ -532,6 +532,66 @@ router.get('/auction/candidates', async (_req, res) => {
 });
 
 /**
+ * GET /api/auction/my-art?wallet=xxx
+ * Get wallet's CHUM NFTs with join status.
+ * Returns both joined (in candidates) and unjoined pieces.
+ */
+router.get('/auction/my-art', async (req, res) => {
+  try {
+    const wallet = req.query.wallet as string;
+    if (!wallet) return res.status(400).json({ error: 'wallet is required' });
+
+    // Get collection address from config
+    const { data: cfg } = await supabase
+      .from('auction_config')
+      .select('collection_address')
+      .eq('id', 1)
+      .single();
+    if (!cfg) throw new Error('Config not found');
+
+    // Fetch wallet's CHUM NFTs via DAS
+    const dasResp = await fetch(`https://devnet.helius-rpc.com/?api-key=${config.heliusApiKey || '06cda3a9-32f3-4ad9-a203-9d7274299837'}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'my-art',
+        method: 'searchAssets',
+        params: {
+          ownerAddress: wallet,
+          grouping: ['collection', cfg.collection_address],
+          page: 1,
+          limit: 100,
+        },
+      }),
+    });
+    const dasJson = await dasResp.json() as any;
+    const assets = dasJson.result?.items || [];
+
+    // Check which are already in candidates
+    const mintAddresses = assets.map((a: any) => a.id);
+    const { data: joined } = await supabase
+      .from('art_candidates')
+      .select('mint_address')
+      .in('mint_address', mintAddresses.length > 0 ? mintAddresses : ['none']);
+
+    const joinedSet = new Set((joined || []).map((j: any) => j.mint_address));
+
+    const result = assets.map((a: any) => ({
+      mint_address: a.id,
+      name: a.content?.metadata?.name || 'CHUM Art',
+      image_url: a.content?.links?.image || a.content?.files?.[0]?.uri || '',
+      animation_url: a.content?.links?.animation_url || a.content?.files?.find((f: any) => f.mime === 'video/mp4')?.uri || '',
+      joined: joinedSet.has(a.id),
+    }));
+
+    res.json({ success: true, art: result });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/auction/config
  * Get auction config (public fields).
  */

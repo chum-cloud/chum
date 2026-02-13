@@ -1,11 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { api } from '../lib/api';
-import { truncateWallet } from '../lib/tx';
+import { signAndSend, truncateWallet } from '../lib/tx';
 import Header from '../components/Header';
 import type { Candidate } from '../lib/types';
+
+interface MyArtPiece {
+  mint_address: string;
+  name: string;
+  image_url: string;
+  animation_url: string;
+  joined: boolean;
+}
 
 interface BidData {
   mint_address: string;
@@ -85,7 +93,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function ProfilePage() {
   const { wallet: paramWallet } = useParams<{ wallet: string }>();
-  const { publicKey } = useWallet();
+  const { publicKey, signTransaction } = useWallet();
+  const { connection } = useConnection();
   const connectedWallet = publicKey?.toBase58() || '';
   const navigate = useNavigate();
 
@@ -98,6 +107,8 @@ export default function ProfilePage() {
   const [bids, setBids] = useState<BidData[]>([]);
   const [claiming, setClaiming] = useState(false);
   const [claimMsg, setClaimMsg] = useState('');
+  const [ownedArt, setOwnedArt] = useState<MyArtPiece[]>([]);
+  const [joiningMint, setJoiningMint] = useState<string | null>(null);
 
   const myArt = allCandidates.filter((c) => c.creator_wallet === profileWallet);
   const totalVotesReceived = myArt.reduce((sum, c) => sum + (c.votes || 0), 0);
@@ -110,14 +121,16 @@ export default function ProfilePage() {
       setAllCandidates(list);
 
       if (isOwnProfile) {
-        const [s, r, b] = await Promise.all([
+        const [s, r, b, owned] = await Promise.all([
           api.getSwipeStats(connectedWallet).catch(() => null),
           api.getSwipeRemaining(connectedWallet).catch(() => null),
           api.getMyBids(connectedWallet).catch(() => []),
+          api.getMyArt(connectedWallet).catch(() => ({ art: [] })),
         ]);
         if (s) setStats(s as SwipeStatsFull);
         if (r) setRemaining(r as SwipeRemainingFull);
         setBids(b as BidData[]);
+        setOwnedArt((owned as any)?.art || []);
       }
     } catch { /* ignore */ }
   }, [profileWallet, isOwnProfile, connectedWallet]);
@@ -234,6 +247,56 @@ export default function ProfilePage() {
                 </div>
               )}
             </Section>
+
+            {/* Unjoined art - Join Leaderboard */}
+            {isOwnProfile && ownedArt.filter(a => !a.joined).length > 0 && (
+              <Section title="Join Leaderboard">
+                <p className="font-mono text-[10px] text-chum-muted mb-2">
+                  These NFTs haven't joined the leaderboard yet. Join to compete for votes and auctions (0.015 SOL).
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {ownedArt.filter(a => !a.joined).map((art) => (
+                    <div key={art.mint_address} className="border border-[#33ff33]/30 bg-chum-surface">
+                      <div className="w-full aspect-square bg-black overflow-hidden">
+                        {art.animation_url ? (
+                          <video src={art.animation_url} className="w-full h-full object-cover" muted loop autoPlay playsInline />
+                        ) : art.image_url ? (
+                          <img src={art.image_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-chum-surface" />
+                        )}
+                      </div>
+                      <div className="p-2 space-y-1">
+                        <p className="font-mono text-xs text-chum-text truncate">{art.name}</p>
+                        <button
+                          onClick={async () => {
+                            if (!signTransaction || joiningMint) return;
+                            setJoiningMint(art.mint_address);
+                            try {
+                              const res = await api.joinVoting(connectedWallet, art.mint_address);
+                              const sig = await signAndSend(res.transaction, signTransaction, connection);
+                              await api.confirmJoin(connectedWallet, sig, art.mint_address);
+                              setOwnedArt(prev => prev.map(a =>
+                                a.mint_address === art.mint_address ? { ...a, joined: true } : a
+                              ));
+                              load();
+                            } catch (e) {
+                              console.error('Join failed:', e);
+                            }
+                            setJoiningMint(null);
+                          }}
+                          disabled={joiningMint === art.mint_address}
+                          className="w-full py-1.5 font-mono text-[10px] text-black bg-[#33ff33] hover:bg-[#00cc00] transition-colors uppercase tracking-wider disabled:opacity-50"
+                          style={{ borderRadius: 0 }}
+                        >
+                          {joiningMint === art.mint_address ? 'JOINING...' : 'JOIN LEADERBOARD (0.015 SOL)'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            )}
           </div>
         </div>
 

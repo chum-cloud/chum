@@ -63,5 +63,6 @@ export const api = {
     postJSON('/api/auction/swipe/confirm-buy', { wallet, signature }),
   claimPrediction: (wallet: string) => postJSON('/api/auction/claim-prediction', { wallet }),
 
+  getMyArt: (wallet: string) => fetchJSON(`/api/auction/my-art?wallet=${wallet}`),
   getMyBids: (wallet: string) => USE_MOCK ? mockApi.getMyBids(wallet) : fetchJSON(`/api/auction/bids?wallet=${wallet}`),
 };
