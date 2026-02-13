@@ -316,10 +316,11 @@ async function main() {
     const epochInfo = await api('GET', '/auction/epoch');
     const epochId = epochInfo.epoch?.id;
     if (epochId) {
-      // Set start_time to 10 minutes ago so duration (300s) is exceeded
+      // Set start_time to 10 minutes ago AND duration to 300s so endEpoch triggers
       const pastTime = new Date(Date.now() - 600_000).toISOString();
       await supabasePatch('auction_epochs', `id=eq.${epochId}`, {
         start_time: pastTime,
+        duration_seconds: 300,
       });
       console.log('  Set epoch start_time to past, calling endEpoch via crank...');
 

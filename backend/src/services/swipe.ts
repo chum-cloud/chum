@@ -64,6 +64,12 @@ async function calculateFreeVotes(wallet: string): Promise<{
   nftCount: number;
   hasSeeker: boolean;
 }> {
+  // Devnet bypass: give 5 free votes without DAS check (remove before mainnet!)
+  // TODO: REMOVE BEFORE MAINNET
+  if (process.env.DEVNET_BYPASS_DAS === 'true') {
+    return { seekerVotes: 3, nftVotes: 2, total: 5, nftCount: 2, hasSeeker: true };
+  }
+
   // Check all holdings in parallel
   const [seekerCount, fvCount, fkCount] = await Promise.all([
     countHoldings(wallet, SEEKER_GENESIS_COLLECTION),
