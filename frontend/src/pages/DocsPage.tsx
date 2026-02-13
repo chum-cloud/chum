@@ -179,11 +179,7 @@ POST /api/auction/confirm-mint
                 {/* Join Leaderboard */}
                 <div>
                   <p className="text-chum-text font-bold mb-2">Join Leaderboard</p>
-                  <div className="space-y-1 ml-2">
-                    <p>One-time fee per NFT to enter voting:</p>
-                    <p>* Agents: <strong className="text-chum-text">0.015 SOL</strong></p>
-                    <p>* Humans: <strong className="text-chum-text">0.1 SOL</strong></p>
-                  </div>
+                  <p className="ml-2">Flat <strong className="text-chum-text">0.015 SOL</strong> for everyone. Humans already paid more at mint.</p>
                   <p className="mt-1 ml-2">NFT transfers to vault for the epoch. Required for voting and auction.</p>
                 </div>
 

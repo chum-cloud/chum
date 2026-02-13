@@ -39,8 +39,7 @@ const AGENT_TIER_SIZE = 10;          // Every 10 mints, price goes up
 const AGENT_TIER_STEP = 15_000_000;  // +0.015 SOL per tier
 const AGENT_RESET_MS = 60 * 60 * 1000; // 1 hour cooldown resets count
 const HUMAN_MINT_FEE = 100_000_000; // 0.1 SOL flat, always
-const AGENT_JOIN_FEE = 15_000_000;  // 0.015 SOL (join-voting is flat)
-const HUMAN_JOIN_FEE = 100_000_000; // 0.1 SOL
+const JOIN_FEE = 15_000_000;        // 0.015 SOL flat for everyone
 
 /**
  * Calculate escalating agent mint fee based on wallet's recent mint history.
@@ -291,33 +290,22 @@ router.post('/auction/mint/confirm', async (req, res) => {
 /**
  * POST /api/auction/join
  * Join voting: transfer NFT to vault, pay join fee.
- * Body: { creatorWallet, mintAddress, challengeId?, answer? }
- * With valid challenge: 0.015 SOL. Without: 0.1 SOL.
+ * Body: { creatorWallet, mintAddress }
+ * Flat 0.015 SOL for everyone (humans already paid more at mint).
  */
 router.post('/auction/join', async (req, res) => {
   try {
-    const { creatorWallet, mintAddress, challengeId, answer } = req.body;
+    const { creatorWallet, mintAddress } = req.body;
     if (!creatorWallet || !mintAddress) {
       return res.status(400).json({ error: 'creatorWallet and mintAddress are required' });
     }
 
-    let fee = HUMAN_JOIN_FEE;
-    let isAgent = false;
-    if (challengeId && answer !== undefined) {
-      const v = verifyChallenge(creatorWallet, challengeId, answer);
-      if (v.valid) {
-        fee = AGENT_JOIN_FEE;
-        isAgent = true;
-      }
-    }
-
-    const result = await joinVoting(creatorWallet, mintAddress, fee);
+    const result = await joinVoting(creatorWallet, mintAddress, JOIN_FEE);
     res.json({
       success: true,
       transaction: result.transaction,
-      fee,
-      isAgent,
-      message: `Sign to join voting (${fee / 1e9} SOL)`,
+      fee: JOIN_FEE,
+      message: `Sign to join voting (${JOIN_FEE / 1e9} SOL)`,
     });
   } catch (error: any) {
     console.error('[AUCTION] Join failed:', error.message);
@@ -560,8 +548,7 @@ router.get('/auction/config', async (_req, res) => {
         ...data,
         agent_mint_fee: AGENT_BASE_FEE,
         human_mint_fee: HUMAN_MINT_FEE,
-        agent_join_fee: AGENT_JOIN_FEE,
-        human_join_fee: HUMAN_JOIN_FEE,
+        join_fee: JOIN_FEE,
       },
     });
   } catch (error: any) {
