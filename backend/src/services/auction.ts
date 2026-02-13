@@ -267,14 +267,12 @@ export async function joinVoting(
   const collection = await fetchCollectionV1(u, publicKey(cfg.collection_address));
 
   // Build transfer: user → vault
-  // Owner (user) must be the authority — use noopSigner as placeholder,
-  // user's real signature comes when they sign the serialized tx on frontend
-  const ownerSigner = createNoopSigner(publicKey(creatorWallet));
+  // PermanentTransferDelegate on collection allows update authority (vault) to transfer
+  // So vault (umi.identity) is the authority — no need for user to sign transfer
   const transferBuilder = transfer(u, {
     asset: publicKey(mintAddress) as any,
     collection: collection as any,
     newOwner: u.identity.publicKey, // vault
-    authority: ownerSigner,
   });
 
   // Add join fee: user → treasury (feeOverride for agent pricing)

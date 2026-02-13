@@ -49,7 +49,9 @@ async function main() {
 
   // Step 1: Mint
   console.log('\n--- MINT ---');
-  const mintRes = await post('/api/auction/mint', { wallet });
+  // Need a URI for the NFT metadata - use a pool piece
+  const poolUri = 'https://akkhgcmmgzrianbdfijt.supabase.co/storage/v1/object/public/art-pool/madlads-D6R2bm5P-1770950009.png';
+  const mintRes = await post('/api/auction/mint', { creatorWallet: wallet, name: 'CHUM: Test #9999', uri: poolUri });
   console.log('Mint tx received, asset:', mintRes.assetAddress);
   
   // Deserialize, sign, send
@@ -58,10 +60,11 @@ async function main() {
   mintTx.sign([authority]);
   const mintSig = await connection.sendRawTransaction(mintTx.serialize(), { skipPreflight: true });
   console.log('Mint sig:', mintSig);
-  await new Promise(r => setTimeout(r, 5000));
+  console.log('Waiting 15s for confirmation...');
+  await new Promise(r => setTimeout(r, 15000));
 
   // Confirm mint
-  const confirmRes = await post('/api/auction/confirm-mint', { wallet, signature: mintSig });
+  const confirmRes = await post('/api/auction/mint/confirm', { assetAddress: mintRes.assetAddress, signature: mintSig });
   console.log('Confirm mint:', confirmRes);
 
   const mintAddress = mintRes.assetAddress;
@@ -69,7 +72,7 @@ async function main() {
   // Step 2: Join voting
   console.log('\n--- JOIN VOTING ---');
   try {
-    const joinRes = await post('/api/auction/join-voting', { wallet, mintAddress });
+    const joinRes = await post('/api/auction/join', { creatorWallet: wallet, mintAddress });
     console.log('Join tx received');
     
     const joinTxBytes = Buffer.from(joinRes.transaction, 'base64');
@@ -79,7 +82,7 @@ async function main() {
     console.log('Join sig:', joinSig);
     await new Promise(r => setTimeout(r, 5000));
 
-    const confirmJoinRes = await post('/api/auction/confirm-join', { wallet, signature: joinSig, mintAddress });
+    const confirmJoinRes = await post('/api/auction/join/confirm', { creatorWallet: wallet, signature: joinSig, mintAddress });
     console.log('Confirm join:', confirmJoinRes);
     console.log('\n✅ JOIN VOTING: PASS');
   } catch (err: any) {

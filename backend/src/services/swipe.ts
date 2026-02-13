@@ -41,7 +41,7 @@ function getAuthorityKeypair(): Keypair {
 const SEEKER_GENESIS_COLLECTION = process.env.SEEKER_GENESIS_COLLECTION || 'PLACEHOLDER_SEEKER_COLLECTION';
 // TODO: Swap to mainnet collection addresses before launch
 const FELLOW_VILLAINS_COLLECTION = 'EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7'; // mainnet
-const FOUNDER_KEY_COLLECTION = '4RRRzZ7zmLbL6fMNsAujGgz3XnZabUSSEPEWSCwmZxqz'; // TODO: devnet — swap to mainnet collection
+const FOUNDER_KEY_COLLECTION = 'EJQ2PEDdLyijY8VnqJ5jqg4TUmKpQLjiZatdc5qhRMcv'; // TODO: devnet v2 — swap to mainnet collection
 const SEEKER_FREE_VOTES = 3;
 const VOTE_PACK_PRICE_LAMPORTS = 20_000_000; // 0.02 SOL per vote pack (fixed)
 const VOTE_PACK_SIZE = 10;
