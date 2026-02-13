@@ -4,6 +4,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { api } from '../lib/api';
 import { truncateWallet } from '../lib/tx';
+import { useVoteBalance } from '../lib/VoteBalanceContext';
 import type { EpochData, AuctionData, SwipeStats, SwipeRemaining } from '../lib/types';
 
 export default function Header() {
@@ -55,6 +56,8 @@ export default function Header() {
   const timeStr = `${h}h ${String(m).padStart(2, '0')}m left`;
 
   const claiming = false;
+  const voteBalance = useVoteBalance();
+  const [showVoteTooltip, setShowVoteTooltip] = useState(false);
 
   return (
     <>
@@ -68,6 +71,55 @@ export default function Header() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {/* Vote balance badge */}
+          {wallet && (
+            <div className="relative">
+              <button
+                onClick={() => setShowVoteTooltip(!showVoteTooltip)}
+                className={`px-2 py-1 border border-chum-border font-mono text-xs transition-colors ${
+                  voteBalance.total > 0
+                    ? 'text-[#33ff33] border-[#33ff33]/30 hover:bg-[#33ff33]/10'
+                    : 'text-chum-muted hover:text-chum-text'
+                }`}
+              >
+                ▲ {voteBalance.total}
+              </button>
+              {showVoteTooltip && (
+                <div
+                  className="absolute right-0 top-full mt-1 z-50 bg-chum-bg border border-chum-border p-3 min-w-[200px] shadow-lg"
+                  onClick={() => setShowVoteTooltip(false)}
+                >
+                  <p className="font-mono text-[10px] text-chum-muted uppercase tracking-widest mb-2">Vote Balance</p>
+                  <div className="space-y-1 font-mono text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-chum-muted">Free</span>
+                      <span className="text-chum-text">{voteBalance.freeRemaining}</span>
+                    </div>
+                    {voteBalance.hasSeeker && (
+                      <div className="flex justify-between text-[10px]">
+                        <span className="text-chum-muted ml-2">Seeker</span>
+                        <span className="text-chum-muted">3</span>
+                      </div>
+                    )}
+                    {voteBalance.nftCount > 0 && (
+                      <div className="flex justify-between text-[10px]">
+                        <span className="text-chum-muted ml-2">NFTs ({voteBalance.nftCount})</span>
+                        <span className="text-chum-muted">{voteBalance.nftCount}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-chum-muted">Paid packs</span>
+                      <span className="text-chum-text">{voteBalance.paidRemaining}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-chum-border/30 pt-1 mt-1">
+                      <span className="text-chum-text font-bold">Total</span>
+                      <span className="text-chum-text font-bold">{voteBalance.total}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {wallet && (
             <button
               onClick={() => navigate('/profile')}

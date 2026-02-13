@@ -349,7 +349,8 @@ export async function voteFree(
   voterWallet: string,
   candidateMint: string,
   epochNumber?: number,
-): Promise<{ success: boolean; totalVotes: number }> {
+  numVotes: number = 1,
+): Promise<{ success: boolean; totalVotes: number; votesUsed: number }> {
   const cfg = await getConfig();
   if (cfg.paused) throw new Error('Auction system is paused');
 
@@ -371,8 +372,8 @@ export async function voteFree(
     throw new Error('Must hold a Fellow Villains NFT or Founder Key to vote for free');
   }
 
-  // Insert free vote (unique constraint will reject duplicates)
-  const { error: voteErr } = await supabase.from('art_votes').insert({
+  // Insert free votes (bulk)
+  const votes = Array.from({ length: numVotes }, (_, i) => ({
     voter_wallet: voterWallet,
     candidate_mint: candidateMint,
     epoch_number: epNum,
@@ -380,7 +381,9 @@ export async function voteFree(
     is_paid: false,
     cost_lamports: 0,
     vote_type: 'free',
-  });
+  }));
+
+  const { error: voteErr } = await supabase.from('art_votes').insert(votes);
 
   if (voteErr) {
     if (voteErr.message.includes('idx_free_vote_unique') || voteErr.message.includes('duplicate')) {
@@ -390,13 +393,13 @@ export async function voteFree(
   }
 
   // Increment vote count on candidate
-  const newVotes = (candidate.votes || 0) + 1;
+  const newVotes = (candidate.votes || 0) + numVotes;
   await supabase
     .from('art_candidates')
     .update({ votes: newVotes })
     .eq('mint_address', candidateMint);
 
-  return { success: true, totalVotes: newVotes };
+  return { success: true, totalVotes: newVotes, votesUsed: numVotes };
 }
 
 /**

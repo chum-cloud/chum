@@ -40,10 +40,10 @@ export const api = {
   confirmJoin: (wallet: string, signature: string, mintAddress: string) =>
     postJSON('/api/auction/confirm-join', { wallet, signature, mintAddress }),
 
-  voteFree: (wallet: string, candidateMint: string) =>
-    postJSON('/api/auction/vote-free', { wallet, candidateMint }),
-  votePaid: (wallet: string, candidateMint: string) =>
-    postJSON('/api/auction/vote-paid', { wallet, candidateMint }),
+  voteFree: (wallet: string, candidateMint: string, numVotes = 1) =>
+    postJSON('/api/auction/vote', { voterWallet: wallet, candidateMint, numVotes, paid: false }),
+  votePaid: (wallet: string, candidateMint: string, numVotes = 1) =>
+    postJSON('/api/auction/vote', { voterWallet: wallet, candidateMint, numVotes, paid: true }),
   confirmVote: (wallet: string, signature: string) =>
     postJSON('/api/auction/confirm-vote', { wallet, signature }),
 

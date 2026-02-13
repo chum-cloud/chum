@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import BottomNav from './components/BottomNav';
+import { VoteBalanceProvider } from './lib/VoteBalanceContext';
 import MintPage from './pages/MintPage';
 import VotePage from './pages/VotePage';
 import SwipePage from './pages/SwipePage';
@@ -12,6 +13,7 @@ import PoolPreviewPage from './pages/PoolPreviewPage';
 
 export default function App() {
   return (
+    <VoteBalanceProvider>
     <div className="min-h-screen bg-chum-bg text-chum-text">
       <Routes>
         <Route path="/" element={<MintPage />} />
@@ -27,5 +29,6 @@ export default function App() {
       </Routes>
       <BottomNav />
     </div>
+    </VoteBalanceProvider>
   );
 }

@@ -4,6 +4,7 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import Header from '../components/Header';
 import { api } from '../lib/api';
 import { signAndSend, truncateWallet } from '../lib/tx';
+import { useVoteBalance } from '../lib/VoteBalanceContext';
 import type { Candidate, EpochData } from '../lib/types';
 
 type Tab = 'hot' | 'trending' | 'new';
@@ -20,6 +21,8 @@ export default function VotePage() {
   const [loading, setLoading] = useState(true);
   const [epoch, setEpoch] = useState<EpochData | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [voteSelector, setVoteSelector] = useState<string | null>(null); // mint address of open selector
+  const voteBalance = useVoteBalance();
 
   useEffect(() => {
     Promise.all([
@@ -47,24 +50,43 @@ export default function VotePage() {
 
   const totalVotes = candidates.reduce((sum, c) => sum + (c.votes || 0), 0);
 
-  const handleVote = async (e: React.MouseEvent, mint: string) => {
+  const handleBulkVote = async (e: React.MouseEvent, mint: string, numVotes: number) => {
     e.stopPropagation();
-    if (!wallet || !signTransaction || votedMints.has(mint) || votingMint) return;
+    if (!wallet || !signTransaction || votingMint) return;
     setVotingMint(mint);
+    setVoteSelector(null);
     try {
-      const result = await api.votePaid(wallet, mint);
-      if (result.transaction) {
-        const sig = await signAndSend(result.transaction, signTransaction, connection);
-        await api.confirmVote(wallet, sig);
+      // Use free votes first, then paid
+      const freeToUse = Math.min(numVotes, voteBalance.freeRemaining);
+      const paidToUse = numVotes - freeToUse;
+
+      if (freeToUse > 0) {
+        await api.voteFree(wallet, mint, freeToUse);
       }
+      if (paidToUse > 0) {
+        const result = await api.votePaid(wallet, mint, paidToUse);
+        if (result.transaction) {
+          const sig = await signAndSend(result.transaction, signTransaction, connection);
+          await api.confirmVote(wallet, sig);
+        }
+      }
+
       setVotedMints((prev) => new Set(prev).add(mint));
       setCandidates((prev) =>
-        prev.map((c) => c.mint_address === mint ? { ...c, votes: c.votes + 1 } : c)
+        prev.map((c) => c.mint_address === mint ? { ...c, votes: c.votes + numVotes } : c)
       );
+      voteBalance.refresh();
     } catch (err) {
       console.error('Vote failed:', err);
     }
     setVotingMint(null);
+  };
+
+  const voteOptions = (mint: string) => {
+    const remaining = voteBalance.total;
+    const opts = [1, 3, 5].filter(n => n <= remaining);
+    if (remaining > 5) opts.push(remaining);
+    return opts;
   };
 
   const epochEndTime = epoch?.end_time ? new Date(epoch.end_time).getTime() : 0;
@@ -135,9 +157,17 @@ export default function VotePage() {
                         <p className="font-mono text-xs text-chum-text truncate">
                           {c.name || `CHUM #${c.mint_address.slice(-4)}`}
                         </p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 relative">
                           <button
-                            onClick={(e) => handleVote(e, c.mint_address)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!wallet || voted || isVoting) return;
+                              if (voteBalance.total <= 1) {
+                                handleBulkVote(e, c.mint_address, 1);
+                              } else {
+                                setVoteSelector(voteSelector === c.mint_address ? null : c.mint_address);
+                              }
+                            }}
                             disabled={voted || isVoting || !wallet}
                             className={`font-mono text-xs px-1.5 py-0.5 transition-colors ${
                               voted
@@ -146,8 +176,22 @@ export default function VotePage() {
                             } ${isVoting ? 'opacity-50' : ''} ${!wallet ? 'opacity-30 cursor-default' : ''}`}
                             style={{ borderRadius: 0 }}
                           >
-                            ▲ {c.votes || 0}
+                            {isVoting ? '...' : `▲ ${c.votes || 0}`}
                           </button>
+                          {/* Bulk vote selector */}
+                          {voteSelector === c.mint_address && (
+                            <div className="absolute left-0 top-full mt-1 z-40 bg-chum-bg border border-chum-border shadow-lg flex gap-0" onClick={e => e.stopPropagation()}>
+                              {voteOptions(c.mint_address).map(n => (
+                                <button
+                                  key={n}
+                                  onClick={(e) => handleBulkVote(e, c.mint_address, n)}
+                                  className="px-2 py-1 font-mono text-[10px] text-[#33ff33] hover:bg-[#33ff33] hover:text-black border-r border-chum-border/30 last:border-r-0 transition-colors"
+                                >
+                                  {n === voteBalance.total && n > 5 ? `ALL (${n})` : `+${n}`}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           {(c.agent_votes || 0) > 0 && (
                             <span className="font-mono text-[10px] text-chum-muted">
                               AGT · {c.agent_votes}

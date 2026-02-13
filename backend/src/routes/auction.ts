@@ -356,11 +356,12 @@ router.post('/auction/vote', async (req, res) => {
       });
     }
 
-    const result = await voteFree(voterWallet, candidateMint);
+    const result = await voteFree(voterWallet, candidateMint, undefined, numVotes);
     res.json({
       success: true,
       totalVotes: result.totalVotes,
-      message: 'Free vote recorded!',
+      votesUsed: result.votesUsed,
+      message: `${numVotes} free vote(s) recorded!`,
     });
   } catch (error: any) {
     console.error('[AUCTION] Vote failed:', error.message);
