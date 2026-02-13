@@ -1,0 +1,330 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { api } from '../lib/api';
+import { truncateWallet } from '../lib/tx';
+import Header from '../components/Header';
+import type { Candidate } from '../lib/types';
+
+interface BidData {
+  mint_address: string;
+  name: string;
+  amount: number;
+  status: 'winning' | 'outbid' | 'won' | 'refunded';
+  timestamp: string;
+}
+
+interface SwipeRemainingFull {
+  freeRemaining: number;
+  freeTotal: number;
+  paidRemaining: number;
+  nftCount: number;
+  eligible: boolean;
+  remaining: number;
+  total: number;
+  hasSeeker?: boolean;
+  unlimited?: boolean;
+}
+
+interface SwipeStatsFull {
+  wins: number;
+  streak: number;
+  earnings: number;
+  totalPredictions: number;
+  claimable?: number;
+}
+
+function shareToX(text: string, url: string) {
+  const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+  window.open(intent, '_blank');
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    voting: 'border-chum-text text-chum-text',
+    auction: 'border-yellow-400 text-yellow-400',
+    won: 'border-green-400 text-green-400',
+    founder_key: 'border-purple-400 text-purple-400',
+  };
+  const labels: Record<string, string> = {
+    voting: 'VOTING',
+    auction: 'IN AUCTION',
+    won: 'WON',
+    founder_key: 'FOUNDER KEY',
+  };
+  return (
+    <span className={`border px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider ${colors[status] || 'border-chum-border text-chum-muted'}`}>
+      {labels[status] || status.toUpperCase()}
+    </span>
+  );
+}
+
+function BidStatusBadge({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    winning: 'text-green-400',
+    outbid: 'text-red-400',
+    won: 'text-green-400',
+    refunded: 'text-chum-muted',
+  };
+  return (
+    <span className={`text-[10px] font-mono uppercase tracking-wider ${colors[status] || 'text-chum-muted'}`}>
+      {status.toUpperCase()}
+    </span>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="border-b border-chum-border pb-4 mb-4">
+      <h2 className="font-mono text-xs uppercase tracking-widest text-chum-muted mb-3">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+export default function ProfilePage() {
+  const { wallet: paramWallet } = useParams<{ wallet: string }>();
+  const { publicKey } = useWallet();
+  const connectedWallet = publicKey?.toBase58() || '';
+  const navigate = useNavigate();
+
+  const profileWallet = paramWallet || connectedWallet;
+  const isOwnProfile = profileWallet === connectedWallet && !!connectedWallet;
+
+  const [allCandidates, setAllCandidates] = useState<Candidate[]>([]);
+  const [stats, setStats] = useState<SwipeStatsFull | null>(null);
+  const [remaining, setRemaining] = useState<SwipeRemainingFull | null>(null);
+  const [bids, setBids] = useState<BidData[]>([]);
+  const [claiming, setClaiming] = useState(false);
+  const [claimMsg, setClaimMsg] = useState('');
+
+  const myArt = allCandidates.filter((c) => c.creator_wallet === profileWallet);
+  const totalVotesReceived = myArt.reduce((sum, c) => sum + (c.votes || 0), 0);
+
+  const load = useCallback(async () => {
+    if (!profileWallet) return;
+    try {
+      const candidates = await api.getCandidates().catch(() => []);
+      const list: Candidate[] = (candidates as any)?.candidates || candidates as Candidate[] || [];
+      setAllCandidates(list);
+
+      if (isOwnProfile) {
+        const [s, r, b] = await Promise.all([
+          api.getSwipeStats(connectedWallet).catch(() => null),
+          api.getSwipeRemaining(connectedWallet).catch(() => null),
+          api.getMyBids(connectedWallet).catch(() => []),
+        ]);
+        if (s) setStats(s as SwipeStatsFull);
+        if (r) setRemaining(r as SwipeRemainingFull);
+        setBids(b as BidData[]);
+      }
+    } catch { /* ignore */ }
+  }, [profileWallet, isOwnProfile, connectedWallet]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!paramWallet && connectedWallet) {
+      navigate(`/profile/${connectedWallet}`, { replace: true });
+    }
+  }, [paramWallet, connectedWallet, navigate]);
+
+  if (!profileWallet) {
+    return (
+      <>
+        <Header />
+        <div className="max-w-[480px] md:max-w-5xl mx-auto px-4 md:px-8 py-12 text-center">
+          <p className="font-mono text-sm text-chum-muted mb-6">Connect wallet to view profile</p>
+          <WalletMultiButton />
+        </div>
+      </>
+    );
+  }
+
+  const siteUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
+  const handleClaim = async () => {
+    setClaiming(true);
+    setClaimMsg('');
+    try {
+      await api.claimPrediction(connectedWallet);
+      setClaimMsg('Claimed');
+      load();
+    } catch (e: unknown) {
+      setClaimMsg(e instanceof Error ? e.message : 'Failed');
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  return (
+    <>
+      <Header />
+      <div className="max-w-[480px] md:max-w-5xl mx-auto px-4 md:px-8 py-4 pb-24 overflow-y-auto">
+        {/* Wallet + share */}
+        <div className="flex items-center justify-between mb-6">
+          <span className="font-mono text-sm text-chum-text">{truncateWallet(profileWallet)}</span>
+          <button
+            onClick={() => shareToX('CHUM profile', `${siteUrl}/profile/${profileWallet}`)}
+            className="border border-chum-border px-3 min-h-[32px] font-mono text-[10px] uppercase tracking-wider text-chum-muted hover:text-chum-text transition-colors"
+          >
+            Share to X
+          </button>
+        </div>
+
+        {/* Desktop: stats sidebar + art. Mobile: stacked */}
+        <div className="md:flex md:gap-6">
+          {/* Stats sidebar on desktop */}
+          <div className="md:w-[280px] md:shrink-0">
+            <Section title="Stats">
+              <div className="grid grid-cols-3 md:grid-cols-1 gap-2">
+                <div className="border border-chum-border p-2 text-center">
+                  <div className="font-mono text-sm text-chum-text">{myArt.length}</div>
+                  <div className="font-mono text-[10px] text-chum-muted">ART MINTED</div>
+                </div>
+                <div className="border border-chum-border p-2 text-center">
+                  <div className="font-mono text-sm" style={{ color: '#33ff33' }}>{totalVotesReceived}</div>
+                  <div className="font-mono text-[10px] text-chum-muted">TOTAL VOTES</div>
+                </div>
+                <div className="border border-chum-border p-2 text-center">
+                  <div className="font-mono text-sm text-chum-text">{remaining?.nftCount ?? '--'}</div>
+                  <div className="font-mono text-[10px] text-chum-muted">NFTS HELD</div>
+                </div>
+              </div>
+            </Section>
+          </div>
+
+          {/* Art grid */}
+          <div className="flex-1">
+            <Section title="Art">
+              {myArt.length === 0 ? (
+                <p className="font-mono text-xs text-chum-muted">No art submitted</p>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {myArt.map((art) => (
+                    <div
+                      key={art.mint_address}
+                      className="border border-chum-border cursor-pointer hover:border-chum-text transition-colors"
+                      onClick={() => navigate(`/art/${art.mint_address}`)}
+                    >
+                      <div className="w-full aspect-square bg-black overflow-hidden">
+                        {art.animation_url ? (
+                          <video
+                            src={art.animation_url}
+                            className="w-full h-full object-cover"
+                            muted loop autoPlay playsInline
+                          />
+                        ) : art.image_url ? (
+                          <img src={art.image_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-chum-surface" />
+                        )}
+                      </div>
+                      <div className="p-2">
+                        <p className="font-mono text-xs text-chum-text truncate">{art.name}</p>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs" style={{ color: '#33ff33' }}>▲ {art.votes || 0}</span>
+                          {art.agent_votes ? <span className="font-mono text-[10px] text-chum-muted">AGT · {art.agent_votes}</span> : null}
+                        </div>
+                        <StatusBadge status={art.status || 'voting'} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Section>
+          </div>
+        </div>
+
+        {/* Private sections -- only for own profile */}
+        {isOwnProfile && (
+          <>
+            <Section title="My Votes This Epoch">
+              <p className="font-mono text-xs text-chum-muted">Vote tracking coming soon</p>
+            </Section>
+
+            <Section title="My Predictions">
+              {stats ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="border border-chum-border p-2 text-center">
+                      <div className="font-mono text-sm text-chum-text">{stats.wins}/{stats.totalPredictions}</div>
+                      <div className="font-mono text-[10px] text-chum-muted">CORRECT</div>
+                    </div>
+                    <div className="border border-chum-border p-2 text-center">
+                      <div className="font-mono text-sm text-chum-text">{stats.streak}</div>
+                      <div className="font-mono text-[10px] text-chum-muted">STREAK</div>
+                    </div>
+                    <div className="border border-chum-border p-2 text-center">
+                      <div className="font-mono text-sm text-chum-text">{stats.earnings}</div>
+                      <div className="font-mono text-[10px] text-chum-muted">SOL EARNED</div>
+                    </div>
+                  </div>
+                  {stats.claimable !== undefined && stats.claimable > 0 && (
+                    <div className="font-mono text-xs text-chum-text">
+                      Claimable: {stats.claimable} SOL
+                    </div>
+                  )}
+                  <button
+                    onClick={handleClaim}
+                    disabled={claiming}
+                    className="w-full min-h-[48px] border border-chum-border text-chum-text font-mono text-xs uppercase tracking-wider hover:bg-chum-text hover:text-chum-bg transition-colors disabled:opacity-50"
+                  >
+                    {claiming ? 'Claiming...' : 'Claim Prediction Rewards'}
+                  </button>
+                  {claimMsg && <div className="font-mono text-[10px] text-chum-muted">{claimMsg}</div>}
+                </div>
+              ) : (
+                <p className="font-mono text-xs text-chum-muted">No prediction data</p>
+              )}
+            </Section>
+
+            <Section title="My Bids">
+              {bids.length === 0 ? (
+                <p className="font-mono text-xs text-chum-muted">No bids</p>
+              ) : (
+                <div className="space-y-2">
+                  {bids.map((b, i) => (
+                    <div key={i} className="flex items-center justify-between border border-chum-border p-2">
+                      <div>
+                        <div className="font-mono text-xs text-chum-text">{b.name}</div>
+                        <div className="font-mono text-[10px] text-chum-muted">
+                          {(b.amount / 1e9).toFixed(2)} SOL
+                        </div>
+                      </div>
+                      <BidStatusBadge status={b.status} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Section>
+
+            <Section title="Vote Packs">
+              {remaining ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs text-chum-text">
+                      Free: {remaining.freeRemaining}/{remaining.freeTotal}
+                    </span>
+                    <span className="font-mono text-xs text-chum-text">
+                      Paid: {remaining.paidRemaining ?? 0}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => navigate('/judge')}
+                    className="w-full min-h-[48px] border border-chum-border text-chum-text font-mono text-xs uppercase tracking-wider hover:bg-chum-text hover:text-chum-bg transition-colors"
+                  >
+                    Buy More Votes
+                  </button>
+                </div>
+              ) : (
+                <p className="font-mono text-xs text-chum-muted">Loading...</p>
+              )}
+            </Section>
+          </>
+        )}
+      </div>
+    </>
+  );
+}

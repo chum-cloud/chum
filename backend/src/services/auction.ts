@@ -14,6 +14,7 @@ import {
   keypairIdentity,
   publicKey,
   transactionBuilder,
+  createNoopSigner,
   type Umi,
   type KeypairSigner,
 } from '@metaplex-foundation/umi';
@@ -266,10 +267,14 @@ export async function joinVoting(
   const collection = await fetchCollectionV1(u, publicKey(cfg.collection_address));
 
   // Build transfer: user → vault
+  // Owner (user) must be the authority — use noopSigner as placeholder,
+  // user's real signature comes when they sign the serialized tx on frontend
+  const ownerSigner = createNoopSigner(publicKey(creatorWallet));
   const transferBuilder = transfer(u, {
     asset: publicKey(mintAddress) as any,
     collection: collection as any,
     newOwner: u.identity.publicKey, // vault
+    authority: ownerSigner,
   });
 
   // Add join fee: user → treasury (feeOverride for agent pricing)
@@ -289,8 +294,7 @@ export async function joinVoting(
   const combined = transferBuilder.add(feeBuilder);
   const tx = await combined.buildWithLatestBlockhash(u);
 
-  // Vault doesn't need to sign the transfer (user is current owner)
-  // But we sign anyway in case collection authority is needed
+  // Vault signs as payer; user counter-signs as transfer authority on frontend
   const signedTx = await u.identity.signTransaction(tx);
 
   // Do NOT insert candidate here — wait for confirmJoin after user signs

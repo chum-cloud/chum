@@ -137,7 +137,12 @@ export default function ArtDetailPage() {
           ) : null}
           <div className="flex items-center justify-between font-mono text-xs">
             <span className="text-chum-muted">Creator</span>
-            <span className="text-chum-accent-dim">{truncateWallet(art.creator_wallet)}</span>
+            <button
+              onClick={() => navigate(`/profile/${art.creator_wallet}`)}
+              className="text-chum-accent-dim hover:text-chum-text transition-colors"
+            >
+              {truncateWallet(art.creator_wallet)}
+            </button>
           </div>
           <div className="flex items-center justify-between font-mono text-xs">
             <span className="text-chum-muted">Status</span>

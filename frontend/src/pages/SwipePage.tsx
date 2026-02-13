@@ -59,7 +59,7 @@ export default function SwipePage() {
 
   useEffect(() => { fetchNext(); }, [fetchNext]);
 
-  const doSwipe = async (direction: 'left' | 'right') => {
+  const doSwipe = useCallback(async (direction: 'left' | 'right') => {
     if (!candidate || swiping) return;
     setSwiping(true);
     setExitDir(direction);
@@ -75,11 +75,25 @@ export default function SwipePage() {
         console.error('Swipe failed:', err instanceof Error ? err.message : err);
       }
     }
-    // Without wallet: just browse, no vote recorded
 
     setSwiping(false);
     fetchNext();
-  };
+  }, [candidate, swiping, wallet, fetchNext]);
+
+  // Keyboard shortcuts for desktop
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        doSwipe('left');
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        doSwipe('right');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [doSwipe]);
 
   const buyVotes = async () => {
     if (!publicKey || !signTransaction) return;
@@ -181,59 +195,107 @@ export default function SwipePage() {
           </div>
         ) : candidate ? (
           <>
-            <div
-              ref={cardRef}
-              className="w-full max-w-[340px] overflow-hidden bg-chum-border/20 border border-chum-border shadow-lg select-none cursor-grab active:cursor-grabbing touch-none"
-              style={{
-                transition: 'transform 0.3s ease',
-                transform: exitDir
-                  ? `translateX(${exitDir === 'left' ? '-120%' : '120%'}) rotate(${exitDir === 'left' ? '-15' : '15'}deg)`
-                  : 'translateX(0) rotate(0deg)',
-              }}
-              onPointerDown={onPointerDown}
-              onPointerMove={onPointerMove}
-              onPointerUp={onPointerUp}
-            >
-              <div className="aspect-square w-full bg-black flex items-center justify-center">
-                {candidate.animation_url ? (
-                  <video src={candidate.animation_url} autoPlay loop muted playsInline className="w-full h-full object-contain" />
-                ) : candidate.image_url ? (
-                  <img src={candidate.image_url} alt={candidate.name} className="w-full h-full object-contain" draggable={false} />
-                ) : (
-                  <span className="text-chum-muted font-mono text-sm">No preview</span>
+            {/* Desktop: 3-column layout (stats | card | hints) */}
+            <div className="w-full flex items-start justify-center md:gap-8">
+              {/* Left: stats panel (desktop only) */}
+              <div className="hidden md:flex flex-col items-end justify-center w-[180px] shrink-0 space-y-4 pt-8">
+                {wallet && stats && (
+                  <div className="border border-chum-border p-4 w-full space-y-3">
+                    <h3 className="font-mono text-[10px] text-chum-muted uppercase tracking-widest">Stats</h3>
+                    <div>
+                      <div className="font-mono text-[10px] text-chum-muted">Wins</div>
+                      <div className="font-mono text-sm text-chum-text">{stats.wins}</div>
+                    </div>
+                    <div>
+                      <div className="font-mono text-[10px] text-chum-muted">Streak</div>
+                      <div className="font-mono text-sm text-chum-text">{stats.streak}</div>
+                    </div>
+                    <div>
+                      <div className="font-mono text-[10px] text-chum-muted">SOL Earned</div>
+                      <div className="font-mono text-sm text-chum-text">{stats.earnings ?? 0}</div>
+                    </div>
+                  </div>
+                )}
+                {wallet && remaining && (
+                  <div className="border border-chum-border p-4 w-full">
+                    <div className="font-mono text-[10px] text-chum-muted uppercase">Votes Left</div>
+                    <div className="font-mono text-lg text-chum-text">{remaining.unlimited ? '--' : remaining.remaining}</div>
+                  </div>
                 )}
               </div>
-              <div className="p-3 space-y-1">
-                <p className="font-mono text-sm font-bold truncate">{candidate.name}</p>
-                <p className="font-mono text-xs text-chum-muted">by {truncateWallet(candidate.creator_wallet)}</p>
-                <div className="flex items-center gap-3 font-mono text-xs">
-                  <span style={{ color: '#33ff33' }}>▲ {candidate.votes}</span>
-                  {(candidate.agent_votes || 0) > 0 && (
-                    <span className="text-chum-muted">AGT · {candidate.agent_votes}</span>
-                  )}
+
+              {/* Center: card */}
+              <div className="flex flex-col items-center">
+                <div
+                  ref={cardRef}
+                  className="w-full max-w-[340px] md:w-[500px] md:max-w-[500px] overflow-hidden bg-chum-border/20 border border-chum-border shadow-lg select-none cursor-grab active:cursor-grabbing touch-none"
+                  style={{
+                    transition: 'transform 0.3s ease',
+                    transform: exitDir
+                      ? `translateX(${exitDir === 'left' ? '-120%' : '120%'}) rotate(${exitDir === 'left' ? '-15' : '15'}deg)`
+                      : 'translateX(0) rotate(0deg)',
+                  }}
+                  onPointerDown={onPointerDown}
+                  onPointerMove={onPointerMove}
+                  onPointerUp={onPointerUp}
+                >
+                  <div className="aspect-square w-full bg-black flex items-center justify-center">
+                    {candidate.animation_url ? (
+                      <video src={candidate.animation_url} autoPlay loop muted playsInline className="w-full h-full object-contain" />
+                    ) : candidate.image_url ? (
+                      <img src={candidate.image_url} alt={candidate.name} className="w-full h-full object-contain" draggable={false} />
+                    ) : (
+                      <span className="text-chum-muted font-mono text-sm">No preview</span>
+                    )}
+                  </div>
+                  <div className="p-3 space-y-1">
+                    <p className="font-mono text-sm font-bold truncate">{candidate.name}</p>
+                    <p className="font-mono text-xs text-chum-muted">by {truncateWallet(candidate.creator_wallet)}</p>
+                    <div className="flex items-center gap-3 font-mono text-xs">
+                      <span style={{ color: '#33ff33' }}>▲ {candidate.votes}</span>
+                      {(candidate.agent_votes || 0) > 0 && (
+                        <span className="text-chum-muted">AGT · {candidate.agent_votes}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-6 mt-6">
+                  <button
+                    onClick={() => doSwipe('left')}
+                    disabled={swiping}
+                    className="w-16 h-14 border-2 border-red-500/50 text-red-400 text-2xl font-bold flex items-center justify-center hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                  >
+                    ✗
+                  </button>
+                  <button
+                    onClick={() => doSwipe('right')}
+                    disabled={swiping}
+                    className="w-16 h-14 border-2 border-green-500/50 text-green-400 text-2xl font-bold flex items-center justify-center hover:bg-green-500/10 transition-colors disabled:opacity-50"
+                  >
+                    ✓
+                  </button>
+                </div>
+                <p className="mt-3 font-mono text-[10px] text-chum-muted text-center">
+                  Swipe right = vote yes (green) · Left = skip (no cost)
+                </p>
+                <p className="hidden md:block mt-1 font-mono text-[10px] text-chum-muted text-center">
+                  Keyboard: ArrowRight = vote · ArrowLeft = skip
+                </p>
+              </div>
+
+              {/* Right: direction hints (desktop only) */}
+              <div className="hidden md:flex flex-col items-start justify-center w-[180px] shrink-0 space-y-4 pt-8">
+                <div className="border border-chum-border p-4 w-full text-center">
+                  <div className="font-mono text-xs text-red-400 mb-1">← SKIP</div>
+                  <div className="font-mono text-[10px] text-chum-muted">No cost</div>
+                </div>
+                <div className="border border-chum-border p-4 w-full text-center">
+                  <div className="font-mono text-xs text-green-400 mb-1">VOTE →</div>
+                  <div className="font-mono text-[10px] text-chum-muted">Costs 1 vote</div>
                 </div>
               </div>
             </div>
-
-            <div className="flex gap-6 mt-6">
-              <button
-                onClick={() => doSwipe('left')}
-                disabled={swiping}
-                className="w-16 h-14 border-2 border-red-500/50 text-red-400 text-2xl font-bold flex items-center justify-center hover:bg-red-500/10 transition-colors disabled:opacity-50"
-              >
-                ✗
-              </button>
-              <button
-                onClick={() => doSwipe('right')}
-                disabled={swiping}
-                className="w-16 h-14 border-2 border-green-500/50 text-green-400 text-2xl font-bold flex items-center justify-center hover:bg-green-500/10 transition-colors disabled:opacity-50"
-              >
-                ✓
-              </button>
-            </div>
-            <p className="mt-3 font-mono text-[10px] text-chum-muted text-center">
-              Swipe right = vote yes (green) • Left = skip (no cost)
-            </p>
           </>
         ) : null}
       </div>

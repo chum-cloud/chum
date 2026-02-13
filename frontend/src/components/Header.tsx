@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { api } from '../lib/api';
@@ -8,6 +9,7 @@ import type { EpochData, AuctionData, SwipeStats, SwipeRemaining } from '../lib/
 export default function Header() {
   const { publicKey } = useWallet();
   const wallet = publicKey?.toBase58() || '';
+  const navigate = useNavigate();
   const [epoch, setEpoch] = useState<EpochData | null>(null);
   const [auction, setAuction] = useState<AuctionData | null>(null);
   const [showProfile, setShowProfile] = useState(false);
@@ -68,7 +70,7 @@ export default function Header() {
         <div className="flex items-center gap-2">
           {wallet && (
             <button
-              onClick={() => setShowProfile(!showProfile)}
+              onClick={() => navigate('/profile')}
               className="w-8 h-8 border border-chum-border flex items-center justify-center text-chum-muted hover:text-chum-text transition-colors font-mono text-xs"
             >
               ◉
@@ -80,9 +82,9 @@ export default function Header() {
 
       {/* Profile panel */}
       {showProfile && wallet && (
-        <div className="border-b border-chum-border bg-chum-surface px-4 py-4 max-w-[480px] mx-auto w-full">
+        <div className="border-b border-chum-border bg-chum-surface px-4 py-4 max-w-[480px] md:max-w-5xl mx-auto w-full">
           <div className="flex items-center justify-between mb-3">
-            <span className="font-mono text-xs text-chum-text">{truncateWallet(wallet)}</span>
+            <button onClick={() => { setShowProfile(false); navigate('/profile'); }} className="font-mono text-xs text-chum-text hover:underline">{truncateWallet(wallet)}</button>
             <button onClick={() => setShowProfile(false)} className="text-chum-muted text-xs">✕</button>
           </div>
 

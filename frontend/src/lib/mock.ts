@@ -62,6 +62,8 @@ export const mockApi = {
     remaining: 4,
     total: 6,
   }),
+  getMyBids: async (_wallet: string) => MOCK_BIDS,
+
   getSwipeStats: async () => ({
     wins: 3,
     streak: 2,
@@ -70,4 +72,10 @@ export const mockApi = {
   }),
 };
 
+const MOCK_BIDS = [
+  { mint_address: 'mock001', name: 'CHUM #0001', amount: 450000000, status: 'winning' as const, timestamp: new Date(Date.now() - 30 * 60000).toISOString() },
+  { mint_address: 'mock002', name: 'CHUM #0002', amount: 200000000, status: 'outbid' as const, timestamp: new Date(Date.now() - 120 * 60000).toISOString() },
+];
+
+export { MOCK_BIDS };
 export const USE_MOCK = true;

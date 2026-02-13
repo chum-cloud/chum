@@ -88,7 +88,7 @@ export default function AuctionPage() {
     <div className="flex flex-col min-h-screen pb-[56px]">
       <Header />
 
-      <main className="flex-1 px-4 py-6 max-w-[480px] mx-auto w-full">
+      <main className="flex-1 px-4 md:px-8 py-6 max-w-[480px] md:max-w-5xl mx-auto w-full">
         {/* Countdown */}
         {auction.end_time && (
           <div className="mb-4 text-center">
@@ -101,78 +101,86 @@ export default function AuctionPage() {
         {auction.anti_snipe && (
           <div className="mb-4 text-center">
             <span className="font-mono text-xs text-chum-warning px-3 py-1 border border-chum-warning/30">
-              ⚡ ANTI-SNIPE ACTIVE — Time extended
+              ANTI-SNIPE ACTIVE -- Time extended
             </span>
           </div>
         )}
 
-        {/* Artwork */}
-        <div className="w-full aspect-square bg-chum-surface border border-chum-border overflow-hidden mb-4">
-          <video
-            src={auction.mp4_url || auction.uri || ''}
-            autoPlay loop muted playsInline
-            className="w-full h-full object-cover"
-          />
-        </div>
-
-        {/* Name */}
-        {auction.name && (
-          <p className="font-mono text-sm text-chum-text mb-4">{auction.name}</p>
-        )}
-
-        {/* Current bid info */}
-        <div className="border border-chum-border p-4 mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-mono text-[10px] text-chum-muted uppercase">Current Bid</span>
-            <span className="font-mono text-lg text-chum-text">{auction.current_bid ?? 0} SOL</span>
-          </div>
-          {auction.current_bidder && (
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] text-chum-muted uppercase">Bidder</span>
-              <span className="font-mono text-xs text-chum-accent-dim">{truncateWallet(auction.current_bidder)}</span>
+        {/* Desktop: side by side. Mobile: stacked */}
+        <div className="md:flex md:gap-6">
+          {/* Artwork */}
+          <div className="md:flex-1">
+            <div className="w-full aspect-square bg-chum-surface border border-chum-border overflow-hidden mb-4 md:mb-0">
+              <video
+                src={auction.mp4_url || auction.uri || ''}
+                autoPlay loop muted playsInline
+                className="w-full h-full object-cover"
+              />
             </div>
-          )}
+          </div>
+
+          {/* Bid panel */}
+          <div className="md:w-[360px] md:shrink-0">
+            {/* Name */}
+            {auction.name && (
+              <p className="font-mono text-sm text-chum-text mb-4">{auction.name}</p>
+            )}
+
+            {/* Current bid info */}
+            <div className="border border-chum-border p-4 mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-mono text-[10px] text-chum-muted uppercase">Current Bid</span>
+                <span className="font-mono text-lg text-chum-text">{auction.current_bid ?? 0} SOL</span>
+              </div>
+              {auction.current_bidder && (
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-chum-muted uppercase">Bidder</span>
+                  <span className="font-mono text-xs text-chum-accent-dim">{truncateWallet(auction.current_bidder)}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Bid controls */}
+            {showBidInput ? (
+              <div className="space-y-3">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={bidAmount}
+                  onChange={(e) => setBidAmount(e.target.value)}
+                  placeholder="Bid amount (SOL)"
+                  className="w-full min-h-[48px] bg-chum-surface border border-chum-border text-chum-text font-mono text-sm px-4 outline-none focus:border-chum-text transition-colors"
+                />
+                <button
+                  onClick={placeBid}
+                  disabled={bidding || !publicKey}
+                  className="w-full min-h-[48px] bg-chum-text text-chum-bg font-mono text-sm uppercase tracking-wider hover:bg-chum-accent-dim transition-colors disabled:opacity-40"
+                >
+                  {bidding ? 'PLACING BID...' : 'CONFIRM BID'}
+                </button>
+                <button
+                  onClick={() => { setShowBidInput(false); setError(''); }}
+                  className="w-full font-mono text-xs text-chum-muted underline"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowBidInput(true)}
+                disabled={!publicKey}
+                className="w-full min-h-[48px] border border-chum-border text-chum-text font-mono text-sm uppercase tracking-wider hover:bg-chum-text hover:text-chum-bg transition-colors disabled:opacity-40"
+              >
+                {!publicKey ? 'CONNECT WALLET TO BID' : 'PLACE BID'}
+              </button>
+            )}
+
+            {error && <p className="font-mono text-xs text-chum-danger mt-3 text-center">{error}</p>}
+          </div>
         </div>
 
-        {/* Bid controls */}
-        {showBidInput ? (
-          <div className="space-y-3">
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={bidAmount}
-              onChange={(e) => setBidAmount(e.target.value)}
-              placeholder="Bid amount (SOL)"
-              className="w-full min-h-[48px] bg-chum-surface border border-chum-border text-chum-text font-mono text-sm px-4 outline-none focus:border-chum-text transition-colors"
-            />
-            <button
-              onClick={placeBid}
-              disabled={bidding || !publicKey}
-              className="w-full min-h-[48px] bg-chum-text text-chum-bg font-mono text-sm uppercase tracking-wider hover:bg-chum-accent-dim transition-colors disabled:opacity-40"
-            >
-              {bidding ? 'PLACING BID...' : 'CONFIRM BID'}
-            </button>
-            <button
-              onClick={() => { setShowBidInput(false); setError(''); }}
-              className="w-full font-mono text-xs text-chum-muted underline"
-            >
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setShowBidInput(true)}
-            disabled={!publicKey}
-            className="w-full min-h-[48px] border border-chum-border text-chum-text font-mono text-sm uppercase tracking-wider hover:bg-chum-text hover:text-chum-bg transition-colors disabled:opacity-40"
-          >
-            {!publicKey ? 'CONNECT WALLET TO BID' : 'PLACE BID'}
-          </button>
-        )}
-
-        {error && <p className="font-mono text-xs text-chum-danger mt-3 text-center">{error}</p>}
-
-        {/* Bid history */}
+        {/* Bid history - full width */}
         {auction.bids && auction.bids.length > 0 && (
           <div className="mt-6">
             <p className="font-mono text-[10px] text-chum-muted uppercase tracking-widest mb-3">Bid History</p>
