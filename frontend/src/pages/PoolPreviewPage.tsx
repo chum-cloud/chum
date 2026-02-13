@@ -21,7 +21,7 @@ export default function PoolPreviewPage() {
   const [pieces, setPieces] = useState<PoolPiece[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState<'all' | 'madlads' | 'critters' | 'smb' | 'slimes' | 'boogle' | 'guides'>('all');
+  const [filter, setFilter] = useState<'all' | 'madlads' | 'critters' | 'smb' | 'slimes' | 'boogle' | 'guides' | 'chimpers'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selected, setSelected] = useState<PoolPiece | null>(null);
   const [page, setPage] = useState(0);
@@ -62,6 +62,7 @@ export default function PoolPreviewPage() {
     if (id.startsWith('boogle-') || id.includes('boogle')) return 'boogle';
     if (id.startsWith('hothead-') || id.includes('hothead')) return 'hothead';
     if (id.startsWith('guides-') || id.includes('guides')) return 'guides';
+    if (id.startsWith('chimpers-') || id.includes('chimpers')) return 'chimpers';
     if (id.includes('madlads') || id.includes('Madlads')) return 'madlads';
     if (id.includes('critters') || id.includes('Critters')) return 'critters';
     if (id.includes('SMB') || id.includes('smb')) return 'smb';
@@ -74,6 +75,7 @@ export default function PoolPreviewPage() {
     if (url.includes('boogle')) return 'boogle';
     if (url.includes('hothead')) return 'hothead';
     if (url.includes('guides')) return 'guides';
+    if (url.includes('chimpers')) return 'chimpers';
     return 'unknown';
   };
 
@@ -89,6 +91,7 @@ export default function PoolPreviewPage() {
     slimes: pieces.filter(p => getSource(p) === 'slimes').length,
     boogle: pieces.filter(p => getSource(p) === 'boogle').length,
     guides: pieces.filter(p => getSource(p) === 'guides').length,
+    chimpers: pieces.filter(p => getSource(p) === 'chimpers').length,
   };
 
   if (loading) return (
@@ -115,7 +118,7 @@ export default function PoolPreviewPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-4">
-        {(['all', 'madlads', 'critters', 'smb', 'slimes', 'boogle', 'guides'] as const).map(f => (
+        {(['all', 'madlads', 'critters', 'smb', 'slimes', 'boogle', 'guides', 'chimpers'] as const).map(f => (
           <button
             key={f}
             onClick={() => { setFilter(f); setPage(0); }}
