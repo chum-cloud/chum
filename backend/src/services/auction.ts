@@ -264,41 +264,14 @@ export async function joinVoting(
     throw new Error('NFT is not from the CHUM art collection');
   }
 
-  const collection = await fetchCollectionV1(u, publicKey(cfg.collection_address));
-
-  // Build transfer: user → vault
-  // PermanentTransferDelegate on collection allows update authority (vault) to transfer
-  // So vault (umi.identity) is the authority — no need for user to sign transfer
-  const transferBuilder = transfer(u, {
-    asset: publicKey(mintAddress) as any,
-    collection: collection as any,
-    newOwner: u.identity.publicKey, // vault
-  });
-
-  // Add join fee: user → treasury (feeOverride for agent pricing)
+  // Step 1: Build fee payment tx (user signs this)
   const joinFee = feeOverride ?? Number(cfg.join_fee);
-  const feeIx = SystemProgram.transfer({
-    fromPubkey: new PublicKey(creatorWallet),
-    toPubkey: new PublicKey(cfg.treasury_wallet),
-    lamports: joinFee,
-  });
-  const umiFeeIx = fromWeb3JsInstruction(feeIx);
-  const feeBuilder = transactionBuilder().add({
-    instruction: umiFeeIx,
-    signers: [],
-    bytesCreatedOnChain: 0,
-  });
+  const feeTx = await buildTransferTx(creatorWallet, cfg.treasury_wallet, joinFee);
 
-  const combined = transferBuilder.add(feeBuilder);
-  const tx = await combined.buildWithLatestBlockhash(u);
-
-  // Vault signs as payer; user counter-signs as transfer authority on frontend
-  const signedTx = await u.identity.signTransaction(tx);
-
-  // Do NOT insert candidate here — wait for confirmJoin after user signs
+  // Do NOT insert candidate or transfer NFT here — wait for confirmJoin
 
   return {
-    transaction: serializeUmiTx(signedTx, u),
+    transaction: feeTx,
   };
 }
 
@@ -310,20 +283,35 @@ export async function confirmJoin(
   creatorWallet: string,
   mintAddress: string,
   signature: string,
-): Promise<{ confirmed: boolean; name: string }> {
+): Promise<{ confirmed: boolean; name: string; transferSignature: string }> {
+  // Step 1: Verify the fee payment tx confirmed
   const sig = await connection.confirmTransaction(signature, 'confirmed');
   if (sig.value.err) {
-    throw new Error(`Transaction failed: ${JSON.stringify(sig.value.err)}`);
+    throw new Error(`Fee transaction failed: ${JSON.stringify(sig.value.err)}`);
   }
 
   const u = getUmi();
   const cfg = await getConfig();
   const asset = await fetchAssetV1(u, publicKey(mintAddress));
 
-  // Verify NFT is now owned by our authority (vault)
-  if (asset.owner.toString() !== u.identity.publicKey.toString()) {
-    throw new Error('NFT was not transferred to vault — join not confirmed');
+  // Verify user still owns the NFT
+  if (asset.owner.toString() !== creatorWallet) {
+    throw new Error('You do not own this NFT');
   }
+
+  // Step 2: Server-side NFT transfer using PermanentTransferDelegate
+  // Vault (update authority) can transfer any NFT in the collection without owner signature
+  const collection = await fetchCollectionV1(u, publicKey(cfg.collection_address));
+  const transferBuilder = transfer(u, {
+    asset: publicKey(mintAddress) as any,
+    collection: collection as any,
+    newOwner: u.identity.publicKey, // vault
+    // authority defaults to umi.identity (vault) which has PermanentTransferDelegate
+  });
+
+  const transferResult = await transferBuilder.sendAndConfirm(u);
+  const transferSig = Buffer.from(transferResult.signature).toString('base64');
+  console.log(`[AUCTION] NFT ${mintAddress} transferred to vault: ${transferSig}`);
 
   const epoch = await getCurrentEpoch();
 
@@ -351,7 +339,7 @@ export async function confirmJoin(
     withdrawn: false,
   }, { onConflict: 'mint_address' });
 
-  return { confirmed: true, name: asset.name };
+  return { confirmed: true, name: asset.name, transferSignature: transferSig };
 }
 
 /**
