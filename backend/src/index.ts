@@ -10,7 +10,7 @@ const app = express();
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',')
   : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'];
-app.use(cors({ origin: allowedOrigins }));
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 
 app.get('/api/health', (_req, res) => {

@@ -76,6 +76,16 @@ export default function VotePage() {
   return (
     <div className="flex flex-col min-h-screen pb-[56px]">
       <Header />
+      {/* Marquee ticker */}
+      <div className="w-full overflow-hidden border-b border-chum-border/30 py-1.5">
+        <div className="animate-marquee whitespace-nowrap">
+          <span className="font-mono text-[10px] text-chum-accent-dim">
+            Vote for your favorite art every day &rarr; Winners get auctioned &rarr; Voters who pick the winner split 20% &rarr; Hold a CHUM: Fellow Villains NFT? Your vote counts 2x &rarr;&nbsp;&nbsp;&nbsp;&nbsp;
+            Vote for your favorite art every day &rarr; Winners get auctioned &rarr; Voters who pick the winner split 20% &rarr; Hold a CHUM: Fellow Villains NFT? Your vote counts 2x &rarr;&nbsp;&nbsp;&nbsp;&nbsp;
+          </span>
+        </div>
+      </div>
+
       <main className="flex-1 px-4 md:px-8 py-4 max-w-[480px] md:max-w-5xl mx-auto w-full">
         {/* Tabs */}
         <div className="flex border border-chum-border mb-4">
@@ -190,6 +200,17 @@ export default function VotePage() {
             </div>
           </div>
         )}
+
+        {/* Why vote? */}
+        <div className="mt-8 mb-4 space-y-2">
+          <p className="font-mono text-sm text-chum-text font-bold">Why vote?</p>
+          <div className="space-y-0.5">
+            <p className="font-mono text-[11px] text-chum-muted">Vote for your favorite art every day.</p>
+            <p className="font-mono text-[11px] text-chum-muted">The winning piece gets auctioned.</p>
+            <p className="font-mono text-[11px] text-chum-muted">Voters who picked the winner split 20% of the auction.</p>
+            <p className="font-mono text-[11px] text-chum-muted">Hold a CHUM: Fellow Villain NFT? Your vote counts 2x.</p>
+          </div>
+        </div>
       </main>
     </div>
   );

@@ -220,3 +220,13 @@ body {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+/* Marquee scroll */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  display: inline-block;
+  animation: marquee 30s linear infinite;
+}
