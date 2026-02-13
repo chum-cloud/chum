@@ -64,8 +64,8 @@ async function calculateFreeVotes(wallet: string): Promise<{
   nftCount: number;
   hasSeeker: boolean;
 }> {
-  // Devnet bypass: give 5 free votes without DAS check (remove before mainnet!)
-  // TODO: REMOVE BEFORE MAINNET
+  // ⚠️ DEVNET ONLY — mock free votes for testing without NFT holdings
+  // TODO(MAINNET): REMOVE this block before mainnet launch!
   if (process.env.DEVNET_BYPASS_DAS === 'true') {
     return { seekerVotes: 3, nftVotes: 2, total: 5, nftCount: 2, hasSeeker: true };
   }

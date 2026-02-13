@@ -20,7 +20,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY!;
 const HELIUS_API_KEY = process.env.HELIUS_API_KEY!;
 const RPC_URL = `https://devnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
-const API = 'https://chum-production.up.railway.app/api';
+const API = process.env.E2E_API_URL || 'https://chum-production.up.railway.app/api';
 
 const connection = new Connection(RPC_URL, 'confirmed');
 

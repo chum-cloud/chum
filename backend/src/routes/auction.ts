@@ -397,6 +397,18 @@ router.get('/auction/config', async (_req, res) => {
   }
 });
 
+// DEBUG: Manual settle trigger (remove before mainnet)
+// TODO(MAINNET): REMOVE this endpoint
+router.post('/auction/debug-settle', async (_req, res) => {
+  try {
+    const { settleAuction } = await import('../services/auction');
+    const result = await settleAuction();
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message, stack: error.stack?.split('\n').slice(0, 5) });
+  }
+});
+
 /**
  * GET /api/auction/skill.md
  * Serve the auction skill file for agent onboarding.
