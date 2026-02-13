@@ -21,7 +21,7 @@ export default function PoolPreviewPage() {
   const [pieces, setPieces] = useState<PoolPiece[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState<'all' | 'originals' | 'madlads' | 'critters' | 'smb' | 'slimes' | 'boogle' | 'chimpers'>('all');
+  const [filter, setFilter] = useState<'all'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selected, setSelected] = useState<PoolPiece | null>(null);
   const [page, setPage] = useState(0);
@@ -56,34 +56,9 @@ export default function PoolPreviewPage() {
   const getMp4Size = (p: PoolPiece) => p.mp4_size_kb || (p.mp4_size ? Math.round(p.mp4_size / 1024) : 0);
   const getPngSize = (p: PoolPiece) => p.png_size_kb || (p.png_size ? Math.round(p.png_size / 1024) : 0);
 
-  const getSource = (p: PoolPiece): string => {
-    const id = getId(p);
-    const url = getMp4(p);
-    const all = id + ' ' + url;
-    if (all.includes('slimes')) return 'slimes';
-    if (all.includes('boogle')) return 'boogle';
-    if (all.includes('chimpers')) return 'chimpers';
-    if (all.includes('madlads') || all.includes('Madlads')) return 'madlads';
-    if (all.includes('critters') || all.includes('Critters')) return 'critters';
-    if (all.includes('smb-') || all.includes('SMB')) return 'smb';
-    // Original batch uses CHUM-xxxx IDs with no source tag
-    return 'originals';
-  };
-
-  const filtered = filter === 'all' ? pieces : pieces.filter(p => getSource(p) === filter);
+  const filtered = pieces;
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-
-  const counts = {
-    all: pieces.length,
-    originals: pieces.filter(p => getSource(p) === 'originals').length,
-    madlads: pieces.filter(p => getSource(p) === 'madlads').length,
-    critters: pieces.filter(p => getSource(p) === 'critters').length,
-    smb: pieces.filter(p => getSource(p) === 'smb').length,
-    slimes: pieces.filter(p => getSource(p) === 'slimes').length,
-    boogle: pieces.filter(p => getSource(p) === 'boogle').length,
-    chimpers: pieces.filter(p => getSource(p) === 'chimpers').length,
-  };
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
@@ -107,21 +82,8 @@ export default function PoolPreviewPage() {
         </p>
       </div>
 
-      {/* Filters */}
+      {/* View toggle */}
       <div className="flex flex-wrap gap-2 mb-4">
-        {(['all', 'originals', 'madlads', 'critters', 'smb', 'slimes', 'boogle', 'chimpers'] as const).map(f => (
-          <button
-            key={f}
-            onClick={() => { setFilter(f); setPage(0); }}
-            className={`font-mono text-xs px-3 py-2 border transition-colors ${
-              filter === f
-                ? 'border-chum-green text-chum-green bg-chum-green/10'
-                : 'border-chum-text/20 text-chum-text/60 hover:border-chum-text/40'
-            }`}
-          >
-            {f.toUpperCase()} [{counts[f]}]
-          </button>
-        ))}
         <div className="ml-auto flex gap-2">
           <button
             onClick={() => setViewMode('grid')}
@@ -173,9 +135,8 @@ export default function PoolPreviewPage() {
         <div className="space-y-1">
           <div className="grid grid-cols-12 font-mono text-xs text-chum-text/40 px-2 py-1 border-b border-chum-text/10">
             <span className="col-span-1">#</span>
-            <span className="col-span-4">ID</span>
-            <span className="col-span-2">SOURCE</span>
-            <span className="col-span-2">MP4</span>
+            <span className="col-span-5">ID</span>
+            <span className="col-span-3">MP4</span>
             <span className="col-span-2">PNG</span>
             <span className="col-span-1">VIEW</span>
           </div>
@@ -186,9 +147,8 @@ export default function PoolPreviewPage() {
               className="grid grid-cols-12 font-mono text-xs px-2 py-1.5 border-b border-chum-text/5 hover:bg-chum-green/5 cursor-pointer"
             >
               <span className="col-span-1 text-chum-text/40">{page * PAGE_SIZE + i + 1}</span>
-              <span className="col-span-4 text-chum-text truncate">{getId(piece)}</span>
-              <span className="col-span-2 text-chum-text/60">{getSource(piece)}</span>
-              <span className="col-span-2 text-chum-text/60">{getMp4Size(piece)}KB</span>
+              <span className="col-span-5 text-chum-text truncate">{getId(piece)}</span>
+              <span className="col-span-3 text-chum-text/60">{getMp4Size(piece)}KB</span>
               <span className="col-span-2 text-chum-text/60">{getPngSize(piece)}KB</span>
               <span className="col-span-1 text-chum-green">--&gt;</span>
             </div>
@@ -253,7 +213,7 @@ export default function PoolPreviewPage() {
                 ID: <span className="text-chum-text">{getId(selected)}</span>
               </div>
               <div className="text-chum-text/60">
-                Source: <span className="text-chum-text">{getSource(selected)}</span>
+                Name: <span className="text-chum-text">{getName(selected)}</span>
               </div>
               <div className="text-chum-text/60">
                 MP4: <span className="text-chum-text">{getMp4Size(selected)}KB</span>
