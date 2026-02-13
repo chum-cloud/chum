@@ -1,4 +1,5 @@
 import { endEpoch, settleAuction, getCurrentEpoch } from './auction';
+import { markCorrectPredictions, calculatePredictionRewards } from './swipe';
 
 const CRANK_INTERVAL_MS = 30_000; // 30 seconds
 let crankTimer: NodeJS.Timeout | null = null;
@@ -13,6 +14,13 @@ async function tick() {
     const epochResult = await endEpoch();
     if (epochResult.winner) {
       console.log(`[CRANK] Epoch ended — winner: ${epochResult.winner}`);
+      // Mark swipe predictions correct/incorrect
+      try {
+        const epoch = await getCurrentEpoch();
+        await markCorrectPredictions(epoch.epoch_number - 1, epochResult.winner);
+      } catch (err: any) {
+        console.error(`[CRANK] Failed to mark predictions: ${err.message}`);
+      }
     } else if (epochResult.skipped) {
       console.log(`[CRANK] Epoch skipped (no candidates/votes)`);
     }
@@ -22,6 +30,13 @@ async function tick() {
     if (settleResult.settled) {
       if (settleResult.winner) {
         console.log(`[CRANK] Auction settled — winner: ${settleResult.winner}, amount: ${settleResult.amount}`);
+        // Calculate prediction rewards from auction revenue
+        try {
+          const epoch = await getCurrentEpoch();
+          await calculatePredictionRewards(epoch.epoch_number - 1, settleResult.amount || 0);
+        } catch (err: any) {
+          console.error(`[CRANK] Failed to calculate prediction rewards: ${err.message}`);
+        }
       } else {
         console.log(`[CRANK] Auction settled — no bids, NFT returned`);
       }

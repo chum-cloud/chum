@@ -202,7 +202,7 @@ def generate(image_path, output_base, cols=80, num_frames=60, fps=15, target_siz
             '-framerate', str(fps),
             '-i', os.path.join(tmpdir, 'frame_%04d.png'),
             '-c:v', 'libx264',
-            '-preset', 'slow',
+            '-preset', 'ultrafast',
             '-crf', '23',
             '-pix_fmt', 'yuv420p',
             '-vf', f'scale={target_size}:{target_size}:flags=neighbor',

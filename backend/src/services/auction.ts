@@ -978,7 +978,15 @@ export async function getCandidates() {
  * Check if wallet holds an NFT from a specific collection via Helius DAS.
  * Fails RESTRICTIVE — if DAS errors, returns false (no free vote).
  */
-async function verifyHolder(wallet: string, collectionAddress: string): Promise<boolean> {
+export async function verifyHolder(wallet: string, collectionAddress: string): Promise<boolean> {
+  return (await countHoldings(wallet, collectionAddress)) > 0;
+}
+
+/**
+ * Count how many NFTs a wallet holds from a specific collection via Helius DAS.
+ * Fails RESTRICTIVE — if DAS errors, returns 0.
+ */
+export async function countHoldings(wallet: string, collectionAddress: string): Promise<number> {
   const resp = await fetch(config.heliusRpcUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -990,18 +998,18 @@ async function verifyHolder(wallet: string, collectionAddress: string): Promise<
         ownerAddress: wallet,
         grouping: ['collection', collectionAddress],
         page: 1,
-        limit: 1,
+        limit: 1000,
       },
     }),
   });
   const json = await resp.json() as any;
-  return (json.result?.total || 0) > 0;
+  return json.result?.total || 0;
 }
 
 /**
  * Check if wallet holds a Fellow Villains NFT OR a Founder Key (art collection NFT).
  */
-async function verifyVoteEligibility(wallet: string, cfg: any): Promise<boolean> {
+export async function verifyVoteEligibility(wallet: string, cfg: any): Promise<boolean> {
   // Check Fellow Villains collection
   if (cfg.fellow_villains_collection) {
     const holdsFV = await verifyHolder(wallet, cfg.fellow_villains_collection);

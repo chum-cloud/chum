@@ -26,23 +26,36 @@ export const api = {
   getLeaderboard: () => fetchJSON('/api/auction/leaderboard'),
   getAuction: () => fetchJSON('/api/auction/auction'),
 
-  mint: (creatorWallet: string, name: string, uri: string) =>
-    postJSON('/api/auction/mint', { creatorWallet, name, uri }),
-  confirmMint: (assetAddress: string, signature: string) =>
-    postJSON('/api/auction/mint/confirm', { assetAddress, signature }),
+  mint: (wallet: string) =>
+    postJSON('/api/auction/mint', { wallet }),
+  confirmMint: (wallet: string, signature: string) =>
+    postJSON('/api/auction/confirm-mint', { wallet, signature }),
 
-  join: (creatorWallet: string, mintAddress: string) =>
-    postJSON('/api/auction/join', { creatorWallet, mintAddress }),
-  confirmJoin: (creatorWallet: string, mintAddress: string, signature: string) =>
-    postJSON('/api/auction/join/confirm', { creatorWallet, mintAddress, signature }),
+  joinVoting: (wallet: string, mintAddress: string) =>
+    postJSON('/api/auction/join-voting', { wallet, mintAddress }),
+  confirmJoin: (wallet: string, signature: string, mintAddress: string) =>
+    postJSON('/api/auction/confirm-join', { wallet, signature, mintAddress }),
 
-  vote: (voterWallet: string, candidateMint: string, numVotes?: number, paid?: boolean) =>
-    postJSON('/api/auction/vote', { voterWallet, candidateMint, numVotes, paid }),
-  confirmVote: (voterWallet: string, candidateMint: string, numVotes: number, epochNumber: number, signature: string) =>
-    postJSON('/api/auction/vote/confirm', { voterWallet, candidateMint, numVotes, epochNumber, signature }),
+  voteFree: (wallet: string, candidateMint: string) =>
+    postJSON('/api/auction/vote-free', { wallet, candidateMint }),
+  votePaid: (wallet: string, candidateMint: string) =>
+    postJSON('/api/auction/vote-paid', { wallet, candidateMint }),
+  confirmVote: (wallet: string, signature: string) =>
+    postJSON('/api/auction/confirm-vote', { wallet, signature }),
 
-  bid: (bidderWallet: string, epochNumber: number, bidAmount: number) =>
-    postJSON('/api/auction/bid', { bidderWallet, epochNumber, bidAmount }),
-  confirmBid: (bidderWallet: string, epochNumber: number, bidAmount: number, signature: string) =>
-    postJSON('/api/auction/bid/confirm', { bidderWallet, epochNumber, bidAmount, signature }),
+  bid: (wallet: string, amount: number) =>
+    postJSON('/api/auction/bid', { wallet, amount }),
+  confirmBid: (wallet: string, signature: string) =>
+    postJSON('/api/auction/confirm-bid', { wallet, signature }),
+
+  // Swipe / Judge
+  getNextSwipe: (wallet: string) => fetchJSON(`/api/auction/swipe/next?wallet=${wallet}`),
+  submitSwipe: (wallet: string, candidateMint: string, direction: string) =>
+    postJSON('/api/auction/swipe', { wallet, candidateMint, direction }),
+  getSwipeRemaining: (wallet: string) => fetchJSON(`/api/auction/swipe/remaining?wallet=${wallet}`),
+  getSwipeStats: (wallet: string) => fetchJSON(`/api/auction/swipe/stats?wallet=${wallet}`),
+  buyVotes: (wallet: string) => postJSON('/api/auction/swipe/buy-votes', { wallet }),
+  confirmBuyVotes: (wallet: string, signature: string) =>
+    postJSON('/api/auction/swipe/confirm-buy', { wallet, signature }),
+  claimPrediction: (wallet: string) => postJSON('/api/auction/claim-prediction', { wallet }),
 };

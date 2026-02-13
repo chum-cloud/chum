@@ -142,3 +142,37 @@ CREATE POLICY "service_all_auctions" ON art_auctions FOR ALL TO service_role USI
 CREATE POLICY "service_all_bids" ON art_bids FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "service_all_entries" ON art_entries FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "service_all_config" ON auction_config FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- ═══════════════════════════════════════════════════════════════
+-- Swipe Predictions (Judge the Art)
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE swipe_predictions (
+  id SERIAL PRIMARY KEY,
+  wallet TEXT NOT NULL,
+  candidate_mint TEXT NOT NULL,
+  epoch_number INTEGER NOT NULL,
+  direction TEXT NOT NULL CHECK (direction IN ('left', 'right')),
+  correct BOOLEAN DEFAULT NULL,
+  reward_lamports BIGINT DEFAULT 0,
+  claimed BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE UNIQUE INDEX idx_swipe_unique ON swipe_predictions(wallet, candidate_mint, epoch_number);
+CREATE INDEX idx_swipe_epoch ON swipe_predictions(epoch_number);
+CREATE INDEX idx_swipe_wallet ON swipe_predictions(wallet);
+
+CREATE TABLE daily_swipes (
+  id SERIAL PRIMARY KEY,
+  wallet TEXT NOT NULL,
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  swipe_count INTEGER DEFAULT 0,
+  UNIQUE(wallet, date)
+);
+
+ALTER TABLE swipe_predictions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_swipes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "anon_read_swipes" ON swipe_predictions FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_daily" ON daily_swipes FOR SELECT TO anon USING (true);
+CREATE POLICY "service_all_swipes" ON swipe_predictions FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_all_daily" ON daily_swipes FOR ALL TO service_role USING (true) WITH CHECK (true);

@@ -4,23 +4,13 @@ import Header from '../components/Header';
 import Countdown from '../components/Countdown';
 import { api } from '../lib/api';
 import { signAndSend, truncateWallet } from '../lib/tx';
-
-interface AuctionData {
-  epoch_number: number;
-  end_time: string;
-  current_bid: number;
-  current_bidder: string;
-  mint_address: string;
-  mp4_url?: string;
-  uri?: string;
-  name?: string;
-  bids?: Array<{ bidder: string; amount: number; timestamp: string }>;
-}
+import type { AuctionData, EpochData } from '../lib/types';
 
 export default function AuctionPage() {
   const { publicKey, signTransaction } = useWallet();
   const { connection } = useConnection();
   const [auction, setAuction] = useState<AuctionData | null>(null);
+  const [epoch, setEpoch] = useState<EpochData | null>(null);
   const [loading, setLoading] = useState(true);
   const [bidAmount, setBidAmount] = useState('');
   const [showBidInput, setShowBidInput] = useState(false);
@@ -29,8 +19,13 @@ export default function AuctionPage() {
 
   const load = useCallback(async () => {
     try {
-      const data = await api.getAuction();
-      if (data && !data.error) setAuction(data);
+      const [auc, ep] = await Promise.all([
+        api.getAuction().catch(() => null),
+        api.getEpoch().catch(() => null),
+      ]);
+      if (auc && !auc.error) setAuction(auc);
+      else setAuction(null);
+      if (ep) setEpoch(ep);
     } catch { /* ignore */ }
     setLoading(false);
   }, []);
@@ -46,10 +41,9 @@ export default function AuctionPage() {
     setError('');
     try {
       const wallet = publicKey.toBase58();
-      const { transaction } = await api.bid(wallet, auction.epoch_number, amount);
+      const { transaction } = await api.bid(wallet, amount);
       const sig = await signAndSend(transaction, signTransaction, connection);
-      await api.confirmBid(wallet, auction.epoch_number, amount, sig);
-
+      await api.confirmBid(wallet, sig);
       setAuction(prev => prev ? { ...prev, current_bid: amount, current_bidder: wallet } : prev);
       setShowBidInput(false);
       setBidAmount('');
@@ -62,7 +56,7 @@ export default function AuctionPage() {
   if (loading) {
     return (
       <div className="flex flex-col min-h-screen pb-[56px]">
-        <Header title="AUCTION" />
+        <Header />
         <div className="flex-1 flex items-center justify-center">
           <div className="w-10 h-10 border-2 border-chum-border border-t-chum-text animate-spin" />
         </div>
@@ -73,10 +67,18 @@ export default function AuctionPage() {
   if (!auction) {
     return (
       <div className="flex flex-col min-h-screen pb-[56px]">
-        <Header title="AUCTION" />
+        <Header />
         <div className="flex-1 flex flex-col items-center justify-center px-4">
           <span className="text-4xl mb-4">◉</span>
-          <p className="font-mono text-sm text-chum-muted">No active auction</p>
+          <p className="font-mono text-sm text-chum-muted mb-2">No active auction</p>
+          <p className="font-mono text-xs text-chum-muted text-center">
+            Next auction after epoch ends
+          </p>
+          {epoch?.end_time && (
+            <div className="mt-4">
+              <Countdown targetTime={new Date(epoch.end_time).getTime()} />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -84,14 +86,23 @@ export default function AuctionPage() {
 
   return (
     <div className="flex flex-col min-h-screen pb-[56px]">
-      <Header title="AUCTION" />
+      <Header />
 
       <main className="flex-1 px-4 py-6 max-w-[480px] mx-auto w-full">
         {/* Countdown */}
         {auction.end_time && (
           <div className="mb-4 text-center">
-            <p className="font-mono text-[10px] text-chum-muted uppercase tracking-widest mb-2">Ends in</p>
+            <p className="font-mono text-[10px] text-chum-muted uppercase tracking-widest mb-2">Auction ends in</p>
             <Countdown targetTime={new Date(auction.end_time).getTime()} />
+          </div>
+        )}
+
+        {/* Anti-snipe indicator */}
+        {auction.anti_snipe && (
+          <div className="mb-4 text-center">
+            <span className="font-mono text-xs text-chum-warning px-3 py-1 border border-chum-warning/30">
+              ⚡ ANTI-SNIPE ACTIVE — Time extended
+            </span>
           </div>
         )}
 
@@ -103,6 +114,11 @@ export default function AuctionPage() {
             className="w-full h-full object-cover"
           />
         </div>
+
+        {/* Name */}
+        {auction.name && (
+          <p className="font-mono text-sm text-chum-text mb-4">{auction.name}</p>
+        )}
 
         {/* Current bid info */}
         <div className="border border-chum-border p-4 mb-4">

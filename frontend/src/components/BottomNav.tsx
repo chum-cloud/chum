@@ -2,9 +2,9 @@ import { NavLink } from 'react-router-dom';
 
 const tabs = [
   { to: '/', label: 'Mint', icon: '◆' },
-  { to: '/vote', label: 'Vote', icon: '▲' },
+  { to: '/judge', label: 'Judge', icon: '⚡' },
   { to: '/auction', label: 'Auction', icon: '◉' },
-  { to: '/villains', label: 'Villains', icon: '☠' },
+  { to: '/docs', label: 'Docs', icon: '☰' },
 ];
 
 export default function BottomNav() {

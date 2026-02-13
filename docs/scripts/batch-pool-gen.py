@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Batch ASCII Art Pool Generator
-Fetches random NFTs from 3 collections via Helius DAS,
+Fetches random NFTs from source collections via Helius DAS,
 runs them through the ASCII pipeline, uploads MP4 + PNG to Supabase Storage.
 
 Usage: python3 batch-pool-gen.py --count 30
@@ -22,10 +22,10 @@ ascii_gen = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ascii_gen)
 
 # ─── Config ───
-COLLECTIONS = [
-    {"name": "madlads", "address": "J1S9H3QjnRtBbbuD4HjPV6RpRhwuk4zKbxsnCHuTgh9w"},
-    {"name": "critters", "address": "CKPYygUZ9aA4JY7qmyuvxT67ibjmjpddNtHJeu1uQBSM"},
-    {"name": "smb", "address": "SMBtHCCC6RYRutFEPb4gZqeBLUZbMNhRKaMKZZLHi7W"},
+SOURCE_COLLECTIONS = [
+    {"address": "J1S9H3QjnRtBbbuD4HjPV6RpRhwuk4zKbxsnCHuTgh9w"},
+    {"address": "CKPYygUZ9aA4JY7qmyuvxT67ibjmjpddNtHJeu1uQBSM"},
+    {"address": "SMBtHCCC6RYRutFEPb4gZqeBLUZbMNhRKaMKZZLHi7W"},
 ]
 
 HELIUS_API_KEY = os.environ.get("HELIUS_API_KEY", "")
@@ -170,13 +170,13 @@ def generate_pool(count=30):
         sys.exit(1)
 
     print(f"═══ CHUM Art Pool Generator ═══")
-    print(f"Target: {count} pieces across {len(COLLECTIONS)} collections\n")
+    print(f"Target: {count} pieces across {len(SOURCE_COLLECTIONS)} sources\n")
 
     create_bucket_if_needed()
 
-    # Distribute evenly across collections
-    per_collection = count // len(COLLECTIONS)
-    remainder = count % len(COLLECTIONS)
+    # Distribute evenly across source collections
+    per_collection = count // len(SOURCE_COLLECTIONS)
+    remainder = count % len(SOURCE_COLLECTIONS)
     
     generated = 0
     failed = 0
@@ -184,9 +184,9 @@ def generate_pool(count=30):
     tmpdir = tempfile.mkdtemp(prefix="chum_pool_")
     
     try:
-        for i, col in enumerate(COLLECTIONS):
+        for i, col in enumerate(SOURCE_COLLECTIONS):
             n = per_collection + (1 if i < remainder else 0)
-            print(f"\n── {col['name'].upper()} ({n} pieces) ──")
+            print(f"\n── Source {i+1} ({n} pieces) ──")
             
             nfts = fetch_random_nfts(col["address"], n * 2)  # Fetch extra
             print(f"  Fetched {len(nfts)} candidate NFTs")
@@ -203,7 +203,7 @@ def generate_pool(count=30):
                     continue
                 
                 # Download image
-                img_path = os.path.join(tmpdir, f"{col['name']}_{nft_id}.png")
+                img_path = os.path.join(tmpdir, f"src_{nft_id}.png")
                 try:
                     print(f"  ↓ Downloading {nft_id}...")
                     download_image(image_url, img_path)
@@ -213,13 +213,13 @@ def generate_pool(count=30):
                     continue
                 
                 # Generate ASCII art
-                piece_id = f"{col['name']}-{nft_id}-{int(time.time())}"
+                piece_id = f"CHUM-{nft_id}-{int(time.time())}"
                 output_base = os.path.join(tmpdir, piece_id)
                 try:
                     print(f"  🎨 Generating ASCII art for {nft_id}...")
                     mp4_path, png_path = ascii_gen.generate(
                         img_path, output_base,
-                        cols=80, num_frames=60, fps=15, target_size=1080
+                        cols=80, num_frames=20, fps=10, target_size=1080
                     )
                 except Exception as e:
                     print(f"  ✗ {nft_id} — generation failed: {e}")
@@ -242,8 +242,6 @@ def generate_pool(count=30):
                 
                 results.append({
                     "piece_id": piece_id,
-                    "collection": col["name"],
-                    "source_nft": nft_id,
                     "mp4_url": mp4_url,
                     "png_url": png_url,
                     "mp4_size_kb": round(mp4_size),
@@ -260,10 +258,23 @@ def generate_pool(count=30):
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
     
-    # Save manifest
+    # Save manifest (append to existing)
     manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pool-manifest.json")
+    existing = {"generated": 0, "failed": 0, "pieces": []}
+    if os.path.exists(manifest_path):
+        try:
+            with open(manifest_path) as f:
+                existing = json.load(f)
+        except:
+            pass
+    existing_ids = {p["piece_id"] for p in existing["pieces"]}
+    for r in results:
+        if r["piece_id"] not in existing_ids:
+            existing["pieces"].append(r)
+    existing["generated"] = len(existing["pieces"])
+    existing["failed"] = existing.get("failed", 0) + failed
     with open(manifest_path, "w") as f:
-        json.dump({"generated": generated, "failed": failed, "pieces": results}, f, indent=2)
+        json.dump(existing, f, indent=2)
     
     print(f"\n═══ DONE ═══")
     print(f"Generated: {generated}/{count}")
