@@ -28,14 +28,16 @@ export default function SwipePage() {
   const isDragging = useRef(false);
 
   const fetchNext = useCallback(async () => {
-    if (!wallet) return;
     setLoading(true);
     setExitDir(null);
     try {
       const [nextRes, remRes, statsRes, epochRes] = await Promise.all([
-        api.getNextSwipe(wallet),
-        api.getSwipeRemaining(wallet),
-        api.getSwipeStats(wallet).catch(() => null),
+        wallet ? api.getNextSwipe(wallet) : api.getCandidates().then((d: any) => {
+          const list = d?.candidates || d || [];
+          return { candidate: list.length > 0 ? list[Math.floor(Math.random() * list.length)] : null };
+        }),
+        wallet ? api.getSwipeRemaining(wallet) : Promise.resolve(null),
+        wallet ? api.getSwipeStats(wallet).catch(() => null) : Promise.resolve(null),
         api.getEpoch().catch(() => null),
       ]);
       setRemaining(remRes);
@@ -66,11 +68,14 @@ export default function SwipePage() {
 
     await new Promise((r) => setTimeout(r, 300));
 
-    try {
-      await api.submitSwipe(wallet, candidate.mint_address, direction);
-    } catch (err: unknown) {
-      console.error('Swipe failed:', err instanceof Error ? err.message : err);
+    if (wallet) {
+      try {
+        await api.submitSwipe(wallet, candidate.mint_address, direction);
+      } catch (err: unknown) {
+        console.error('Swipe failed:', err instanceof Error ? err.message : err);
+      }
     }
+    // Without wallet: just browse, no vote recorded
 
     setSwiping(false);
     fetchNext();
@@ -118,18 +123,7 @@ export default function SwipePage() {
     }
   };
 
-  if (!wallet) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <div className="flex-1 flex items-center justify-center px-4">
-          <p className="text-chum-muted font-mono text-center">Connect wallet to judge art</p>
-        </div>
-      </div>
-    );
-  }
-
-  const noSwipesLeft = remaining && !remaining.unlimited && remaining.remaining <= 0;
+  const noSwipesLeft = wallet && remaining && !remaining.unlimited && remaining.remaining <= 0;
 
   return (
     <div className="min-h-screen flex flex-col pb-[72px]">
@@ -146,21 +140,18 @@ export default function SwipePage() {
       {/* Epoch + swipe counter */}
       <div className="text-center py-2 font-mono text-xs text-chum-muted space-y-1">
         {epoch && <div>Epoch {epoch.epoch_number}</div>}
-        <div>
-          {remaining?.unlimited
-            ? '∞ swipes (Fellow Villains)'
-            : remaining
-            ? `${remaining.remaining}/${remaining.total} free votes`
-            : '...'}
-        </div>
+        {wallet && remaining && (
+          <div>{remaining.remaining}/{remaining.total} free votes</div>
+        )}
+        {!wallet && <div className="text-chum-accent-dim">Connect wallet to vote</div>}
       </div>
 
       {/* Prediction stats banner */}
-      {stats && (
+      {wallet && stats && (
         <div className="flex justify-center gap-4 px-4 pb-2 font-mono text-[10px] text-chum-muted">
-          <span>🏆 {stats.wins} wins</span>
-          <span>🔥 {stats.streak} streak</span>
-          <span>💰 {stats.earnings ?? 0} SOL</span>
+          <span>{stats.wins} wins</span>
+          <span>{stats.streak} streak</span>
+          <span>{stats.earnings ?? 0} SOL earned</span>
         </div>
       )}
 
@@ -169,8 +160,8 @@ export default function SwipePage() {
           <div className="w-full max-w-[340px] aspect-square bg-chum-border/30 animate-pulse" />
         ) : noSwipesLeft ? (
           <div className="text-center space-y-4">
-            <p className="text-2xl">⏰</p>
-            <p className="font-mono text-chum-muted text-sm">No votes remaining</p>
+            <p className="font-mono text-chum-text text-lg">VOTES DEPLETED</p>
+            <p className="font-mono text-chum-muted text-sm">No free votes remaining</p>
             <button
               onClick={buyVotes}
               disabled={buyingVotes || !signTransaction}
@@ -181,8 +172,8 @@ export default function SwipePage() {
           </div>
         ) : allDone ? (
           <div className="text-center space-y-4 w-full">
-            <p className="text-2xl">✅</p>
-            <p className="font-mono text-chum-muted text-sm mb-4">All art judged this epoch!</p>
+            <p className="font-mono text-chum-text text-lg">ALL JUDGED</p>
+            <p className="font-mono text-chum-muted text-sm mb-4">You've seen all art this epoch</p>
             <div className="border-t border-chum-border pt-4">
               <p className="font-mono text-xs text-chum-muted uppercase tracking-widest mb-3">Leaderboard</p>
               <Leaderboard />
@@ -215,7 +206,12 @@ export default function SwipePage() {
               <div className="p-3 space-y-1">
                 <p className="font-mono text-sm font-bold truncate">{candidate.name}</p>
                 <p className="font-mono text-xs text-chum-muted">by {truncateWallet(candidate.creator_wallet)}</p>
-                <p className="font-mono text-xs text-chum-muted">{candidate.votes} vote{candidate.votes !== 1 ? 's' : ''}</p>
+                <div className="flex items-center gap-3 font-mono text-xs">
+                  <span style={{ color: '#33ff33' }}>▲ {candidate.votes}</span>
+                  {(candidate.agent_votes || 0) > 0 && (
+                    <span className="text-chum-muted">AGT · {candidate.agent_votes}</span>
+                  )}
+                </div>
               </div>
             </div>
 

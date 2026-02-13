@@ -1,3 +1,5 @@
+import { mockApi, USE_MOCK } from './mock';
+
 const API = 'https://chum-production.up.railway.app';
 
 async function fetchJSON(path: string) {
@@ -21,10 +23,10 @@ async function postJSON(path: string, body: Record<string, unknown>) {
 
 export const api = {
   getConfig: () => fetchJSON('/api/auction/config'),
-  getEpoch: () => fetchJSON('/api/auction/epoch'),
-  getCandidates: () => fetchJSON('/api/auction/candidates'),
-  getLeaderboard: () => fetchJSON('/api/auction/leaderboard'),
-  getAuction: () => fetchJSON('/api/auction/auction'),
+  getEpoch: () => USE_MOCK ? mockApi.getEpoch() : fetchJSON('/api/auction/epoch'),
+  getCandidates: () => USE_MOCK ? mockApi.getCandidates() : fetchJSON('/api/auction/candidates'),
+  getLeaderboard: () => USE_MOCK ? mockApi.getLeaderboard() : fetchJSON('/api/auction/leaderboard'),
+  getAuction: () => USE_MOCK ? mockApi.getAuction() : fetchJSON('/api/auction/auction'),
 
   mint: (wallet: string) =>
     postJSON('/api/auction/mint', { wallet }),
@@ -49,11 +51,11 @@ export const api = {
     postJSON('/api/auction/confirm-bid', { wallet, signature }),
 
   // Swipe / Judge
-  getNextSwipe: (wallet: string) => fetchJSON(`/api/auction/swipe/next?wallet=${wallet}`),
+  getNextSwipe: (wallet: string) => USE_MOCK ? mockApi.getNextSwipe(wallet) : fetchJSON(`/api/auction/swipe/next?wallet=${wallet}`),
   submitSwipe: (wallet: string, candidateMint: string, direction: string) =>
-    postJSON('/api/auction/swipe', { wallet, candidateMint, direction }),
-  getSwipeRemaining: (wallet: string) => fetchJSON(`/api/auction/swipe/remaining?wallet=${wallet}`),
-  getSwipeStats: (wallet: string) => fetchJSON(`/api/auction/swipe/stats?wallet=${wallet}`),
+    USE_MOCK ? mockApi.submitSwipe() : postJSON('/api/auction/swipe', { wallet, candidateMint, direction }),
+  getSwipeRemaining: (wallet: string) => USE_MOCK ? mockApi.getSwipeRemaining() : fetchJSON(`/api/auction/swipe/remaining?wallet=${wallet}`),
+  getSwipeStats: (wallet: string) => USE_MOCK ? mockApi.getSwipeStats() : fetchJSON(`/api/auction/swipe/stats?wallet=${wallet}`),
   buyVotes: (wallet: string) => postJSON('/api/auction/swipe/buy-votes', { wallet }),
   confirmBuyVotes: (wallet: string, signature: string) =>
     postJSON('/api/auction/swipe/confirm-buy', { wallet, signature }),

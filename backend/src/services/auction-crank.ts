@@ -1,4 +1,4 @@
-import { endEpoch, settleAuction, getCurrentEpoch } from './auction';
+import { endEpoch, settleAuction, getCurrentEpoch, retryFailedRefunds } from './auction';
 import { markCorrectPredictions, calculatePredictionRewards } from './swipe';
 
 const CRANK_INTERVAL_MS = 30_000; // 30 seconds
@@ -40,6 +40,12 @@ async function tick() {
       } else {
         console.log(`[CRANK] Auction settled — no bids, NFT returned`);
       }
+    }
+    // 3. Retry any failed refunds
+    try {
+      await retryFailedRefunds();
+    } catch (err: any) {
+      console.error(`[CRANK] Failed refund retry: ${err.message}`);
     }
   } catch (err: any) {
     console.error(`[CRANK] Error: ${err.message}`);

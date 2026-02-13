@@ -595,12 +595,23 @@ export async function confirmBid(
     .single();
   if (aErr || !auction) throw new Error('No active auction for this epoch');
 
-  // Refund previous bidder if exists
+  // Refund previous bidder if exists — NEVER lose a bidder's SOL
   if (auction.current_bidder && Number(auction.current_bid) > 0) {
     try {
       await refundBidder(auction.current_bidder, Number(auction.current_bid), auction.id);
     } catch (err: any) {
-      console.error(`[AUCTION] Failed to refund previous bidder: ${err.message}`);
+      console.error(`[AUCTION] CRITICAL: Failed to refund previous bidder ${auction.current_bidder}: ${err.message}`);
+      // Flag failed refund in database for retry
+      await supabase.from('art_bids').update({
+        refund_failed: true,
+        refund_error: err.message,
+        refund_failed_at: new Date().toISOString(),
+      })
+        .eq('auction_id', auction.id)
+        .eq('bidder_wallet', auction.current_bidder)
+        .eq('refunded', false);
+      // Do NOT proceed without refund — throw to prevent accepting new bid
+      throw new Error(`Cannot accept bid: refund to previous bidder failed. Their SOL is safe and will be retried.`);
     }
   }
 
@@ -662,6 +673,39 @@ async function refundBidder(
     .eq('auction_id', auctionId)
     .eq('bidder_wallet', bidderWallet)
     .eq('refunded', false);
+}
+
+/**
+ * Retry failed refunds — called by crank every 30s.
+ */
+export async function retryFailedRefunds(): Promise<void> {
+  const { data: failed } = await supabase
+    .from('art_bids')
+    .select('id, auction_id, bidder_wallet, bid_amount')
+    .eq('refund_failed', true)
+    .eq('refunded', false)
+    .limit(5);
+
+  if (!failed || failed.length === 0) return;
+
+  for (const bid of failed) {
+    try {
+      await refundBidder(bid.bidder_wallet, Number(bid.bid_amount), bid.auction_id);
+      // Clear failed flag on success
+      await supabase
+        .from('art_bids')
+        .update({ refund_failed: false, refund_error: null })
+        .eq('id', bid.id);
+      console.log(`[REFUND-RETRY] Successfully refunded ${bid.bidder_wallet} for ${bid.bid_amount} lamports`);
+    } catch (err: any) {
+      console.error(`[REFUND-RETRY] Still failing for ${bid.bidder_wallet}: ${err.message}`);
+      // Update error message, keep refund_failed = true for next retry
+      await supabase
+        .from('art_bids')
+        .update({ refund_error: err.message, refund_failed_at: new Date().toISOString() })
+        .eq('id', bid.id);
+    }
+  }
 }
 
 /**
