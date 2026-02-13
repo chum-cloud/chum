@@ -7,6 +7,8 @@ import AuctionPage from './pages/AuctionPage';
 import DocsPage from './pages/DocsPage';
 import ArtDetailPage from './pages/ArtDetailPage';
 import ProfilePage from './pages/ProfilePage';
+// TODO(MAINNET): REMOVE PoolPreviewPage import + route before mainnet launch!
+import PoolPreviewPage from './pages/PoolPreviewPage';
 
 export default function App() {
   return (
@@ -20,6 +22,8 @@ export default function App() {
         <Route path="/art/:mint" element={<ArtDetailPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/profile/:wallet" element={<ProfilePage />} />
+        {/* TODO(MAINNET): REMOVE this route */}
+        <Route path="/pool" element={<PoolPreviewPage />} />
       </Routes>
       <BottomNav />
     </div>
