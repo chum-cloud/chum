@@ -208,7 +208,7 @@ export default function MintPage() {
         {/* ─── Price info ─── */}
         <div className="w-full mb-4 px-1 space-y-1">
           <div className="flex items-center justify-between">
-            <p className="font-mono text-xs text-chum-text">Meatball Tax -- 0.1 SOL</p>
+            <p className="font-mono text-xs text-chum-text">Meatball Tax 🍖 -- 0.1 SOL</p>
             <a
               href="https://chum-production.up.railway.app/api/auction/skill.md"
               target="_blank"
@@ -230,7 +230,7 @@ export default function MintPage() {
               disabled={!publicKey || !signTransaction}
               className="w-full min-h-[48px] bg-chum-text text-chum-bg font-mono text-sm uppercase tracking-wider hover:bg-chum-accent-dim transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {!publicKey ? 'CONNECT WALLET TO MINT' : 'MINT -- 0.1 SOL'}
+              {!publicKey ? 'CONNECT WALLET TO MINT' : 'MINT'}
             </button>
           )}
 
@@ -284,13 +284,13 @@ export default function MintPage() {
           {showMeatballPopup && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" onClick={() => setShowMeatballPopup(false)}>
               <div className="bg-chum-bg border border-chum-border p-6 max-w-[320px] w-full mx-4 space-y-4" onClick={e => e.stopPropagation()}>
-                <p className="font-mono text-lg text-chum-text text-center">Are you a meatball?</p>
+                <p className="font-mono text-lg text-chum-text text-center">Are you a meatball? 🍖</p>
                 <p className="font-mono text-xs text-chum-muted text-center">You won't see your art until it's minted. Surprise!</p>
                 <button
                   onClick={() => { setShowMeatballPopup(false); mint(); }}
                   className="w-full min-h-[48px] bg-chum-text text-chum-bg font-mono text-sm uppercase tracking-wider hover:bg-chum-accent-dim transition-colors"
                 >
-                  MINT (0.1 SOL)
+                  YES (0.1 SOL)
                 </button>
                 <a
                   href="https://chum-production.up.railway.app/api/auction/skill.md"
