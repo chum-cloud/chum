@@ -117,7 +117,7 @@ export default function MintPage() {
               disabled={!publicKey || !signTransaction}
               className="w-full min-h-[48px] bg-chum-text text-chum-bg font-mono text-sm uppercase tracking-wider hover:bg-chum-accent-dim transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {!publicKey ? 'CONNECT WALLET' : 'MINT — 0.015 SOL'}
+              {!publicKey ? 'CONNECT WALLET' : 'MINT — 0.1 SOL'}
             </button>
           )}
 

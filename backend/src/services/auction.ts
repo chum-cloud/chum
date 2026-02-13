@@ -128,6 +128,7 @@ export async function mintArt(
   creatorWallet: string,
   name: string,
   uri: string,
+  feeOverride?: number,
 ): Promise<{ transaction: string; assetAddress: string; mintNumber: number }> {
   const cfg = await getConfig();
   if (cfg.paused) throw new Error('Auction system is paused');
@@ -166,11 +167,12 @@ export async function mintArt(
     ],
   });
 
-  // Add mint fee: user → team wallet
+  // Add mint fee: user → team wallet (feeOverride for agent pricing)
+  const mintFee = feeOverride ?? Number(cfg.mint_fee);
   const feeIx = SystemProgram.transfer({
     fromPubkey: new PublicKey(creatorWallet),
     toPubkey: new PublicKey(cfg.team_wallet),
-    lamports: Number(cfg.mint_fee),
+    lamports: mintFee,
   });
   const umiFeeIx = fromWeb3JsInstruction(feeIx);
   const feeBuilder = transactionBuilder().add({
@@ -239,6 +241,7 @@ export async function confirmMint(
 export async function joinVoting(
   creatorWallet: string,
   mintAddress: string,
+  feeOverride?: number,
 ): Promise<{ transaction: string }> {
   const cfg = await getConfig();
   if (cfg.paused) throw new Error('Auction system is paused');
@@ -269,11 +272,12 @@ export async function joinVoting(
     newOwner: u.identity.publicKey, // vault
   });
 
-  // Add join fee: user → treasury
+  // Add join fee: user → treasury (feeOverride for agent pricing)
+  const joinFee = feeOverride ?? Number(cfg.join_fee);
   const feeIx = SystemProgram.transfer({
     fromPubkey: new PublicKey(creatorWallet),
     toPubkey: new PublicKey(cfg.treasury_wallet),
-    lamports: Number(cfg.join_fee),
+    lamports: joinFee,
   });
   const umiFeeIx = fromWeb3JsInstruction(feeIx);
   const feeBuilder = transactionBuilder().add({

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { createChallenge, verifyChallenge } from '../services/challenge';
 import {
   mintArt,
   confirmMint,
@@ -20,24 +21,62 @@ import { config } from '../config';
 const supabase = createClient(config.supabaseUrl, config.supabaseServiceKey);
 const router = Router();
 
+// Pricing: agent (with challenge) vs human (without)
+const AGENT_MINT_FEE = 15_000_000;  // 0.015 SOL
+const HUMAN_MINT_FEE = 100_000_000; // 0.1 SOL
+const AGENT_JOIN_FEE = 15_000_000;  // 0.015 SOL
+const HUMAN_JOIN_FEE = 100_000_000; // 0.1 SOL
+
+/**
+ * POST /api/auction/challenge
+ * Get a challenge to prove you're an agent. Solve it for discounted pricing.
+ * Body: { walletAddress }
+ */
+router.post('/auction/challenge', (req, res) => {
+  try {
+    const { walletAddress } = req.body;
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'walletAddress is required' });
+    }
+    const challenge = createChallenge(walletAddress);
+    res.json({ success: true, ...challenge });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 /**
  * POST /api/auction/mint
  * Mint a new art NFT. Returns partially-signed tx for user to countersign.
- * Body: { creatorWallet, name, uri }
+ * Body: { creatorWallet, name, uri, challengeId?, answer? }
+ * With valid challenge: 0.015 SOL. Without: 0.1 SOL.
  */
 router.post('/auction/mint', async (req, res) => {
   try {
-    const { creatorWallet, name, uri } = req.body;
+    const { creatorWallet, name, uri, challengeId, answer } = req.body;
     if (!creatorWallet || !uri) {
       return res.status(400).json({ error: 'creatorWallet and uri are required' });
     }
 
-    const result = await mintArt(creatorWallet, name, uri);
+    // Determine pricing based on challenge
+    let fee = HUMAN_MINT_FEE;
+    let isAgent = false;
+    if (challengeId && answer !== undefined) {
+      const v = verifyChallenge(creatorWallet, challengeId, answer);
+      if (v.valid) {
+        fee = AGENT_MINT_FEE;
+        isAgent = true;
+      }
+    }
+
+    const result = await mintArt(creatorWallet, name, uri, fee);
     res.json({
       success: true,
       transaction: result.transaction,
       assetAddress: result.assetAddress,
-      message: 'Sign this transaction to mint your art NFT',
+      fee,
+      isAgent,
+      message: `Sign to mint (${fee / 1e9} SOL)`,
     });
   } catch (error: any) {
     console.error('[AUCTION] Mint failed:', error.message);
@@ -68,20 +107,33 @@ router.post('/auction/mint/confirm', async (req, res) => {
 /**
  * POST /api/auction/join
  * Join voting: transfer NFT to vault, pay join fee.
- * Body: { creatorWallet, mintAddress }
+ * Body: { creatorWallet, mintAddress, challengeId?, answer? }
+ * With valid challenge: 0.015 SOL. Without: 0.1 SOL.
  */
 router.post('/auction/join', async (req, res) => {
   try {
-    const { creatorWallet, mintAddress } = req.body;
+    const { creatorWallet, mintAddress, challengeId, answer } = req.body;
     if (!creatorWallet || !mintAddress) {
       return res.status(400).json({ error: 'creatorWallet and mintAddress are required' });
     }
 
-    const result = await joinVoting(creatorWallet, mintAddress);
+    let fee = HUMAN_JOIN_FEE;
+    let isAgent = false;
+    if (challengeId && answer !== undefined) {
+      const v = verifyChallenge(creatorWallet, challengeId, answer);
+      if (v.valid) {
+        fee = AGENT_JOIN_FEE;
+        isAgent = true;
+      }
+    }
+
+    const result = await joinVoting(creatorWallet, mintAddress, fee);
     res.json({
       success: true,
       transaction: result.transaction,
-      message: 'Sign this transaction to join the voting leaderboard',
+      fee,
+      isAgent,
+      message: `Sign to join voting (${fee / 1e9} SOL)`,
     });
   } catch (error: any) {
     console.error('[AUCTION] Join failed:', error.message);
@@ -299,10 +351,31 @@ router.get('/auction/config', async (_req, res) => {
       .eq('id', 1)
       .single();
     if (error) throw error;
-    res.json({ success: true, config: data });
+    res.json({
+      success: true,
+      config: {
+        ...data,
+        agent_mint_fee: AGENT_MINT_FEE,
+        human_mint_fee: HUMAN_MINT_FEE,
+        agent_join_fee: AGENT_JOIN_FEE,
+        human_join_fee: HUMAN_JOIN_FEE,
+      },
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
+});
+
+/**
+ * GET /api/auction/skill.md
+ * Serve the auction skill file for agent onboarding.
+ */
+router.get('/auction/skill.md', (_req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const skillPath = path.join(__dirname, 'auction-skill.md');
+  const content = fs.readFileSync(skillPath, 'utf-8');
+  res.type('text/markdown').send(content);
 });
 
 export default router;
