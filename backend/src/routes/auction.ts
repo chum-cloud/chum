@@ -34,10 +34,73 @@ const supabase = createClient(config.supabaseUrl, config.supabaseServiceKey);
 const router = Router();
 
 // Pricing: agent (with challenge) vs human (without)
-const AGENT_MINT_FEE = 15_000_000;  // 0.015 SOL
-const HUMAN_MINT_FEE = 100_000_000; // 0.1 SOL
-const AGENT_JOIN_FEE = 15_000_000;  // 0.015 SOL
+const AGENT_BASE_FEE = 15_000_000;  // 0.015 SOL base for agents
+const AGENT_TIER_SIZE = 10;          // Every 10 mints, price goes up
+const AGENT_TIER_STEP = 15_000_000;  // +0.015 SOL per tier
+const AGENT_RESET_MS = 60 * 60 * 1000; // 1 hour cooldown resets count
+const HUMAN_MINT_FEE = 100_000_000; // 0.1 SOL flat, always
+const AGENT_JOIN_FEE = 15_000_000;  // 0.015 SOL (join-voting is flat)
 const HUMAN_JOIN_FEE = 100_000_000; // 0.1 SOL
+
+/**
+ * Calculate escalating agent mint fee based on wallet's recent mint history.
+ * First 10 = 0.015 SOL, next 10 = 0.030 SOL, etc.
+ * Resets after 1 hour of no minting from that wallet.
+ */
+async function getAgentMintFee(wallet: string): Promise<{ fee: number; mintCount: number }> {
+  const { data } = await supabase
+    .from('agent_mint_tracker')
+    .select('mint_count, last_mint_at')
+    .eq('wallet', wallet)
+    .single();
+
+  let mintCount = 0;
+  if (data) {
+    const elapsed = Date.now() - new Date(data.last_mint_at).getTime();
+    if (elapsed < AGENT_RESET_MS) {
+      mintCount = data.mint_count;
+    }
+    // else: expired, reset to 0
+  }
+
+  const tier = Math.floor(mintCount / AGENT_TIER_SIZE);
+  const fee = AGENT_BASE_FEE + tier * AGENT_TIER_STEP;
+  return { fee, mintCount };
+}
+
+/**
+ * Record an agent mint — increment count, update timestamp.
+ */
+async function recordAgentMint(wallet: string, currentCount: number): Promise<void> {
+  const now = new Date().toISOString();
+  await supabase
+    .from('agent_mint_tracker')
+    .upsert({
+      wallet,
+      mint_count: currentCount + 1,
+      last_mint_at: now,
+    }, { onConflict: 'wallet' });
+}
+
+/**
+ * GET /api/auction/mint-price?wallet=xxx
+ * Get current mint pricing for a wallet. Shows escalating agent rate if applicable.
+ */
+router.get('/auction/mint-price', async (req, res) => {
+  try {
+    const wallet = req.query.wallet as string;
+    const agentPricing = wallet ? await getAgentMintFee(wallet) : { fee: AGENT_BASE_FEE, mintCount: 0 };
+    res.json({
+      humanFee: HUMAN_MINT_FEE,
+      agentFee: agentPricing.fee,
+      agentMintCount: agentPricing.mintCount,
+      agentTierSize: AGENT_TIER_SIZE,
+      agentResetMs: AGENT_RESET_MS,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 /**
  * POST /api/auction/challenge
@@ -61,7 +124,8 @@ router.post('/auction/challenge', (req, res) => {
  * POST /api/auction/mint
  * Mint a new art NFT. Returns partially-signed tx for user to countersign.
  * Body: { creatorWallet, name, uri, challengeId?, answer? }
- * With valid challenge: 0.015 SOL. Without: 0.1 SOL.
+ * Agent (with challenge): escalating pricing (0.015 SOL base, +0.015 per 10 mints, resets after 1h idle).
+ * Human (without challenge): flat 0.1 SOL always.
  */
 router.post('/auction/mint', async (req, res) => {
   try {
@@ -73,10 +137,13 @@ router.post('/auction/mint', async (req, res) => {
     // Determine pricing based on challenge
     let fee = HUMAN_MINT_FEE;
     let isAgent = false;
+    let agentMintCount = 0;
     if (challengeId && answer !== undefined) {
       const v = verifyChallenge(creatorWallet, challengeId, answer);
       if (v.valid) {
-        fee = AGENT_MINT_FEE;
+        const agentPricing = await getAgentMintFee(creatorWallet);
+        fee = agentPricing.fee;
+        agentMintCount = agentPricing.mintCount;
         isAgent = true;
       }
     }
@@ -88,6 +155,7 @@ router.post('/auction/mint', async (req, res) => {
       assetAddress: result.assetAddress,
       fee,
       isAgent,
+      ...(isAgent && { agentMintCount: agentMintCount + 1, nextFee: (await getAgentMintFee(creatorWallet)).fee }),
       message: `Sign to mint (${fee / 1e9} SOL)`,
     });
   } catch (error: any) {
@@ -103,12 +171,23 @@ router.post('/auction/mint', async (req, res) => {
  */
 router.post('/auction/mint/confirm', async (req, res) => {
   try {
-    const { assetAddress, signature } = req.body;
+    const { assetAddress, signature, creatorWallet, isAgent } = req.body;
     if (!assetAddress || !signature) {
       return res.status(400).json({ error: 'assetAddress and signature are required' });
     }
 
     const result = await confirmMint(assetAddress, signature);
+
+    // Record agent mint for escalating pricing
+    if (isAgent && creatorWallet) {
+      try {
+        const { mintCount } = await getAgentMintFee(creatorWallet);
+        await recordAgentMint(creatorWallet, mintCount);
+      } catch (e) {
+        console.warn('[AUCTION] Failed to record agent mint tracker:', e);
+      }
+    }
+
     res.json({ success: true, ...result });
   } catch (error: any) {
     console.error('[AUCTION] Mint confirm failed:', error.message);
@@ -386,7 +465,7 @@ router.get('/auction/config', async (_req, res) => {
       success: true,
       config: {
         ...data,
-        agent_mint_fee: AGENT_MINT_FEE,
+        agent_mint_fee: AGENT_BASE_FEE,
         human_mint_fee: HUMAN_MINT_FEE,
         agent_join_fee: AGENT_JOIN_FEE,
         human_join_fee: HUMAN_JOIN_FEE,
