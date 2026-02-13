@@ -15,6 +15,15 @@ import {
   getAuction,
   getCandidates,
 } from '../services/auction';
+import {
+  getNextSwipe,
+  submitSwipe,
+  getSwipeRemaining,
+  getSwipeStats,
+  claimPredictionRewards,
+  buyVotePack,
+  confirmVotePack,
+} from '../services/swipe';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '../config';
 
@@ -373,9 +382,149 @@ router.get('/auction/config', async (_req, res) => {
 router.get('/auction/skill.md', (_req, res) => {
   const fs = require('fs');
   const path = require('path');
-  const skillPath = path.join(__dirname, 'auction-skill.md');
+  // Try compiled dir first, then source dir
+  let skillPath = path.join(__dirname, 'auction-skill.md');
+  if (!fs.existsSync(skillPath)) {
+    skillPath = path.join(__dirname, '..', '..', 'src', 'routes', 'auction-skill.md');
+  }
+  if (!fs.existsSync(skillPath)) {
+    return res.status(404).type('text/plain').send('skill.md not found');
+  }
   const content = fs.readFileSync(skillPath, 'utf-8');
   res.type('text/markdown').send(content);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SWIPE / JUDGE ENDPOINTS
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/auction/swipe/next?wallet=X
+ * Get next art piece to judge.
+ */
+router.get('/auction/swipe/next', async (req, res) => {
+  try {
+    const wallet = req.query.wallet as string;
+    if (!wallet) return res.status(400).json({ error: 'wallet is required' });
+
+    const epoch = await getCurrentEpoch();
+    const candidate = await getNextSwipe(wallet, epoch.epoch_number);
+    res.json({ success: true, candidate, epochNumber: epoch.epoch_number });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/auction/swipe
+ * Submit a swipe prediction.
+ * Body: { wallet, candidateMint, direction }
+ */
+router.post('/auction/swipe', async (req, res) => {
+  try {
+    const { wallet, candidateMint, direction } = req.body;
+    if (!wallet || !candidateMint || !direction) {
+      return res.status(400).json({ error: 'wallet, candidateMint, and direction are required' });
+    }
+    if (direction !== 'left' && direction !== 'right') {
+      return res.status(400).json({ error: 'direction must be left or right' });
+    }
+
+    const epoch = await getCurrentEpoch();
+    const result = await submitSwipe(wallet, candidateMint, epoch.epoch_number, direction);
+    res.json({ ...result });
+  } catch (error: any) {
+    console.error('[SWIPE] Submit failed:', error.message);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/auction/swipe/remaining?wallet=X
+ * Get remaining swipes for today.
+ */
+router.get('/auction/swipe/remaining', async (req, res) => {
+  try {
+    const wallet = req.query.wallet as string;
+    if (!wallet) return res.status(400).json({ error: 'wallet is required' });
+
+    const result = await getSwipeRemaining(wallet);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/auction/swipe/stats?wallet=X
+ * Get prediction stats.
+ */
+router.get('/auction/swipe/stats', async (req, res) => {
+  try {
+    const wallet = req.query.wallet as string;
+    if (!wallet) return res.status(400).json({ error: 'wallet is required' });
+
+    const result = await getSwipeStats(wallet);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/auction/swipe/buy-votes
+ * Buy a vote pack (fixed price, no escalation).
+ * Body: { wallet }
+ */
+router.post('/auction/swipe/buy-votes', async (req, res) => {
+  try {
+    const { wallet } = req.body;
+    if (!wallet) return res.status(400).json({ error: 'wallet is required' });
+
+    const result = await buyVotePack(wallet);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('[SWIPE] Buy votes failed:', error.message);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/auction/swipe/confirm-buy
+ * Confirm vote pack purchase after user signs.
+ * Body: { wallet, signature }
+ */
+router.post('/auction/swipe/confirm-buy', async (req, res) => {
+  try {
+    const { wallet, signature } = req.body;
+    if (!wallet || !signature) {
+      return res.status(400).json({ error: 'wallet and signature are required' });
+    }
+
+    const result = await confirmVotePack(wallet, signature);
+    res.json(result);
+  } catch (error: any) {
+    console.error('[SWIPE] Confirm buy failed:', error.message);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/auction/claim-prediction
+ * Claim unclaimed prediction rewards.
+ * Body: { wallet }
+ */
+router.post('/auction/claim-prediction', async (req, res) => {
+  try {
+    const { wallet } = req.body;
+    if (!wallet) return res.status(400).json({ error: 'wallet is required' });
+
+    const result = await claimPredictionRewards(wallet);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('[SWIPE] Claim failed:', error.message);
+    res.status(400).json({ error: error.message });
+  }
 });
 
 export default router;
