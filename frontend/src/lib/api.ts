@@ -28,10 +28,12 @@ export const api = {
   getLeaderboard: () => USE_MOCK ? mockApi.getLeaderboard() : fetchJSON('/api/auction/leaderboard'),
   getAuction: () => USE_MOCK ? mockApi.getAuction() : fetchJSON('/api/auction/auction'),
 
-  mint: (wallet: string) =>
-    postJSON('/api/auction/mint', { wallet }),
-  confirmMint: (wallet: string, signature: string) =>
-    postJSON('/api/auction/confirm-mint', { wallet, signature }),
+  mint: (creatorWallet: string) =>
+    postJSON('/api/auction/mint', { creatorWallet }),
+  confirmMint: (assetAddress: string, signature: string, creatorWallet?: string, isAgent?: boolean, piece?: { id: string; mp4: string; png: string }) =>
+    postJSON('/api/auction/mint/confirm', { assetAddress, signature, creatorWallet, isAgent, piece }),
+  getRecentMints: (limit = 10) =>
+    fetchJSON(`/api/auction/recent-mints?limit=${limit}`),
 
   joinVoting: (wallet: string, mintAddress: string) =>
     postJSON('/api/auction/join-voting', { wallet, mintAddress }),

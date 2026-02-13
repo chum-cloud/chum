@@ -82,6 +82,55 @@ async function recordAgentMint(wallet: string, currentCount: number): Promise<vo
     }, { onConflict: 'wallet' });
 }
 
+// ─── SSE: real-time mint feed ───
+const sseClients = new Set<import('express').Response>();
+
+// Subscribe to Supabase Realtime inserts on recent_mints
+supabase
+  .channel('recent_mints_feed')
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'recent_mints' }, (payload: any) => {
+    const data = JSON.stringify(payload.new);
+    for (const client of sseClients) {
+      try { client.write(`data: ${data}\n\n`); } catch { sseClients.delete(client); }
+    }
+  })
+  .subscribe();
+
+/**
+ * GET /api/auction/mint-feed
+ * Server-Sent Events stream for real-time mint notifications.
+ */
+router.get('/auction/mint-feed', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+  });
+  res.write('\n'); // flush headers
+  sseClients.add(res);
+  req.on('close', () => { sseClients.delete(res); });
+});
+
+/**
+ * GET /api/auction/recent-mints?limit=10
+ * Get recent mints for the real-time feed (initial load).
+ */
+router.get('/auction/recent-mints', async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 10, 50);
+    const { data, error } = await supabase
+      .from('recent_mints')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    res.json({ success: true, mints: data || [] });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 /**
  * GET /api/auction/mint-price?wallet=xxx
  * Get current mint pricing for a wallet. Shows escalating agent rate if applicable.
@@ -120,19 +169,43 @@ router.post('/auction/challenge', (req, res) => {
   }
 });
 
+// ─── Pool manifest cache ───
+let poolManifest: { pieces: Array<{ id: string; mp4: string; png: string }> } | null = null;
+let poolLoadedAt = 0;
+const POOL_CACHE_MS = 5 * 60 * 1000; // refresh every 5 min
+
+async function getPoolManifest() {
+  if (poolManifest && Date.now() - poolLoadedAt < POOL_CACHE_MS) return poolManifest;
+  const url = `${config.supabaseUrl}/storage/v1/object/public/art-pool/pool-manifest.json`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to load art pool manifest');
+  poolManifest = await res.json() as any;
+  poolLoadedAt = Date.now();
+  return poolManifest!;
+}
+
+function pickRandomPiece(manifest: { pieces: Array<{ id: string; mp4: string; png: string }> }) {
+  const idx = Math.floor(Math.random() * manifest.pieces.length);
+  return manifest.pieces[idx];
+}
+
 /**
  * POST /api/auction/mint
- * Mint a new art NFT. Returns partially-signed tx for user to countersign.
- * Body: { creatorWallet, name, uri, challengeId?, answer? }
+ * Mint a random art NFT. Backend picks a random piece from the pool.
+ * Body: { creatorWallet, challengeId?, answer? }
  * Agent (with challenge): escalating pricing (0.015 SOL base, +0.015 per 10 mints, resets after 1h idle).
  * Human (without challenge): flat 0.1 SOL always.
  */
 router.post('/auction/mint', async (req, res) => {
   try {
-    const { creatorWallet, name, uri, challengeId, answer } = req.body;
-    if (!creatorWallet || !uri) {
-      return res.status(400).json({ error: 'creatorWallet and uri are required' });
+    const { creatorWallet, challengeId, answer } = req.body;
+    if (!creatorWallet) {
+      return res.status(400).json({ error: 'creatorWallet is required' });
     }
+
+    // Pick random piece from pool
+    const manifest = await getPoolManifest();
+    const piece = pickRandomPiece(manifest);
 
     // Determine pricing based on challenge
     let fee = HUMAN_MINT_FEE;
@@ -148,13 +221,15 @@ router.post('/auction/mint', async (req, res) => {
       }
     }
 
-    const result = await mintArt(creatorWallet, name, uri, fee);
+    // Use the piece's PNG as the NFT image URI (Arweave upload will replace this later)
+    const result = await mintArt(creatorWallet, piece.id, piece.png, fee);
     res.json({
       success: true,
       transaction: result.transaction,
       assetAddress: result.assetAddress,
       fee,
       isAgent,
+      piece: { id: piece.id, mp4: piece.mp4, png: piece.png },
       ...(isAgent && { agentMintCount: agentMintCount + 1, nextFee: (await getAgentMintFee(creatorWallet)).fee }),
       message: `Sign to mint (${fee / 1e9} SOL)`,
     });
@@ -167,11 +242,12 @@ router.post('/auction/mint', async (req, res) => {
 /**
  * POST /api/auction/mint/confirm
  * Confirm a mint after user signed and submitted the tx.
- * Body: { assetAddress, signature }
+ * Body: { assetAddress, signature, creatorWallet?, isAgent?, piece? }
+ * Inserts into recent_mints for real-time feed.
  */
 router.post('/auction/mint/confirm', async (req, res) => {
   try {
-    const { assetAddress, signature, creatorWallet, isAgent } = req.body;
+    const { assetAddress, signature, creatorWallet, isAgent, piece } = req.body;
     if (!assetAddress || !signature) {
       return res.status(400).json({ error: 'assetAddress and signature are required' });
     }
@@ -185,6 +261,23 @@ router.post('/auction/mint/confirm', async (req, res) => {
         await recordAgentMint(creatorWallet, mintCount);
       } catch (e) {
         console.warn('[AUCTION] Failed to record agent mint tracker:', e);
+      }
+    }
+
+    // Insert into recent_mints for real-time feed
+    if (piece && creatorWallet) {
+      try {
+        await supabase.from('recent_mints').insert({
+          asset_address: assetAddress,
+          name: result.name || piece.id,
+          mp4_url: piece.mp4,
+          png_url: piece.png,
+          creator_wallet: creatorWallet,
+          is_agent: !!isAgent,
+          fee: isAgent ? AGENT_BASE_FEE : HUMAN_MINT_FEE,
+        });
+      } catch (e) {
+        console.warn('[AUCTION] Failed to insert recent mint:', e);
       }
     }
 
