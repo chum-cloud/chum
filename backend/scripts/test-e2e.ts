@@ -404,8 +404,8 @@ async function main() {
         await supabasePatch('art_auctions', `epoch_number=eq.${auctionEpoch}`, {
           end_time: pastTime,
         });
-        console.log('  Set auction end_time to past, waiting 35s for crank to settle...');
-        await sleep(35_000);
+        console.log('  Set auction end_time to past, waiting 65s for crank to settle...');
+        await sleep(65_000);
 
         const settled = await api('GET', '/auction/auction');
         if (settled.auction?.settled) {
