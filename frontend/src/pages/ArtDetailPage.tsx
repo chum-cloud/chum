@@ -4,6 +4,7 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import Header from '../components/Header';
 import { api } from '../lib/api';
 import { signAndSend, truncateWallet } from '../lib/tx';
+import { useVoteBalance } from '../lib/VoteBalanceContext';
 import type { Candidate } from '../lib/types';
 
 export default function ArtDetailPage() {
@@ -180,6 +181,14 @@ export default function ArtDetailPage() {
 
         {success && <p className="font-mono text-xs text-center mt-3" style={{ color: '#33ff33' }}>{success}</p>}
         {error && <p className="font-mono text-xs text-chum-danger mt-3 text-center">{error}</p>}
+
+        {/* Creator actions */}
+        {wallet && art.creator_wallet === wallet && art.status === 'voting' && (
+          <div className="mt-4 p-3 border border-[#33ff33]/30 bg-[#33ff33]/5">
+            <p className="font-mono text-xs text-[#33ff33] mb-1">This is your art!</p>
+            <p className="font-mono text-[10px] text-chum-muted">Share it to get more votes. The top-voted piece wins the auction.</p>
+          </div>
+        )}
 
         {/* Share */}
         <div className="mt-6">
