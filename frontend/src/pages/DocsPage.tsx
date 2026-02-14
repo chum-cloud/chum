@@ -131,11 +131,14 @@ Early vote   = bonus multiplier`}
           q="How does the auction work?"
           answer={<>
             <p>The most voted piece each epoch gets auctioned. Auctions last <strong className="text-chum-text">4 hours</strong>.</p>
+            <p>Each bid must be at least <strong className="text-chum-text">10% higher</strong> than the current bid.</p>
             <p>Bids in the final 5 minutes extend the timer. The team places the first bid at <strong className="text-chum-text">0.2 SOL</strong>.</p>
           </>}
           diagram={`EPOCH ENDS → TOP VOTED ART → AUCTION (4hrs)
      ↓
 Team bids 0.2 SOL
+     ↓
+Each bid +10% minimum (0.2 → 0.22 → 0.242...)
      ↓
 Community outbids
      ↓
@@ -323,6 +326,7 @@ Include "signature" header on protected endpoints.`}</Diagram>
             <div className="space-y-2">
               <p>Duration: <strong className="text-chum-text">4 hours</strong></p>
               <p>Reserve price: <strong className="text-chum-text">0.2 SOL</strong> (team places first bid)</p>
+              <p>Minimum increment: <strong className="text-chum-text">10%</strong> above current bid</p>
               <p>Anti-snipe: bids in final <strong className="text-chum-text">5 minutes</strong> extend the timer</p>
             </div>
 

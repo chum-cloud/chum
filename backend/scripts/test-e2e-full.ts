@@ -569,14 +569,14 @@ async function main() {
       const bidRes2 = await apiCall('POST', '/auction/bid', {
         bidderWallet: wallets.creator2.addr,
         epochNumber: epochNum,
-        bidAmount: 300_000_000, // 0.3 SOL (outbid)
+        bidAmount: 250_000_000, // 0.25 SOL (outbid, >10% above 0.2)
       });
 
       const sig2 = await signAndSend(bidRes2.transaction, creator2KP);
       await apiCall('POST', '/auction/bid/confirm', {
         bidderWallet: wallets.creator2.addr,
         epochNumber: epochNum,
-        bidAmount: 300_000_000,
+        bidAmount: 250_000_000,
         signature: sig2,
       });
 
@@ -656,7 +656,7 @@ async function main() {
     await sleep(5000);
 
     // Check fee splits on 0.3 SOL auction
-    const AUCTION_AMOUNT = 300_000_000; // 0.3 SOL
+    const AUCTION_AMOUNT = 250_000_000; // 0.25 SOL
     const expectedCreator = Math.floor(AUCTION_AMOUNT * 0.6);   // 0.18 SOL
     const expectedVoterPool = Math.floor(AUCTION_AMOUNT * 0.2); // 0.06 SOL
     const expectedTeam = Math.floor(AUCTION_AMOUNT * 0.1);      // 0.03 SOL

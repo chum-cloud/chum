@@ -549,7 +549,7 @@ export async function placeBid(
 
   // Verify bid meets minimum
   const minBid = auction.current_bid > 0
-    ? Math.floor(Number(auction.current_bid) * 1.05) // 5% minimum increment
+    ? Math.floor(Number(auction.current_bid) * 1.10) // 10% minimum increment
     : Number(auction.reserve_bid);
   if (bidAmount < minBid) {
     throw new Error(`Bid must be at least ${minBid} lamports (${minBid / LAMPORTS_PER_SOL} SOL)`);
