@@ -75,7 +75,7 @@ async function apiCall(method: string, path: string, body?: any): Promise<any> {
   const res = await fetch(`${API_BASE}${path}`, opts);
   const json = await res.json();
   if (!res.ok && !json.success) {
-    throw new Error(json.error || `HTTP ${res.status}`);
+    throw new Error(json.error || json.message || `HTTP ${res.status}: ${JSON.stringify(json).slice(0, 200)}`);
   }
   return json;
 }
@@ -169,7 +169,7 @@ async function main() {
     // Shorten epoch + auction for testing
     await supabasePatch('auction_config', 'id=eq.1', {
       epoch_duration: 86400,  // Keep epoch long during setup — we'll expire it manually in Step 7
-      auction_duration: 60,   // 1 min auction (for when we trigger it)
+      auction_duration: 3600, // 1 hour auction — gives time for bidding before crank settles
     });
 
     // Fund Creator2 and Bidder1 from Creator1 (0.5 SOL each)
@@ -178,13 +178,13 @@ async function main() {
     const c1Balance = await getBalance(wallets.creator1.addr);
     console.log(`Creator1 balance: ${(c1Balance / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
     
-    if (c1Balance < 0.9 * LAMPORTS_PER_SOL) {
-      log('STEP 0: Setup', 'FAIL', `Creator1 needs at least 0.9 SOL (has ${(c1Balance / LAMPORTS_PER_SOL).toFixed(4)})`);
+    if (c1Balance < 0.8 * LAMPORTS_PER_SOL) {
+      log('STEP 0: Setup', 'FAIL', `Creator1 needs at least 0.8 SOL (has ${(c1Balance / LAMPORTS_PER_SOL).toFixed(4)})`);
       return;
     }
 
     // Fund Creator2
-    const fundAmt = Math.min(0.15 * LAMPORTS_PER_SOL, (c1Balance - 0.5 * LAMPORTS_PER_SOL) / 2);
+    const fundAmt = Math.min(0.5 * LAMPORTS_PER_SOL, (c1Balance - 0.5 * LAMPORTS_PER_SOL) / 2);
     const fundTx1 = new Transaction().add(
       SystemProgram.transfer({
         fromPubkey: creator1KP.publicKey,
@@ -520,14 +520,21 @@ async function main() {
     log('STEP 7: Epoch end', 'FAIL', e.message);
   }
 
-  await sleep(3000);
+  await sleep(5000);
 
   // ═══ STEP 8: Auction — Bidder1 bids 0.2 SOL ═══
   console.log('\n--- STEP 8: Bidding ---');
   let auctionMint = '';
   try {
-    const auc = await apiCall('GET', '/auction/auction');
-    if (!auc?.auction?.art_mint) {
+    // Wait for the fresh auction to appear (crank may still be processing)
+    let auc: any = null;
+    for (let i = 0; i < 6; i++) {
+      auc = await apiCall('GET', '/auction/auction');
+      if (auc?.auction?.art_mint && !auc.auction.settled) break;
+      console.log(`  Waiting for auction... (${(i + 1) * 5}s)`);
+      await sleep(5000);
+    }
+    if (!auc?.auction?.art_mint || auc.auction.settled) {
       log('STEP 8: Get auction', 'SKIP', 'No active auction');
     } else {
       auctionMint = auc?.auction?.art_mint;
@@ -542,7 +549,7 @@ async function main() {
       const bidRes = await apiCall('POST', '/auction/bid', {
         bidderWallet: wallets.bidder1.addr,
         epochNumber: epochNum,
-        bidAmount: 200_000_000, // 0.2 SOL
+        bidAmount: 200_000_000, // 0.2 SOL (reserve bid)
       });
       
       const sig = await signAndSend(bidRes.transaction, bidder1KP);
@@ -562,7 +569,7 @@ async function main() {
       const bidRes2 = await apiCall('POST', '/auction/bid', {
         bidderWallet: wallets.creator2.addr,
         epochNumber: epochNum,
-        bidAmount: 300_000_000, // 0.3 SOL
+        bidAmount: 300_000_000, // 0.3 SOL (outbid)
       });
 
       const sig2 = await signAndSend(bidRes2.transaction, creator2KP);
