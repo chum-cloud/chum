@@ -8,7 +8,7 @@ import App from './App';
 import './index.css';
 import '@solana/wallet-adapter-react-ui/styles.css';
 
-const RPC_ENDPOINT = import.meta.env.VITE_SOLANA_RPC || 'https://mainnet.helius-rpc.com/?api-key=06cda3a9-32f3-4ad9-a203-9d7274299837';
+const RPC_ENDPOINT = import.meta.env.VITE_SOLANA_RPC || 'https://api.mainnet-beta.solana.com';
 
 function Root() {
   const endpoint = useMemo(() => RPC_ENDPOINT || clusterApiUrl('mainnet-beta'), []);
