@@ -1,5 +1,19 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/profile/:wallet",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(Twitterbot|facebookexternalhit|LinkedInBot|Slackbot|Discordbot|TelegramBot|WhatsApp|Googlebot).*"
+        }
+      ],
+      "destination": "https://chum-production.up.railway.app/api/auction/og/profile/:wallet"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

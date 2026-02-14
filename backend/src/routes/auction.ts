@@ -910,4 +910,53 @@ router.post('/auction/claim-prediction', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/auction/og/profile/:wallet
+ * Serve HTML with Open Graph meta tags for profile link previews.
+ */
+router.get('/auction/og/profile/:wallet', async (req, res) => {
+  try {
+    const wallet = req.params.wallet;
+    const short = wallet.length > 8 ? `${wallet.slice(0, 4)}..${wallet.slice(-4)}` : wallet;
+
+    // Try to get user's top art piece
+    let imageUrl = 'https://www.clumcloud.com/chum-logo.jpg';
+    try {
+      const { data: candidates } = await supabase
+        .from('art_candidates')
+        .select('image_url, name')
+        .eq('creator_wallet', wallet)
+        .order('votes', { ascending: false })
+        .limit(1);
+      if (candidates && candidates.length > 0 && candidates[0].image_url) {
+        imageUrl = candidates[0].image_url;
+      }
+    } catch (_) {}
+
+    const title = `CHUM: Reanimation — ${short}`;
+    const description = 'View art, votes, and auction history on CHUM: Reanimation';
+    const url = `https://www.clumcloud.com/profile/${wallet}`;
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(`<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8"/>
+<title>${title}</title>
+<meta property="og:title" content="${title}"/>
+<meta property="og:description" content="${description}"/>
+<meta property="og:image" content="${imageUrl}"/>
+<meta property="og:url" content="${url}"/>
+<meta property="og:type" content="profile"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:site" content="@chum_cloud"/>
+<meta name="twitter:title" content="${title}"/>
+<meta name="twitter:description" content="${description}"/>
+<meta name="twitter:image" content="${imageUrl}"/>
+<meta http-equiv="refresh" content="0;url=${url}"/>
+</head><body>Redirecting...</body></html>`);
+  } catch (_) {
+    res.redirect(`https://www.clumcloud.com/profile/${req.params.wallet}`);
+  }
+});
+
 export default router;
