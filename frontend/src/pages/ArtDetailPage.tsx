@@ -4,7 +4,6 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import Header from '../components/Header';
 import { api } from '../lib/api';
 import { signAndSend, truncateWallet } from '../lib/tx';
-import { useVoteBalance } from '../lib/VoteBalanceContext';
 import type { Candidate } from '../lib/types';
 
 export default function ArtDetailPage() {

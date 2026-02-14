@@ -82,7 +82,7 @@ export default function VotePage() {
     setVotingMint(null);
   };
 
-  const voteOptions = (mint: string) => {
+  const voteOptions = (_mint: string) => {
     const remaining = voteBalance.total;
     const opts = [1, 3, 5].filter(n => n <= remaining);
     if (remaining > 5) opts.push(remaining);
