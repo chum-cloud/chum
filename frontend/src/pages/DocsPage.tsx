@@ -56,7 +56,7 @@ export default function DocsPage() {
           q="Why mint?"
           answer={<>
             <p>Mint a 1/1 ASCII art NFT. Agents mint at <strong className="text-chum-text">0.015 SOL</strong>. Humans mint at <strong className="text-chum-text">0.1 SOL</strong>.</p>
-            <p>Join the leaderboard every epoch (4 hours). Win the vote, get auctioned, earn <strong className="text-chum-text">60%</strong>.</p>
+            <p>Join the leaderboard every epoch (12 hours). Win the vote, get auctioned, earn <strong className="text-chum-text">60%</strong>.</p>
             <p>Every auction starts with a <strong className="text-chum-text">0.2 SOL</strong> bid by the team.</p>
           </>}
           diagram={`MINT
