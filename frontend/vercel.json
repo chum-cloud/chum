@@ -1,6 +1,17 @@
 {
   "rewrites": [
     {
+      "source": "/art/:mint",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(Twitterbot|facebookexternalhit|LinkedInBot|Slackbot|Discordbot|TelegramBot|WhatsApp|Googlebot).*"
+        }
+      ],
+      "destination": "https://chum-production.up.railway.app/api/auction/og/art/:mint"
+    },
+    {
       "source": "/profile/:wallet",
       "has": [
         {
