@@ -122,7 +122,7 @@ export default function MintPage() {
             <span className="font-mono text-xs text-chum-muted uppercase tracking-wider">
               Live Mint Feed
             </span>
-            <span className="font-mono text-[10px] text-chum-muted ml-auto">
+            <span className="font-mono text-xs text-[#33ff33] ml-auto">
               {totalMinted} / {poolSize} minted
             </span>
           </div>
