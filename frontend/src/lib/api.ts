@@ -67,4 +67,6 @@ export const api = {
 
   getMyArt: (wallet: string) => fetchJSON(`/api/auction/my-art?wallet=${wallet}`),
   getMyBids: (wallet: string) => USE_MOCK ? mockApi.getMyBids(wallet) : fetchJSON(`/api/auction/bids?wallet=${wallet}`),
+  getVoterRewards: (wallet: string) => fetchJSON(`/api/auction/voter-rewards?wallet=${wallet}`),
+  claimVoterRewards: (wallet: string) => postJSON('/api/auction/claim-voter-rewards', { wallet }),
 };

@@ -113,6 +113,8 @@ export default function ProfilePage() {
   const [withdrawingMint, setWithdrawingMint] = useState<string | null>(null);
   const [withdrawTarget, setWithdrawTarget] = useState<Candidate | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [voterRewards, setVoterRewards] = useState<{ totalEarned: number; pending: number; rewards: any[] } | null>(null);
+  const [claimingRewards, setClaimingRewards] = useState(false);
 
   const myArt = allCandidates.filter((c) => c.creator_wallet === profileWallet);
   const totalVotesReceived = myArt.reduce((sum, c) => sum + (c.votes || 0), 0);
@@ -125,16 +127,18 @@ export default function ProfilePage() {
       setAllCandidates(list);
 
       if (isOwnProfile) {
-        const [s, r, b, owned] = await Promise.all([
+        const [s, r, b, owned, vr] = await Promise.all([
           api.getSwipeStats(connectedWallet).catch(() => null),
           api.getSwipeRemaining(connectedWallet).catch(() => null),
           api.getMyBids(connectedWallet).catch(() => []),
           api.getMyArt(connectedWallet).catch(() => ({ art: [] })),
+          api.getVoterRewards(connectedWallet).catch(() => null),
         ]);
         if (s) setStats(s as SwipeStatsFull);
         if (r) setRemaining(r as SwipeRemainingFull);
         setBids(b as BidData[]);
         setOwnedArt((owned as any)?.art || []);
+        if (vr) setVoterRewards(vr as any);
       }
     } catch { /* ignore */ }
   }, [profileWallet, isOwnProfile, connectedWallet]);
@@ -321,43 +325,53 @@ export default function ProfilePage() {
         {/* Private sections -- only for own profile */}
         {isOwnProfile && (
           <>
-            <Section title="My Votes This Epoch">
-              <p className="font-mono text-xs text-chum-muted">Vote tracking coming soon</p>
-            </Section>
-
-            <Section title="My Predictions">
-              {stats ? (
+            <Section title="My Auction Rewards">
+              {voterRewards && ((voterRewards as any).pending?.length > 0 || (voterRewards as any).claimed?.length > 0) ? (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <div className="border border-chum-border p-2 text-center">
-                      <div className="font-mono text-sm text-chum-text">{stats.wins}/{stats.totalPredictions}</div>
-                      <div className="font-mono text-[10px] text-chum-muted">CORRECT</div>
+                      <div className="font-mono text-sm text-[#33ff33]">{(((voterRewards as any).totalPending + (voterRewards as any).totalClaimed) / 1e9).toFixed(4)}</div>
+                      <div className="font-mono text-[10px] text-chum-muted">TOTAL SOL EARNED</div>
                     </div>
                     <div className="border border-chum-border p-2 text-center">
-                      <div className="font-mono text-sm text-chum-text">{stats.streak}</div>
-                      <div className="font-mono text-[10px] text-chum-muted">STREAK</div>
-                    </div>
-                    <div className="border border-chum-border p-2 text-center">
-                      <div className="font-mono text-sm text-chum-text">{stats.earnings}</div>
-                      <div className="font-mono text-[10px] text-chum-muted">SOL EARNED</div>
+                      <div className="font-mono text-sm text-chum-text">{((voterRewards as any).pending?.length || 0) + ((voterRewards as any).claimed?.length || 0)}</div>
+                      <div className="font-mono text-[10px] text-chum-muted">WINNING VOTES</div>
                     </div>
                   </div>
-                  {stats.claimable !== undefined && stats.claimable > 0 && (
-                    <div className="font-mono text-xs text-chum-text">
-                      Claimable: {stats.claimable} SOL
-                    </div>
+                  {(voterRewards as any).totalPending > 0 && (
+                    <>
+                      <div className="font-mono text-xs text-chum-text">
+                        Pending: {((voterRewards as any).totalPending / 1e9).toFixed(4)} SOL
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setClaimingRewards(true);
+                          try {
+                            await api.claimVoterRewards(connectedWallet);
+                            load();
+                          } catch (e: any) {
+                            setErrorMessage(e?.message || 'Claim failed');
+                          }
+                          setClaimingRewards(false);
+                        }}
+                        disabled={claimingRewards}
+                        className="w-full min-h-[48px] border border-chum-border text-chum-text font-mono text-xs uppercase tracking-wider hover:bg-chum-text hover:text-chum-bg transition-colors disabled:opacity-50"
+                      >
+                        {claimingRewards ? 'Claiming...' : 'Claim Voter Rewards'}
+                      </button>
+                    </>
                   )}
-                  <button
-                    onClick={handleClaim}
-                    disabled={claiming}
-                    className="w-full min-h-[48px] border border-chum-border text-chum-text font-mono text-xs uppercase tracking-wider hover:bg-chum-text hover:text-chum-bg transition-colors disabled:opacity-50"
-                  >
-                    {claiming ? 'Claiming...' : 'Claim Prediction Rewards'}
-                  </button>
-                  {claimMsg && <div className="font-mono text-[10px] text-chum-muted">{claimMsg}</div>}
+                  <div className="space-y-1">
+                    {[...((voterRewards as any).pending || []), ...((voterRewards as any).claimed || [])].map((r: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between text-[10px] font-mono">
+                        <span className="text-chum-muted">Epoch {r.epoch_number}</span>
+                        <span className="text-chum-text">{(r.reward_lamports / 1e9).toFixed(4)} SOL</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : (
-                <p className="font-mono text-xs text-chum-muted">No prediction data</p>
+                <p className="font-mono text-xs text-chum-muted">No voter rewards yet. Vote for winning art to earn 20% of auction revenue.</p>
               )}
             </Section>
 
