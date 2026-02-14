@@ -5,6 +5,7 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { api } from '../lib/api';
 import { signAndSend, truncateWallet } from '../lib/tx';
 import Header from '../components/Header';
+import ConfirmModal from '../components/ConfirmModal';
 import type { Candidate } from '../lib/types';
 
 interface MyArtPiece {
@@ -110,6 +111,7 @@ export default function ProfilePage() {
   const [ownedArt, setOwnedArt] = useState<MyArtPiece[]>([]);
   const [joiningMint, setJoiningMint] = useState<string | null>(null);
   const [withdrawingMint, setWithdrawingMint] = useState<string | null>(null);
+  const [withdrawTarget, setWithdrawTarget] = useState<Candidate | null>(null);
 
   const myArt = allCandidates.filter((c) => c.creator_wallet === profileWallet);
   const totalVotesReceived = myArt.reduce((sum, c) => sum + (c.votes || 0), 0);
@@ -243,18 +245,10 @@ export default function ProfilePage() {
                         <StatusBadge status={art.status || 'voting'} />
                         {isOwnProfile && (art.status === 'voting' || !art.status) && (
                           <button
-                            onClick={async (e) => {
+                            onClick={(e) => {
                               e.stopPropagation();
                               if (withdrawingMint) return;
-                              if (!confirm('Withdraw this NFT from the leaderboard? No refund on join fee.')) return;
-                              setWithdrawingMint(art.mint_address);
-                              try {
-                                await api.withdraw(connectedWallet, art.mint_address);
-                                load();
-                              } catch (e: any) {
-                                alert(`Withdraw failed: ${e?.message || e}`);
-                              }
-                              setWithdrawingMint(null);
+                              setWithdrawTarget(art);
                             }}
                             disabled={withdrawingMint === art.mint_address}
                             className="w-full mt-1 py-1 font-mono text-[10px] text-chum-muted border border-chum-border hover:text-chum-text hover:border-chum-text transition-colors uppercase tracking-wider disabled:opacity-50"
@@ -411,6 +405,36 @@ export default function ProfilePage() {
           </>
         )}
       </div>
+
+      {/* Withdraw confirmation modal */}
+      <ConfirmModal
+        open={!!withdrawTarget}
+        title="Withdraw from Leaderboard?"
+        message={`Return ${withdrawTarget?.name || 'this NFT'} to your wallet. It will be removed from voting.`}
+        warning="No refund on 0.015 SOL join fee. Re-joining costs 0.015 SOL."
+        confirmLabel="WITHDRAW"
+        cancelLabel="CANCEL"
+        destructive
+        preview={withdrawTarget?.animation_url ? (
+          <video src={withdrawTarget.animation_url} className="w-full h-full object-cover" muted loop autoPlay playsInline />
+        ) : withdrawTarget?.image_url ? (
+          <img src={withdrawTarget.image_url} alt="" className="w-full h-full object-cover" />
+        ) : undefined}
+        onCancel={() => setWithdrawTarget(null)}
+        onConfirm={async () => {
+          if (!withdrawTarget) return;
+          const mint = withdrawTarget.mint_address;
+          setWithdrawTarget(null);
+          setWithdrawingMint(mint);
+          try {
+            await api.withdraw(connectedWallet, mint);
+            load();
+          } catch (e: any) {
+            alert(`Withdraw failed: ${e?.message || e}`);
+          }
+          setWithdrawingMint(null);
+        }}
+      />
     </>
   );
 }
