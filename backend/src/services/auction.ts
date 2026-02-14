@@ -632,6 +632,8 @@ export async function confirmBid(
   bidAmount: number,
   signature: string,
 ): Promise<{ confirmed: boolean; auctionId: number }> {
+  // Ensure authority keypair is initialized (needed for refunds)
+  getUmi();
   const sig = await connection.confirmTransaction(signature, 'confirmed');
   if (sig.value.err) {
     throw new Error(`Transaction failed: ${JSON.stringify(sig.value.err)}`);
@@ -732,6 +734,7 @@ async function refundBidder(
  * Retry failed refunds — called by crank every 30s.
  */
 export async function retryFailedRefunds(): Promise<void> {
+  getUmi(); // Ensure authority keypair is initialized
   const { data: failed } = await supabase
     .from('art_bids')
     .select('id, auction_id, bidder_wallet, bid_amount')
