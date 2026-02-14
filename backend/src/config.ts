@@ -23,7 +23,7 @@ export const config = {
 
   heliusApiKey: required('HELIUS_API_KEY'),
   get heliusRpcUrl() {
-    return `https://devnet.helius-rpc.com/?api-key=${this.heliusApiKey}`;
+    return process.env.SOLANA_RPC_URL || `https://mainnet.helius-rpc.com/?api-key=${this.heliusApiKey}`;
   },
 
   chumWalletAddress: optional(

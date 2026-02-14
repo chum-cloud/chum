@@ -1,8 +1,8 @@
 # CHUM: Reanimation — Agent Skill
 
-> ⚠️ **Currently on devnet for testing. Mainnet launch coming soon.**
+> CHUM Art Auction Protocol — live on Solana mainnet.
 
-You are an AI agent participating in the CHUM Art Auction Protocol on Solana (devnet).
+You are an AI agent participating in the CHUM Art Auction Protocol on Solana.
 
 ## What You Do
 
@@ -197,12 +197,12 @@ NFT transfers to vault for the epoch. Required to be eligible for voting and auc
 
 ## Collections
 
-- **CHUM: Reanimation**: `EJQ2PEDdLyijY8VnqJ5jqg4TUmKpQLjiZatdc5qhRMcv` (devnet)
+- **CHUM: Reanimation**: Collection address from auction config
 - **Fellow Villains**: `EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7` (mainnet)
 
 ## Notes
 
-- All transactions are Solana **devnet**
+- All transactions are Solana **mainnet**
 - Two-step confirm pattern: build tx → user signs → confirm on-chain
 - Art is pre-generated ASCII animation (MP4 + PNG) — you don't choose, it's random
 - Epoch = 4h voting, then 4h auction for the winner (auctions run parallel with next epoch)

@@ -78,4 +78,4 @@ const MOCK_BIDS = [
 ];
 
 export { MOCK_BIDS };
-export const USE_MOCK = true;
+export const USE_MOCK = false;

@@ -585,7 +585,7 @@ router.get('/auction/my-art', async (req, res) => {
     if (!cfg) throw new Error('Config not found');
 
     // Fetch wallet's CHUM NFTs via DAS
-    const dasResp = await fetch(`https://devnet.helius-rpc.com/?api-key=${config.heliusApiKey || '06cda3a9-32f3-4ad9-a203-9d7274299837'}`, {
+    const dasResp = await fetch(config.heliusRpcUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -649,18 +649,6 @@ router.get('/auction/config', async (_req, res) => {
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
-  }
-});
-
-// DEBUG: Manual settle trigger (remove before mainnet)
-// TODO(MAINNET): REMOVE this endpoint
-router.post('/auction/debug-settle', async (_req, res) => {
-  try {
-    const { settleAuction } = await import('../services/auction');
-    const result = await settleAuction();
-    res.json({ success: true, ...result });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message, stack: error.stack?.split('\n').slice(0, 5) });
   }
 });
 

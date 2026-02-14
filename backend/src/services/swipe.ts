@@ -39,9 +39,13 @@ function getAuthorityKeypair(): Keypair {
 
 // ─── Config ───
 const SEEKER_GENESIS_COLLECTION = process.env.SEEKER_GENESIS_COLLECTION || 'PLACEHOLDER_SEEKER_COLLECTION';
-// TODO: Swap to mainnet collection addresses before launch
-const FELLOW_VILLAINS_COLLECTION = 'EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7'; // mainnet
-const FOUNDER_KEY_COLLECTION = 'EJQ2PEDdLyijY8VnqJ5jqg4TUmKpQLjiZatdc5qhRMcv'; // TODO: devnet v2 — swap to mainnet collection
+const FELLOW_VILLAINS_COLLECTION = process.env.FELLOW_VILLAINS_COLLECTION || 'EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7';
+// Founder Key collection — read from auction_config at runtime
+const getFounderKeyCollection = async () => {
+  const { getConfig } = await import('./auction');
+  const cfg = await getConfig();
+  return cfg.collection_address;
+};
 const SEEKER_FREE_VOTES = 3;
 const VOTE_PACK_PRICE_LAMPORTS = 20_000_000; // 0.02 SOL per vote pack (fixed)
 const VOTE_PACK_SIZE = 10;
@@ -64,17 +68,12 @@ async function calculateFreeVotes(wallet: string): Promise<{
   nftCount: number;
   hasSeeker: boolean;
 }> {
-  // ⚠️ DEVNET ONLY — mock free votes for testing without NFT holdings
-  // TODO(MAINNET): REMOVE this block before mainnet launch!
-  if (process.env.DEVNET_BYPASS_DAS === 'true') {
-    return { seekerVotes: 3, nftVotes: 2, total: 5, nftCount: 2, hasSeeker: true };
-  }
-
   // Check all holdings in parallel
+  const fkCollection = await getFounderKeyCollection();
   const [seekerCount, fvCount, fkCount] = await Promise.all([
     countHoldings(wallet, SEEKER_GENESIS_COLLECTION),
     countHoldings(wallet, FELLOW_VILLAINS_COLLECTION),
-    countHoldings(wallet, FOUNDER_KEY_COLLECTION),
+    countHoldings(wallet, fkCollection),
   ]);
 
   const hasSeeker = seekerCount > 0;

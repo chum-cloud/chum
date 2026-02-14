@@ -5,9 +5,9 @@
  */
 import Irys from '@irys/sdk';
 
-const IRYS_NODE = 'https://devnet.irys.xyz'; // TODO(MAINNET): Change to 'https://node1.irys.xyz'
+const IRYS_NODE = process.env.IRYS_NODE || 'https://node1.irys.xyz';
 const IRYS_TOKEN = 'solana';
-const IRYS_RPC = 'https://api.devnet.solana.com'; // TODO(MAINNET): Change to mainnet RPC
+const IRYS_RPC = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 
 let irysInstance: Irys | null = null;
 

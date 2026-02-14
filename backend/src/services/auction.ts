@@ -1080,10 +1080,6 @@ export async function countHoldings(wallet: string, collectionAddress: string): 
  * Check if wallet holds a Fellow Villains NFT OR a Founder Key (art collection NFT).
  */
 export async function verifyVoteEligibility(wallet: string, cfg: any): Promise<boolean> {
-  // ⚠️ DEVNET ONLY — bypass DAS holder check for testing
-  // TODO(MAINNET): REMOVE this block before mainnet launch!
-  if (process.env.DEVNET_BYPASS_DAS === 'true') return true;
-
   // Check Fellow Villains collection
   if (cfg.fellow_villains_collection) {
     const holdsFV = await verifyHolder(wallet, cfg.fellow_villains_collection);
