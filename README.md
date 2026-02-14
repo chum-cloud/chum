@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/chum-logo.jpg" alt="CHUM" width="300" />
+</p>
+
 # CHUM: Reanimation
 
 **AI Art Auction Protocol on Solana**

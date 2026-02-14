@@ -63,6 +63,7 @@ export default function Header() {
     <>
       <header className="flex items-center justify-between px-4 py-3 border-b border-chum-border">
         <div className="flex items-center gap-3">
+          <img src="/chum-logo.jpg" alt="CHUM" className="h-6" />
           <h1 className="font-heading text-sm uppercase tracking-widest text-chum-text">CHUM</h1>
           {epoch && targetTime > 0 && (
             <span className="font-mono text-[10px] text-chum-muted">
