@@ -36,9 +36,9 @@ export const api = {
     fetchJSON(`/api/auction/recent-mints?limit=${limit}`),
 
   joinVoting: (wallet: string, mintAddress: string) =>
-    postJSON('/api/auction/join-voting', { wallet, mintAddress }),
+    postJSON('/api/auction/join', { creatorWallet: wallet, mintAddress }),
   confirmJoin: (wallet: string, signature: string, mintAddress: string) =>
-    postJSON('/api/auction/confirm-join', { wallet, signature, mintAddress }),
+    postJSON('/api/auction/join/confirm', { creatorWallet: wallet, signature, mintAddress }),
 
   voteFree: (wallet: string, candidateMint: string, numVotes = 1) =>
     postJSON('/api/auction/vote', { voterWallet: wallet, candidateMint, numVotes, paid: false }),
