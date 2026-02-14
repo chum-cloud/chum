@@ -311,12 +311,15 @@ export async function buyVotePack(wallet: string): Promise<{
   packSize: number;
   price: number;
 }> {
-  const kp = getAuthorityKeypair();
+  // Get treasury wallet from config (consistent with all other user payments)
+  const { getConfig } = await import('./auction');
+  const cfg = await getConfig();
+  const treasuryWallet = cfg.treasury_wallet;
 
-  // Build tx: user pays authority
+  // Build tx: user pays treasury
   const ix = SystemProgram.transfer({
     fromPubkey: new PublicKey(wallet),
-    toPubkey: kp.publicKey,
+    toPubkey: new PublicKey(treasuryWallet),
     lamports: VOTE_PACK_PRICE_LAMPORTS,
   });
 
