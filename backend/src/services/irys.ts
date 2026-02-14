@@ -59,7 +59,7 @@ async function uploadBuffer(
   ];
 
   const receipt = await irys.upload(data, { tags: allTags });
-  const url = `https://arweave.net/${receipt.id}`;
+  const url = `https://gateway.irys.xyz/${receipt.id}`;
   console.log(`[IRYS] Uploaded ${contentType} (${data.length} bytes): ${url}`);
   return url;
 }
