@@ -103,7 +103,7 @@ export default function ProfilePage() {
   const isOwnProfile = profileWallet === connectedWallet && !!connectedWallet;
 
   const [allCandidates, setAllCandidates] = useState<Candidate[]>([]);
-  const [stats, setStats] = useState<SwipeStatsFull | null>(null);
+  const [, setStats] = useState<SwipeStatsFull | null>(null);
   const [remaining, setRemaining] = useState<SwipeRemainingFull | null>(null);
   const [bids, setBids] = useState<BidData[]>([]);
   // removed: prediction claiming state
