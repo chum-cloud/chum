@@ -73,7 +73,7 @@ function getUmi(): Umi {
 }
 
 // ─── Helper: get config singleton ───
-async function getConfig() {
+export async function getConfig() {
   const { data, error } = await supabase
     .from('auction_config')
     .select('*')

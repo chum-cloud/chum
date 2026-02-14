@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { createChallenge, verifyChallenge } from '../services/challenge';
+import { uploadArtToArweave, fetchFromPool } from '../services/irys';
 import {
   mintArt,
   confirmMint,
@@ -17,6 +18,7 @@ import {
   getCandidates,
   getVoterRewards,
   claimVoterRewards,
+  getConfig,
 } from '../services/auction';
 import {
   getNextSwipe,
@@ -220,17 +222,49 @@ router.post('/auction/mint', async (req, res) => {
       }
     }
 
-    // Use the piece's PNG as the NFT image URI (Arweave upload will replace this later)
-    const result = await mintArt(creatorWallet, piece.id, piece.png, fee);
+    // Upload MP4 + PNG + metadata to Arweave via Irys
+    const mintNumber = (await getConfig()).total_minted + 1;
+    const nftName = `CHUM: Reanimation #${String(mintNumber).padStart(4, '0')}`;
+
+    let metadataUri: string;
+    let imageUri: string;
+    let animationUri: string;
+    let uploadCostLamports = 0;
+
+    try {
+      const [mp4Buf, pngBuf] = await Promise.all([
+        fetchFromPool(piece.mp4),
+        fetchFromPool(piece.png),
+      ]);
+
+      const upload = await uploadArtToArweave(mp4Buf, pngBuf, nftName, piece.id);
+      metadataUri = upload.metadataUri;
+      imageUri = upload.imageUri;
+      animationUri = upload.animationUri;
+      uploadCostLamports = upload.uploadCostLamports;
+    } catch (irysErr: any) {
+      console.error('[MINT] Irys upload failed, falling back to Supabase URLs:', irysErr.message);
+      // Fallback: use Supabase URLs directly (not permanent, but doesn't block minting)
+      metadataUri = piece.png; // URI points to image as fallback
+      imageUri = piece.png;
+      animationUri = piece.mp4;
+    }
+
+    // Add Irys upload cost to the mint fee (~0.0005 SOL)
+    const totalFee = fee + uploadCostLamports;
+
+    const result = await mintArt(creatorWallet, nftName, metadataUri, totalFee);
     res.json({
       success: true,
       transaction: result.transaction,
       assetAddress: result.assetAddress,
-      fee,
+      fee: totalFee,
+      mintFee: fee,
+      uploadCost: uploadCostLamports,
       isAgent,
-      piece: { id: piece.id, mp4: piece.mp4, png: piece.png },
+      piece: { id: piece.id, mp4: animationUri, png: imageUri },
       ...(isAgent && { agentMintCount: agentMintCount + 1, nextFee: (await getAgentMintFee(creatorWallet)).fee }),
-      message: `Sign to mint (${fee / 1e9} SOL)`,
+      message: `Sign to mint (${totalFee / 1e9} SOL)`,
     });
   } catch (error: any) {
     console.error('[AUCTION] Mint failed:', error.message);
