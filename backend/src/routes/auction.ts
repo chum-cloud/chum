@@ -186,9 +186,25 @@ async function getPoolManifest() {
   return poolManifest!;
 }
 
-function pickRandomPiece(manifest: { pieces: Array<{ id: string; mp4: string; png: string }> }) {
-  const idx = Math.floor(Math.random() * manifest.pieces.length);
-  return manifest.pieces[idx];
+// Track minted piece IDs to prevent duplicates
+let mintedPieceIds: Set<string> | null = null;
+let mintedPieceIdsLoadedAt = 0;
+const MINTED_CACHE_MS = 60_000; // refresh every 1 min
+
+async function getMintedPieceIds(): Promise<Set<string>> {
+  if (mintedPieceIds && Date.now() - mintedPieceIdsLoadedAt < MINTED_CACHE_MS) return mintedPieceIds;
+  const { data } = await supabase.from('recent_mints').select('name');
+  mintedPieceIds = new Set((data || []).map((r: any) => r.name));
+  mintedPieceIdsLoadedAt = Date.now();
+  return mintedPieceIds;
+}
+
+async function pickRandomPiece(manifest: { pieces: Array<{ id: string; mp4: string; png: string }> }) {
+  const minted = await getMintedPieceIds();
+  const available = manifest.pieces.filter(p => !minted.has(p.id));
+  if (available.length === 0) throw new Error('Pool exhausted — no unminted art remaining');
+  const idx = Math.floor(Math.random() * available.length);
+  return available[idx];
 }
 
 /**
@@ -205,9 +221,9 @@ router.post('/auction/mint', async (req, res) => {
       return res.status(400).json({ error: 'creatorWallet is required' });
     }
 
-    // Pick random piece from pool
+    // Pick random unminted piece from pool
     const manifest = await getPoolManifest();
-    const piece = pickRandomPiece(manifest);
+    const piece = await pickRandomPiece(manifest);
 
     // Determine pricing based on challenge
     let fee = HUMAN_MINT_FEE;
@@ -310,6 +326,8 @@ router.post('/auction/mint/confirm', async (req, res) => {
           is_agent: !!isAgent,
           fee: isAgent ? AGENT_BASE_FEE : HUMAN_MINT_FEE,
         });
+        // Invalidate minted piece cache so next mint won't pick the same piece
+        mintedPieceIds = null;
       } catch (e) {
         console.warn('[AUCTION] Failed to insert recent mint:', e);
       }
