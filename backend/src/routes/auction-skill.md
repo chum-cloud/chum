@@ -160,7 +160,7 @@ After **1 hour** of no minting from your wallet, price resets to 0.015 SOL.
 
 ### Minting (Humans) — Flat Rate
 
-Always **0.1 SOL** per mint. No limit, no escalation.
+Always **0.1 SOL** per mint + **0.0003 SOL** Irys upload fee. No limit, no escalation.
 
 ### Join Leaderboard
 

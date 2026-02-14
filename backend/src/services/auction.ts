@@ -176,12 +176,20 @@ export async function mintArt(
     toPubkey: new PublicKey(cfg.team_wallet),
     lamports: mintFee,
   });
-  const umiFeeIx = fromWeb3JsInstruction(feeIx);
-  const feeBuilder = transactionBuilder().add({
-    instruction: umiFeeIx,
-    signers: [],
-    bytesCreatedOnChain: 0,
+
+  // Add Irys upload cost: user → authority (covers Arweave permanent storage)
+  const IRYS_COST_LAMPORTS = 300_000; // ~0.0003 SOL — covers ~1.7MB upload with buffer
+  const irysFeeIx = SystemProgram.transfer({
+    fromPubkey: new PublicKey(creatorWallet),
+    toPubkey: authorityKeypair.publicKey,
+    lamports: IRYS_COST_LAMPORTS,
   });
+
+  const umiFeeIx = fromWeb3JsInstruction(feeIx);
+  const umiIrysFeeIx = fromWeb3JsInstruction(irysFeeIx);
+  const feeBuilder = transactionBuilder()
+    .add({ instruction: umiFeeIx, signers: [], bytesCreatedOnChain: 0 })
+    .add({ instruction: umiIrysFeeIx, signers: [], bytesCreatedOnChain: 0 });
 
   const combined = createBuilder.add(feeBuilder);
   const tx = await combined.buildWithLatestBlockhash(u);
