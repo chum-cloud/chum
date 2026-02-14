@@ -1125,6 +1125,7 @@ export async function getCandidates() {
     .from('art_candidates')
     .select('*')
     .eq('withdrawn', false)
+    .eq('won', false)
     .order('votes', { ascending: false });
 
   if (error) throw new Error(`getCandidates: ${error.message}`);
