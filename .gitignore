@@ -42,3 +42,5 @@ badbunny-villain-*.png
 chum-flag-*.png
 chum-villain-*.mp4
 test-veo-*.mp4
+target/
+Cargo.lock
