@@ -676,6 +676,13 @@ router.get('/auction/config', async (_req, res) => {
       .eq('id', 1)
       .single();
     if (error) throw error;
+    // Include pool size for supply display
+    let poolSize = 0;
+    try {
+      const manifest = await getPoolManifest();
+      poolSize = manifest.pieces.length;
+    } catch (_) {}
+
     res.json({
       success: true,
       config: {
@@ -683,6 +690,7 @@ router.get('/auction/config', async (_req, res) => {
         agent_mint_fee: AGENT_BASE_FEE,
         human_mint_fee: HUMAN_MINT_FEE,
         join_fee: JOIN_FEE,
+        pool_size: poolSize,
       },
     });
   } catch (error: any) {

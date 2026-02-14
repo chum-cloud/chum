@@ -31,6 +31,10 @@ export default function MintPage() {
   const [mintedPiece, setMintedPiece] = useState<{ id: string; mp4: string; png: string } | null>(null);
   const [showMeatballPopup, setShowMeatballPopup] = useState(false);
 
+  // Supply counter
+  const [totalMinted, setTotalMinted] = useState(0);
+  const [poolSize, setPoolSize] = useState(0);
+
   // Real-time feed
   const [mints, setMints] = useState<RecentMint[]>([]);
   const [animating, setAnimating] = useState(false);
@@ -44,10 +48,16 @@ export default function MintPage() {
     return () => clearInterval(t);
   }, []);
 
-  // Load initial mints
+  // Load initial mints + supply
   useEffect(() => {
     api.getRecentMints(10).then((res: any) => {
       if (res.mints) setMints(res.mints);
+    }).catch(() => {});
+    api.getConfig().then((res: any) => {
+      if (res.config) {
+        setTotalMinted(res.config.total_minted || 0);
+        setPoolSize(res.config.pool_size || 0);
+      }
     }).catch(() => {});
   }, []);
 
@@ -75,6 +85,7 @@ export default function MintPage() {
       await api.confirmMint(assetAddress, signature, wallet, false, piece);
       setMintedAsset(assetAddress);
       setMintedPiece(piece);
+      setTotalMinted(prev => prev + 1);
       setStage('success');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Mint failed');
@@ -111,11 +122,9 @@ export default function MintPage() {
             <span className="font-mono text-xs text-chum-muted uppercase tracking-wider">
               Live Mint Feed
             </span>
-            {mints.length > 0 && (
-              <span className="font-mono text-[10px] text-chum-muted ml-auto">
-                {mints.length} recent
-              </span>
-            )}
+            <span className="font-mono text-[10px] text-chum-muted ml-auto">
+              {totalMinted} / {poolSize} minted
+            </span>
           </div>
 
           {/* Feed cards */}
