@@ -4,47 +4,41 @@ dist
 *.local
 .DS_Store
 .claude
-chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T.json
-supabase/.temp/
-chum-cloud/keys/
-chum-cloud/.env
 
 # Wallet keypairs - NEVER COMMIT
+*.json.bak
 *.keypair.json
 *-wallet.json
 wallets/
+*.secret.json
+chumAA7QjpFzpEtZ2XezM8onHrt8of4w35p3VMS4C6T.json
+.vault-wallet.json
+.team-wallet.json
+.treasury-wallet.json
+.secrets
 backend/.secrets
 backend/secrets/
-*.secret.json
-demo-assets/
 vertex-sa.json
-.secrets
 vertex-sa-new.json
-vertex-sa.json
+
+# Build artifacts
+target/
+supabase/.temp/
+
+# Generated assets
+demo-assets/
+*.mp4
+pool-manifest.json
 backend/all-nfts.json
 backend/needs-fix.json
-backend/repair-art.ts
-backend/repair-vertex.ts
-backend/test-buff.ts
-test-buff-villain.png
 
-# Generated images/videos
-*.mp4
+# Old scripts (keep in gitignore to prevent re-adding)
+backend/gen-*.ts
+backend/repair-*.ts
+backend/test-buff.ts
+backend/test-repair.ts
+test-buff-villain.png
 badbunny-villain-*.png
 chum-flag-*.png
 chum-villain-*.mp4
 test-veo-*.mp4
-backend/gen-*.ts
-backend/repair-*.ts
-backend/test-repair.ts
-
-# Auction wallets
-.vault-wallet.json
-.team-wallet.json
-.treasury-wallet.json
-
-# Anchor/Rust build
-target/
-
-# Anchor/Rust build artifacts
-target/
