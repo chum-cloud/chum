@@ -243,7 +243,8 @@ export default function ProfilePage() {
                         <StatusBadge status={art.status || 'voting'} />
                         {isOwnProfile && (art.status === 'voting' || !art.status) && (
                           <button
-                            onClick={async () => {
+                            onClick={async (e) => {
+                              e.stopPropagation();
                               if (withdrawingMint) return;
                               if (!confirm('Withdraw this NFT from the leaderboard? No refund on join fee.')) return;
                               setWithdrawingMint(art.mint_address);
