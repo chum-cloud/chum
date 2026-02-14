@@ -168,8 +168,8 @@ async function main() {
 
     // Shorten epoch + auction for testing
     await supabasePatch('auction_config', 'id=eq.1', {
-      epoch_duration: 120,  // 2 min epoch
-      auction_duration: 60, // 1 min auction
+      epoch_duration: 86400,  // Keep epoch long during setup — we'll expire it manually in Step 7
+      auction_duration: 60,   // 1 min auction (for when we trigger it)
     });
 
     // Fund Creator2 and Bidder1 from Creator1 (0.5 SOL each)
@@ -178,32 +178,33 @@ async function main() {
     const c1Balance = await getBalance(wallets.creator1.addr);
     console.log(`Creator1 balance: ${(c1Balance / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
     
-    if (c1Balance < 2 * LAMPORTS_PER_SOL) {
-      log('STEP 0: Setup', 'FAIL', `Creator1 needs at least 2 SOL (has ${(c1Balance / LAMPORTS_PER_SOL).toFixed(4)})`);
+    if (c1Balance < 0.9 * LAMPORTS_PER_SOL) {
+      log('STEP 0: Setup', 'FAIL', `Creator1 needs at least 0.9 SOL (has ${(c1Balance / LAMPORTS_PER_SOL).toFixed(4)})`);
       return;
     }
 
     // Fund Creator2
+    const fundAmt = Math.min(0.15 * LAMPORTS_PER_SOL, (c1Balance - 0.5 * LAMPORTS_PER_SOL) / 2);
     const fundTx1 = new Transaction().add(
       SystemProgram.transfer({
         fromPubkey: creator1KP.publicKey,
         toPubkey: creator2KP.publicKey,
-        lamports: 0.5 * LAMPORTS_PER_SOL,
+        lamports: fundAmt,
       })
     );
     await sendAndConfirmTransaction(connection, fundTx1, [creator1KP]);
-    console.log(`  Funded Creator2: 0.5 SOL`);
+    console.log(`  Funded Creator2: ${(fundAmt / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
 
     // Fund Bidder1
     const fundTx2 = new Transaction().add(
       SystemProgram.transfer({
         fromPubkey: creator1KP.publicKey,
         toPubkey: bidder1KP.publicKey,
-        lamports: 0.5 * LAMPORTS_PER_SOL,
+        lamports: fundAmt,
       })
     );
     await sendAndConfirmTransaction(connection, fundTx2, [creator1KP]);
-    console.log(`  Funded Bidder1: 0.5 SOL`);
+    console.log(`  Funded Bidder1: ${(fundAmt / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
 
     log('STEP 0: Setup', 'PASS', 'Wallets funded, durations shortened');
   } catch (e: any) {
@@ -352,7 +353,7 @@ async function main() {
     }
   }
 
-  // Creator2 votes for Creator1's first piece (free vote)
+  // Creator2 votes for Creator1's first piece (free vote — needs DEVNET_BYPASS_DAS)
   if (c1Pieces.length > 0) {
     try {
       const voteRes = await apiCall('POST', '/auction/vote', {
@@ -363,7 +364,13 @@ async function main() {
       });
       log('STEP 5b: Creator2 free vote for Creator1', 'PASS', `Total votes: ${voteRes.totalVotes}`);
     } catch (e: any) {
-      log('STEP 5b: Creator2 free vote for Creator1', 'FAIL', e.message);
+      // If DEVNET_BYPASS_DAS not active, free vote fails — expected
+      if (e.message.includes('Fellow Villains')) {
+        console.log('  Note: Free vote requires DEVNET_BYPASS_DAS=true on server');
+        log('STEP 5b: Creator2 free vote for Creator1', 'FAIL', 'DEVNET_BYPASS_DAS not active on server');
+      } else {
+        log('STEP 5b: Creator2 free vote for Creator1', 'FAIL', e.message);
+      }
     }
   }
 
@@ -458,19 +465,57 @@ async function main() {
     log('STEP 6: Leaderboard', 'FAIL', e.message);
   }
 
-  // ═══ STEP 7: Force epoch end ═══
-  console.log('\n--- STEP 7: Force epoch end ---');
+  // ═══ STEP 7: End epoch via crank ═══
+  console.log('\n--- STEP 7: End epoch (crank) ---');
   try {
-    // Shorten to 1 second remaining
-    await supabasePatch('auction_config', 'id=eq.1', {
-      epoch_duration: 1,
-    });
-    await sleep(3000);
+    // Make epoch expire immediately — set start_time far in past with short duration
+    const epochQueryResult = await supabaseQuery('auction_epochs', 'order=epoch_number.desc&limit=1');
+    console.log(`  Epoch query result:`, JSON.stringify(epochQueryResult).slice(0, 300));
+    const currentEpoch = epochQueryResult?.data || epochQueryResult;
+    const epochRow = Array.isArray(currentEpoch) ? currentEpoch[0] : null;
+    if (epochRow) {
+      const pastStart = new Date(Date.now() - 600 * 1000).toISOString(); // 10 min ago
+      const patchResult = await supabasePatch('auction_epochs', `id=eq.${epochRow.id}`, {
+        start_time: pastStart,
+        duration_seconds: 60, // 1 min — already 10 min past
+      });
+      console.log(`  Patch result:`, JSON.stringify(patchResult).slice(0, 300));
+      console.log(`  Set epoch ${epochRow.epoch_number} (id=${epochRow.id}) to already-expired`);
+    } else {
+      console.log(`  ERROR: No epoch found to patch!`);
+    }
 
-    // Trigger crank (debug settle endpoint or wait for crank)
-    const settleRes = await apiCall('POST', '/auction/debug-settle');
-    console.log(`  Settle result:`, JSON.stringify(settleRes).slice(0, 200));
-    log('STEP 7: Epoch end', 'PASS', `Epoch ended, auction should start`);
+    console.log('  Waiting for crank to end epoch (up to 90s)...');
+    let auctionStarted = false;
+    for (let i = 0; i < 18; i++) {
+      await sleep(5000);
+      try {
+        const auc = await apiCall('GET', '/auction/auction');
+        if (auc?.auction?.art_mint) {
+          auctionStarted = true;
+          console.log(`  Auction started for: ${auc?.auction?.name || auc?.auction?.art_mint}`);
+          break;
+        }
+      } catch {}
+      if (i % 2 === 1) console.log(`  Waiting... (${(i + 1) * 5}s)`);
+    }
+
+    if (auctionStarted) {
+      log('STEP 7: Epoch end (crank)', 'PASS', 'Auction started naturally via crank');
+    } else {
+      // Fallback to debug-settle
+      console.log('  Crank didn\'t trigger, trying debug-settle...');
+      const settleRes = await apiCall('POST', '/auction/debug-settle');
+      console.log(`  Settle result:`, JSON.stringify(settleRes).slice(0, 200));
+      await sleep(5000);
+      // Check again
+      const auc2 = await apiCall('GET', '/auction/auction');
+      if (auc2?.auction?.art_mint) {
+        log('STEP 7: Epoch end (debug-settle)', 'PASS', `Auction: ${auc2?.auction?.name || auc2?.auction?.art_mint}`);
+      } else {
+        log('STEP 7: Epoch end', 'FAIL', 'No auction started after debug-settle');
+      }
+    }
   } catch (e: any) {
     log('STEP 7: Epoch end', 'FAIL', e.message);
   }
@@ -482,21 +527,22 @@ async function main() {
   let auctionMint = '';
   try {
     const auc = await apiCall('GET', '/auction/auction');
-    if (!auc.mint_address) {
+    if (!auc?.auction?.art_mint) {
       log('STEP 8: Get auction', 'SKIP', 'No active auction');
     } else {
-      auctionMint = auc.mint_address;
-      console.log(`  Auction for: ${auc.name || auc.mint_address}`);
-      console.log(`  Current bid: ${auc.current_bid} SOL`);
+      auctionMint = auc?.auction?.art_mint;
+      console.log(`  Auction for: ${auc?.auction?.name || auc?.auction?.art_mint}`);
+      console.log(`  Current bid: ${(auc.auction?.current_bid || 0) / 1e9} SOL`);
 
       // Bidder1 bids 0.2 SOL
-      const epoch = await apiCall('GET', '/auction/epoch');
-      const epochNum = epoch.epoch?.epoch_number || epoch.epoch_number;
+      const epochNum = auc.auction.epoch_number;
+      console.log(`  Auction epoch: ${epochNum}`);
 
       const balBefore = await getBalance(wallets.bidder1.addr);
       const bidRes = await apiCall('POST', '/auction/bid', {
         bidderWallet: wallets.bidder1.addr,
-        amount: 200_000_000, // 0.2 SOL
+        epochNumber: epochNum,
+        bidAmount: 200_000_000, // 0.2 SOL
       });
       
       const sig = await signAndSend(bidRes.transaction, bidder1KP);
@@ -515,7 +561,8 @@ async function main() {
       const balBefore2 = await getBalance(wallets.creator2.addr);
       const bidRes2 = await apiCall('POST', '/auction/bid', {
         bidderWallet: wallets.creator2.addr,
-        amount: 300_000_000, // 0.3 SOL
+        epochNumber: epochNum,
+        bidAmount: 300_000_000, // 0.3 SOL
       });
 
       const sig2 = await signAndSend(bidRes2.transaction, creator2KP);
@@ -548,24 +595,56 @@ async function main() {
     log('STEP 8: Bidding', 'FAIL', e.message);
   }
 
-  // ═══ STEP 9: Force auction end + settle ═══
-  console.log('\n--- STEP 9: Force auction settle ---');
+  // ═══ STEP 9: Auction end + settle via crank ═══
+  console.log('\n--- STEP 9: Auction settle (crank) ---');
   try {
-    await supabasePatch('auction_config', 'id=eq.1', {
-      auction_duration: 1,
-    });
-    await sleep(3000);
-
     // Record balances before settle
     const teamBefore = teamWallet ? await getBalance(teamWallet) : 0;
     
     // Find the creator of the winning piece
-    // Creator2's piece should have won (3 votes vs 2)
     const winnerCreator = c2Pieces.length > 0 ? wallets.creator2 : wallets.creator1;
     const creatorBefore = await getBalance(winnerCreator.addr);
 
-    const settleRes = await apiCall('POST', '/auction/debug-settle');
-    console.log(`  Settle:`, JSON.stringify(settleRes).slice(0, 300));
+    // Shorten auction to expire soon
+    await supabasePatch('auction_config', 'id=eq.1', {
+      auction_duration: 5,
+    });
+    
+    // Set auction end_time to past so crank settles it
+    const auctions = await supabaseQuery('art_auctions', 'settled=eq.false&order=created_at.desc&limit=1');
+    if (auctions && auctions[0]) {
+      const pastEnd = new Date(Date.now() - 60000).toISOString(); // 1 min ago
+      await supabasePatch('art_auctions', `id=eq.${auctions[0].id}`, {
+        end_time: pastEnd,
+      });
+      console.log(`  Set auction ${auctions[0].id} (epoch ${auctions[0].epoch_number}) end_time to past`);
+    } else {
+      console.log(`  No unsettled auction found to expire`);
+    }
+
+    console.log('  Waiting for crank to settle auction (up to 60s)...');
+    let settled = false;
+    for (let i = 0; i < 12; i++) {
+      await sleep(5000);
+      try {
+        const auc = await apiCall('GET', '/auction/auction');
+        if (!auc?.auction?.art_mint || auc.error) {
+          settled = true;
+          break;
+        }
+      } catch {
+        settled = true;
+        break;
+      }
+      console.log(`  Waiting... (${(i + 1) * 5}s)`);
+    }
+
+    if (!settled) {
+      // Fallback
+      console.log('  Crank didn\'t settle, trying debug-settle...');
+      await apiCall('POST', '/auction/debug-settle');
+      await sleep(5000);
+    }
 
     await sleep(5000);
 
@@ -653,28 +732,28 @@ async function main() {
   }
   log('STEP 11: Profile data', 'PASS', 'All profiles checked');
 
-  // ═══ STEP 12: Verify Founder Key status ═══
-  console.log('\n--- STEP 12: Founder Key check ---');
+  // ═══ STEP 12: Verify winner marked in DB ═══
+  console.log('\n--- STEP 12: Winner verification ---');
   try {
     if (auctionMint) {
-      const candidates = await apiCall('GET', '/auction/candidates');
-      const list = candidates?.candidates || [];
-      const winner = list.find((c: any) => c.mint_address === auctionMint);
+      // Check art_candidates — winner should have won=true
+      const candidates = await supabaseQuery('art_candidates', `mint_address=eq.${auctionMint}`);
+      const winner = Array.isArray(candidates) ? candidates[0] : null;
       if (winner) {
-        console.log(`  Winner status: ${winner.status}`);
-        if (winner.status === 'founder_key') {
-          log('STEP 12: Founder Key', 'PASS', `${winner.name} upgraded to Founder Key`);
+        console.log(`  Winner: ${winner.name}, won=${winner.won}, votes=${winner.votes}`);
+        if (winner.won) {
+          log('STEP 12: Winner verified', 'PASS', `${winner.name} won=true (${winner.votes} votes)`);
         } else {
-          log('STEP 12: Founder Key', 'FAIL', `Expected 'founder_key', got '${winner.status}'`);
+          log('STEP 12: Winner verified', 'FAIL', `Expected won=true, got won=${winner.won}`);
         }
       } else {
-        log('STEP 12: Founder Key', 'SKIP', 'Winner not found in candidates');
+        log('STEP 12: Winner verified', 'SKIP', 'Winner not found in art_candidates');
       }
     } else {
-      log('STEP 12: Founder Key', 'SKIP', 'No auction mint tracked');
+      log('STEP 12: Winner verified', 'SKIP', 'No auction mint tracked');
     }
   } catch (e: any) {
-    log('STEP 12: Founder Key', 'FAIL', e.message);
+    log('STEP 12: Winner verified', 'FAIL', e.message);
   }
 
   // ═══ Final balances ═══
