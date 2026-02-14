@@ -192,11 +192,6 @@ export default function VotePage() {
                               ))}
                             </div>
                           )}
-                          {(c.agent_votes || 0) > 0 && (
-                            <span className="font-mono text-[10px] text-chum-muted">
-                              AGT · {c.agent_votes}
-                            </span>
-                          )}
                         </div>
                         <button
                           onClick={(e) => {

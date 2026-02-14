@@ -54,7 +54,6 @@ export default function Leaderboard() {
           </div>
           <span className="font-mono text-xs">
             <span style={{ color: '#33ff33' }}>▲ {c.votes}</span>
-            {c.agent_votes ? <span className="text-chum-muted ml-2">AGT · {c.agent_votes}</span> : null}
           </span>
         </button>
       ))}

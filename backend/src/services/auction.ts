@@ -405,31 +405,6 @@ export async function voteFree(
 /**
  * Agent vote: free, unlimited, zero ranking weight. Social proof only.
  */
-export async function voteAgent(
-  agentWallet: string,
-  candidateMint: string,
-): Promise<{ success: boolean; agentVotes: number }> {
-  const cfg = await getConfig();
-  if (cfg.paused) throw new Error('Auction system is paused');
-
-  // Verify candidate exists
-  const { data: candidate, error: candErr } = await supabase
-    .from('art_candidates')
-    .select('agent_votes')
-    .eq('mint_address', candidateMint)
-    .eq('withdrawn', false)
-    .single();
-  if (candErr || !candidate) throw new Error('Candidate not found or withdrawn');
-
-  const newAgentVotes = (candidate.agent_votes || 0) + 1;
-  await supabase
-    .from('art_candidates')
-    .update({ agent_votes: newAgentVotes })
-    .eq('mint_address', candidateMint);
-
-  return { success: true, agentVotes: newAgentVotes };
-}
-
 /**
  * Paid vote: costs escalating SOL. Returns tx for user to sign.
  */

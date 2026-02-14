@@ -238,7 +238,6 @@ export default function ProfilePage() {
                         <p className="font-mono text-xs text-chum-text truncate">{art.name}</p>
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-xs" style={{ color: '#33ff33' }}>▲ {art.votes || 0}</span>
-                          {art.agent_votes ? <span className="font-mono text-[10px] text-chum-muted">AGT · {art.agent_votes}</span> : null}
                         </div>
                         <StatusBadge status={art.status || 'voting'} />
                       </div>

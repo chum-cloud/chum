@@ -253,9 +253,6 @@ export default function SwipePage() {
                     <p className="font-mono text-xs text-chum-muted">by {truncateWallet(candidate.creator_wallet)}</p>
                     <div className="flex items-center gap-3 font-mono text-xs">
                       <span style={{ color: '#33ff33' }}>▲ {candidate.votes}</span>
-                      {(candidate.agent_votes || 0) > 0 && (
-                        <span className="text-chum-muted">AGT · {candidate.agent_votes}</span>
-                      )}
                     </div>
                   </div>
                 </div>

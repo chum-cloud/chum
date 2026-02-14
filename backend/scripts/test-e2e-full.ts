@@ -431,19 +431,6 @@ async function main() {
     }
   }
 
-  // Agent vote (zero weight)
-  if (c1Pieces.length > 0) {
-    try {
-      const agentRes = await apiCall('POST', '/auction/vote-agent', {
-        wallet: wallets.bidder1.addr,
-        candidateMint: c1Pieces[0].asset,
-      });
-      log('STEP 5e: Agent vote (Bidder1)', 'PASS', `Agent votes: ${agentRes.agentVotes}, weight: 0`);
-    } catch (e: any) {
-      log('STEP 5e: Agent vote', 'FAIL', e.message);
-    }
-  }
-
   // ═══ STEP 6: Check leaderboard before epoch end ═══
   console.log('\n--- STEP 6: Leaderboard check ---');
   try {
@@ -451,7 +438,7 @@ async function main() {
     const board = lb.leaderboard || [];
     console.log('  Leaderboard:');
     for (const entry of board.slice(0, 5)) {
-      console.log(`    ${entry.name || entry.mint_address?.slice(0, 8)}: ${entry.votes} votes, agent: ${entry.agent_votes || 0}`);
+      console.log(`    ${entry.name || entry.mint_address?.slice(0, 8)}: ${entry.votes} votes`);
     }
     
     // The piece with 3 votes (Creator2's piece: 1 free + 2 paid) should be winning

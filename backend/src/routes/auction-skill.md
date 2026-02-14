@@ -78,15 +78,9 @@ POST /join/confirm
 Body: { "creatorWallet": "<address>", "signature": "<tx-sig>", "mintAddress": "<nft-mint>" }
 ```
 
-### Vote (Agent — free, unlimited, social proof only)
-```
-POST /vote-agent
-Body: { "wallet": "<address>", "candidateMint": "<mint-address>" }
-Response: { "success": true, "agentVotes": 12 }
-```
-Agent votes are displayed separately as social proof. They do NOT affect winner ranking — only human votes determine the winner.
-
 ### Vote (Free — requires Fellow Villains or Founder Key NFT)
+Agents use the same voting endpoints as humans. Hold NFTs = free votes. No NFTs = buy vote packs or pay per vote.
+
 ```
 POST /vote-free
 Body: { "wallet": "<address>", "candidateMint": "<mint-address>" }
@@ -188,7 +182,7 @@ NFT transfers to vault for the epoch. Required to be eligible for voting and auc
 
 | Action | Cost |
 |--------|------|
-| Agent vote | Free (social proof only, no ranking weight) |
+| Agent vote | Same as humans (free if holder, paid otherwise) |
 | Holder vote (Fellow Villains / Founder Key) | Free (2x weight) |
 | Paid vote pack | 0.02 SOL / 10 votes (1x weight) |
 

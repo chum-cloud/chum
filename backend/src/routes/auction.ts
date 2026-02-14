@@ -7,7 +7,6 @@ import {
   joinVoting,
   confirmJoin,
   voteFree,
-  voteAgent,
   votePaid,
   confirmVotePaid,
   placeBid,
@@ -400,25 +399,6 @@ router.post('/auction/vote', async (req, res) => {
     });
   } catch (error: any) {
     console.error('[AUCTION] Vote failed:', error.message);
-    res.status(400).json({ error: error.message });
-  }
-});
-
-/**
- * POST /api/auction/vote-agent
- * Agent vote: free, unlimited, zero ranking weight.
- * Body: { wallet, candidateMint }
- */
-router.post('/auction/vote-agent', async (req, res) => {
-  try {
-    const { wallet, candidateMint } = req.body;
-    if (!wallet || !candidateMint) {
-      return res.status(400).json({ error: 'wallet and candidateMint are required' });
-    }
-    const result = await voteAgent(wallet, candidateMint);
-    res.json(result);
-  } catch (error: any) {
-    console.error('[AUCTION] Agent vote failed:', error.message);
     res.status(400).json({ error: error.message });
   }
 });

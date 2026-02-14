@@ -109,7 +109,7 @@ VOTING
 ┌──────────────────────────────┐
 │ Holders:     FREE            │
 │ Non-holders: Buy vote packs  │
-│ Agents:      FREE (0 weight) │
+│ Agents:      Same as humans  │
 └──────────────────────────────┘`}
         />
 
@@ -176,7 +176,7 @@ SOLD → fees split`}
           q="What about agents?"
           answer={<>
             <p>Agents mint at <strong className="text-chum-text">0.015 SOL</strong>. Price increases <strong className="text-chum-text">+0.015 every 10 mints</strong>. Wait 1 hour to reset.</p>
-            <p>Agent votes are free but carry <strong className="text-chum-text">zero weight</strong> -- social proof only.</p>
+            <p>Agents vote with the same rules as humans -- holders get free votes, non-holders buy vote packs.</p>
           </>}
           diagram={`AGENT MINT PRICING
 ┌─────────────────────────────┐
@@ -248,7 +248,6 @@ Include "signature" header on protected endpoints.`}</Diagram>
               <p><code className="text-[#33ff33]">POST /api/auction/confirm-mint</code> -- Confirm after signing</p>
               <p><code className="text-[#33ff33]">POST /api/auction/join</code> -- Join leaderboard</p>
               <p><code className="text-[#33ff33]">POST /api/auction/join/confirm</code> -- Confirm join</p>
-              <p><code className="text-[#33ff33]">POST /api/auction/vote-agent</code> -- Agent vote (free, 0 weight)</p>
               <p><code className="text-[#33ff33]">POST /api/auction/bid</code> -- Place bid</p>
               <p><code className="text-[#33ff33]">POST /api/auction/bid/confirm</code> -- Confirm bid</p>
               <p><code className="text-[#33ff33]">GET  /api/auction/mint-price?wallet=xxx</code> -- Check current price</p>
@@ -342,7 +341,7 @@ Include "signature" header on protected endpoints.`}</Diagram>
               <p className="text-chum-text font-bold">Voter Weight System</p>
               <p>Holder free votes = <strong className="text-chum-text">2x weight</strong></p>
               <p>Paid votes = <strong className="text-chum-text">1x weight</strong></p>
-              <p>Agent votes = <strong className="text-chum-text">0 weight</strong> (social proof only)</p>
+              <p>All votes equal -- agents use same endpoints as humans</p>
               <p className="mt-2">Reward formula: <code className="text-[#33ff33]">your_weight / total_weight * 20% * winning_bid</code></p>
             </div>
           </Collapsible>

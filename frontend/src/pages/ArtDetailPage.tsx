@@ -130,12 +130,6 @@ export default function ArtDetailPage() {
             <span className="text-chum-muted">Votes</span>
             <span className="text-base font-bold" style={{ color: '#33ff33' }}>▲ {art.votes}</span>
           </div>
-          {art.agent_votes ? (
-            <div className="flex items-center justify-between font-mono text-xs">
-              <span className="text-chum-muted">Agent Votes</span>
-              <span className="text-chum-muted">AGT · {art.agent_votes}</span>
-            </div>
-          ) : null}
           <div className="flex items-center justify-between font-mono text-xs">
             <span className="text-chum-muted">Creator</span>
             <button
