@@ -77,7 +77,7 @@ export default function Header() {
             <div className="relative">
               <button
                 onClick={() => setShowVoteTooltip(!showVoteTooltip)}
-                className={`px-2 py-1 border border-chum-border font-mono text-xs transition-colors ${
+                className={`h-8 px-2 border border-chum-border font-mono text-xs flex items-center transition-colors ${
                   voteBalance.total > 0
                     ? 'text-[#33ff33] border-[#33ff33]/30 hover:bg-[#33ff33]/10'
                     : 'text-chum-muted hover:text-chum-text'
