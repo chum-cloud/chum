@@ -155,8 +155,8 @@ export async function mintArt(
     plugins: [
       {
         type: 'Royalties',
-        basisPoints: 500,
-        creators: [{ address: u.identity.publicKey, percentage: 100 }],
+        basisPoints: 1000, // 10% royalties on secondary sales
+        creators: [{ address: publicKey(cfg.team_wallet), percentage: 100 }],
         ruleSet: ruleSet('None'),
       },
       {

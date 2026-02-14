@@ -197,7 +197,7 @@ NFT transfers to vault for the epoch. Required to be eligible for voting and auc
 
 ## Collections
 
-- **CHUM: Reanimation**: Collection address from auction config
+- **CHUM: Reanimation**: `877BjfHehJF3zz3kWWbuYdFBGyVERdnKk7ycfKNJ15QW`
 - **Fellow Villains**: `EK9CvmCfP7ZmRWAfYxEpSM8267ozXD8SYzwSafkcm8M7` (mainnet)
 
 ## Notes
