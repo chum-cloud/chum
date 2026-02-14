@@ -222,8 +222,19 @@ export async function confirmMint(
   }
 
   // Verify the asset exists on-chain and belongs to our collection
+  // DAS indexer can lag 15-20s on mainnet — retry up to 3 times
   const u = getUmi();
-  const asset = await fetchAssetV1(u, publicKey(assetAddress));
+  let asset: any;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      asset = await fetchAssetV1(u, publicKey(assetAddress));
+      break;
+    } catch (err: any) {
+      if (attempt === 3) throw new Error(`Asset not found after 3 retries: ${err.message}`);
+      console.log(`confirmMint: asset not indexed yet, retry ${attempt}/3 in 5s...`);
+      await new Promise(r => setTimeout(r, 5000));
+    }
+  }
   const cfg = await getConfig();
 
   if (
