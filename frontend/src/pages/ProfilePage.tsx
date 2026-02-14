@@ -106,8 +106,7 @@ export default function ProfilePage() {
   const [stats, setStats] = useState<SwipeStatsFull | null>(null);
   const [remaining, setRemaining] = useState<SwipeRemainingFull | null>(null);
   const [bids, setBids] = useState<BidData[]>([]);
-  const [claiming, setClaiming] = useState(false);
-  const [claimMsg, setClaimMsg] = useState('');
+  // removed: prediction claiming state
   const [ownedArt, setOwnedArt] = useState<MyArtPiece[]>([]);
   const [joiningMint, setJoiningMint] = useState<string | null>(null);
   const [withdrawingMint, setWithdrawingMint] = useState<string | null>(null);
@@ -165,19 +164,7 @@ export default function ProfilePage() {
 
   const siteUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
-  const handleClaim = async () => {
-    setClaiming(true);
-    setClaimMsg('');
-    try {
-      await api.claimPrediction(connectedWallet);
-      setClaimMsg('Claimed');
-      load();
-    } catch (e: unknown) {
-      setClaimMsg(e instanceof Error ? e.message : 'Failed');
-    } finally {
-      setClaiming(false);
-    }
-  };
+  // removed: prediction claim handler
 
   return (
     <>
