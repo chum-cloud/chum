@@ -514,12 +514,34 @@ router.get('/auction/auctions', async (req, res) => {
   try {
     const auctions = await getActiveAuctions();
     const now = Date.now();
+
+    // Enrich with art media URLs from art_candidates
+    const mints = auctions.map((a: any) => a.art_mint);
+    let artMap: Record<string, any> = {};
+    if (mints.length > 0) {
+      const { data: candidates } = await supabase
+        .from('art_candidates')
+        .select('mint_address, image_url, animation_url, name')
+        .in('mint_address', mints);
+      if (candidates) {
+        for (const c of candidates) {
+          artMap[c.mint_address] = c;
+        }
+      }
+    }
+
     res.json({
       success: true,
-      auctions: auctions.map((a: any) => ({
-        ...a,
-        remaining_seconds: Math.max(0, Math.floor((new Date(a.end_time).getTime() - now) / 1000)),
-      })),
+      auctions: auctions.map((a: any) => {
+        const art = artMap[a.art_mint] || {};
+        return {
+          ...a,
+          image_url: art.image_url || null,
+          animation_url: art.animation_url || null,
+          art_name: art.name || null,
+          remaining_seconds: Math.max(0, Math.floor((new Date(a.end_time).getTime() - now) / 1000)),
+        };
+      }),
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

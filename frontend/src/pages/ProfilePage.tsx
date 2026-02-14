@@ -112,6 +112,7 @@ export default function ProfilePage() {
   const [joiningMint, setJoiningMint] = useState<string | null>(null);
   const [withdrawingMint, setWithdrawingMint] = useState<string | null>(null);
   const [withdrawTarget, setWithdrawTarget] = useState<Candidate | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const myArt = allCandidates.filter((c) => c.creator_wallet === profileWallet);
   const totalVotesReceived = myArt.reduce((sum, c) => sum + (c.votes || 0), 0);
@@ -298,7 +299,7 @@ export default function ProfilePage() {
                               load();
                             } catch (e: any) {
                               console.error('Join failed:', e);
-                              alert(`Join failed: ${e?.message || e}`);
+                              setErrorMessage(`Join failed: ${e?.message || e}`);
                             }
                             setJoiningMint(null);
                           }}
@@ -430,11 +431,26 @@ export default function ProfilePage() {
             await api.withdraw(connectedWallet, mint);
             load();
           } catch (e: any) {
-            alert(`Withdraw failed: ${e?.message || e}`);
+            setErrorMessage(`Withdraw failed: ${e?.message || e}`);
           }
           setWithdrawingMint(null);
         }}
       />
+
+      {/* Error modal */}
+      {errorMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="bg-chum-surface border border-chum-border max-w-sm w-full p-6">
+            <p className="font-mono text-xs text-chum-danger mb-4">{errorMessage}</p>
+            <button
+              onClick={() => setErrorMessage('')}
+              className="w-full min-h-[44px] border border-chum-border text-chum-text font-mono text-xs uppercase tracking-wider hover:bg-chum-text hover:text-chum-bg transition-colors"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

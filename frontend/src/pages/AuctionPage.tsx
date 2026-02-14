@@ -17,9 +17,9 @@ interface AuctionItem {
   end_time: string;
   settled: boolean;
   remaining_seconds: number;
-  name?: string;
-  mp4_url?: string;
-  uri?: string;
+  art_name?: string;
+  image_url?: string;
+  animation_url?: string;
 }
 
 function AuctionCard({ auction, onBidPlaced }: { auction: AuctionItem; onBidPlaced: () => void }) {
@@ -86,18 +86,24 @@ function AuctionCard({ auction, onBidPlaced }: { auction: AuctionItem; onBidPlac
         {/* Artwork */}
         <div className="md:w-[200px] md:shrink-0">
           <div className="w-full aspect-square bg-chum-surface border border-chum-border overflow-hidden mb-3 md:mb-0">
-            <video
-              src={auction.mp4_url || auction.uri || ''}
-              autoPlay loop muted playsInline
-              className="w-full h-full object-cover"
-            />
+            {auction.animation_url ? (
+              <video
+                src={auction.animation_url}
+                autoPlay loop muted playsInline
+                className="w-full h-full object-cover"
+              />
+            ) : auction.image_url ? (
+              <img src={auction.image_url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center font-mono text-xs text-chum-muted">--</div>
+            )}
           </div>
         </div>
 
         {/* Bid info */}
         <div className="flex-1">
-          {auction.name && (
-            <p className="font-mono text-sm text-chum-text mb-2">{auction.name}</p>
+          {auction.art_name && (
+            <p className="font-mono text-sm text-chum-text mb-2">{auction.art_name}</p>
           )}
           <p className="font-mono text-[10px] text-chum-muted mb-1">
             Creator: {truncateWallet(auction.art_creator)}
