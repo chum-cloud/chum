@@ -900,15 +900,7 @@ export async function settleAuction(): Promise<{
   const winnerWallet = auction.current_bidder;
   const winAmount = Number(auction.current_bid);
 
-  // 1. Transfer NFT from vault to winner
-  await transferV1(u, {
-    asset: publicKey(auction.art_mint),
-    collection: publicKey(cfg.collection_address),
-    newOwner: publicKey(winnerWallet),
-    authority: u.identity,
-  }).sendAndConfirm(u);
-
-  // 2. Update Status attribute to "Founder Key"
+  // 1. Update Status attribute to "Founder Key" BEFORE transfer (authority loses access after)
   try {
     const updateAttr = updatePlugin(u, {
       asset: publicKey(auction.art_mint),
@@ -924,10 +916,19 @@ export async function settleAuction(): Promise<{
       },
     });
     await updateAttr.sendAndConfirm(u);
+    console.log(`[AUCTION] Updated NFT ${auction.art_mint} to Founder Key`);
   } catch (err: any) {
     console.error(`[AUCTION] Failed to update attributes: ${err.message}`);
-    // Non-fatal — NFT transferred successfully
+    // Non-fatal — continue with transfer
   }
+
+  // 2. Transfer NFT from vault to winner
+  await transferV1(u, {
+    asset: publicKey(auction.art_mint),
+    collection: publicKey(cfg.collection_address),
+    newOwner: publicKey(winnerWallet),
+    authority: u.identity,
+  }).sendAndConfirm(u);
 
   // 3. Revenue split: 60% creator, 20% voter rewards, 10% team, 10% growth
   const creatorShare = Math.floor(winAmount * 0.6);
