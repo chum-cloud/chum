@@ -646,27 +646,11 @@ export async function confirmBid(
     .single();
   if (aErr || !auction) throw new Error('No active auction for this epoch');
 
-  // Refund previous bidder if exists — NEVER lose a bidder's SOL
-  if (auction.current_bidder && Number(auction.current_bid) > 0) {
-    try {
-      await refundBidder(auction.current_bidder, Number(auction.current_bid), auction.id);
-    } catch (err: any) {
-      console.error(`[AUCTION] CRITICAL: Failed to refund previous bidder ${auction.current_bidder}: ${err.message}`);
-      // Flag failed refund in database for retry
-      await supabase.from('art_bids').update({
-        refund_failed: true,
-        refund_error: err.message,
-        refund_failed_at: new Date().toISOString(),
-      })
-        .eq('auction_id', auction.id)
-        .eq('bidder_wallet', auction.current_bidder)
-        .eq('refunded', false);
-      // Do NOT proceed without refund — throw to prevent accepting new bid
-      throw new Error(`Cannot accept bid: refund to previous bidder failed. Their SOL is safe and will be retried.`);
-    }
-  }
+  // Record the previous bidder info for refund AFTER we accept the new bid
+  const prevBidder = auction.current_bidder;
+  const prevBidAmount = Number(auction.current_bid);
 
-  // Record bid
+  // Record bid FIRST — new bidder's SOL is already on-chain, don't block on refund
   await supabase.from('art_bids').insert({
     auction_id: auction.id,
     bidder_wallet: bidderWallet,
@@ -682,6 +666,24 @@ export async function confirmBid(
       bid_count: (auction.bid_count || 0) + 1,
     })
     .eq('id', auction.id);
+
+  // Refund previous bidder AFTER bid is recorded — don't block on failure
+  if (prevBidder && prevBidAmount > 0) {
+    try {
+      await refundBidder(prevBidder, prevBidAmount, auction.id);
+    } catch (err: any) {
+      console.error(`[AUCTION] Refund failed for ${prevBidder} (${prevBidAmount} lamports): ${err.message}`);
+      // Flag for crank retry — bid is already accepted, refund will happen on next crank tick
+      await supabase.from('art_bids').update({
+        refund_failed: true,
+        refund_error: err.message,
+        refund_failed_at: new Date().toISOString(),
+      })
+        .eq('auction_id', auction.id)
+        .eq('bidder_wallet', prevBidder)
+        .eq('refunded', false);
+    }
+  }
 
   return { confirmed: true, auctionId: auction.id };
 }
