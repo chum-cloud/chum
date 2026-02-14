@@ -279,8 +279,9 @@ export default function ProfilePage() {
                                 a.mint_address === art.mint_address ? { ...a, joined: true } : a
                               ));
                               load();
-                            } catch (e) {
+                            } catch (e: any) {
                               console.error('Join failed:', e);
+                              alert(`Join failed: ${e?.message || e}`);
                             }
                             setJoiningMint(null);
                           }}
