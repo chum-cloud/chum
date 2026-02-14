@@ -911,6 +911,26 @@ router.post('/auction/claim-prediction', async (req, res) => {
 });
 
 /**
+ * GET /api/auction/og/image?url=...
+ * Proxy an image to avoid redirect issues with Twitter/OG crawlers.
+ */
+router.get('/auction/og/image', async (req, res) => {
+  try {
+    const url = req.query.url as string;
+    if (!url) return res.status(400).send('url required');
+    const resp = await fetch(url, { redirect: 'follow' });
+    if (!resp.ok) return res.status(502).send('upstream error');
+    const contentType = resp.headers.get('content-type') || 'image/png';
+    const buffer = Buffer.from(await resp.arrayBuffer());
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(buffer);
+  } catch (_) {
+    res.status(502).send('proxy error');
+  }
+});
+
+/**
  * GET /api/auction/og/profile/:wallet
  * Serve HTML with Open Graph meta tags for profile link previews.
  */
@@ -920,7 +940,6 @@ router.get('/auction/og/profile/:wallet', async (req, res) => {
     const short = wallet.length > 8 ? `${wallet.slice(0, 4)}..${wallet.slice(-4)}` : wallet;
 
     // Try to get user's top art piece
-    // Use node1.irys.xyz directly to avoid 302 redirect (Twitter crawler doesn't follow)
     let imageUrl = 'https://www.clumcloud.com/chum-logo.jpg';
     try {
       const { data: candidates } = await supabase
@@ -930,7 +949,9 @@ router.get('/auction/og/profile/:wallet', async (req, res) => {
         .order('votes', { ascending: false })
         .limit(1);
       if (candidates && candidates.length > 0 && candidates[0].image_url) {
-        imageUrl = candidates[0].image_url.replace('gateway.irys.xyz', 'node1.irys.xyz');
+        // Proxy through our backend to avoid Irys 302 redirects that crawlers can't follow
+        const encoded = encodeURIComponent(candidates[0].image_url);
+        imageUrl = `https://chum-production.up.railway.app/api/auction/og/image?url=${encoded}`;
       }
     } catch (_) {}
 
