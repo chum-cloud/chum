@@ -19,6 +19,7 @@ import {
   getVoterRewards,
   claimVoterRewards,
   getConfig,
+  getActiveAuctions,
 } from '../services/auction';
 import {
   getNextSwipe,
@@ -481,6 +482,26 @@ router.get('/auction/auction', async (req, res) => {
         ...auction,
         remaining_seconds: Math.floor(remaining),
       },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/auction/auctions
+ * Get all active (unsettled) auctions with countdown timers.
+ */
+router.get('/auction/auctions', async (req, res) => {
+  try {
+    const auctions = await getActiveAuctions();
+    const now = Date.now();
+    res.json({
+      success: true,
+      auctions: auctions.map((a: any) => ({
+        ...a,
+        remaining_seconds: Math.max(0, Math.floor((new Date(a.end_time).getTime() - now) / 1000)),
+      })),
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

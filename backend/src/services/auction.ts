@@ -776,7 +776,10 @@ export async function endEpoch(): Promise<{
     })
     .eq('id', epoch.id);
 
-  console.log(`[AUCTION] Epoch ${epoch.epoch_number} ended. Winner: ${winner.mint_address} (${winner.votes} votes)`);
+  // Create next epoch immediately — voting never stops
+  await createNextEpoch(epoch.epoch_number + 1, epoch.duration_seconds);
+
+  console.log(`[AUCTION] Epoch ${epoch.epoch_number} ended. Winner: ${winner.mint_address} (${winner.votes} votes). Next epoch started.`);
 
   return { winner: winner.mint_address, auctionCreated: true, skipped: false };
 }
@@ -820,13 +823,11 @@ export async function settleAuction(): Promise<{
       .update({ settled: true })
       .eq('id', auction.id);
 
-    // Finalize epoch + create next
+    // Finalize epoch (next epoch already created by endEpoch)
     await supabase
       .from('auction_epochs')
       .update({ finalized: true })
       .eq('epoch_number', auction.epoch_number);
-
-    await createNextEpoch(auction.epoch_number + 1, Number(cfg.epoch_duration));
 
     console.log(`[AUCTION] Auction ${auction.id} settled with no bids — NFT returned to creator`);
     return { settled: true };
@@ -935,13 +936,11 @@ export async function settleAuction(): Promise<{
     .update({ settled: true })
     .eq('id', auction.id);
 
-  // 7. Finalize epoch + create next
+  // 7. Mark epoch finalized (next epoch already created by endEpoch)
   await supabase
     .from('auction_epochs')
     .update({ finalized: true })
     .eq('epoch_number', auction.epoch_number);
-
-  await createNextEpoch(auction.epoch_number + 1, Number(cfg.epoch_duration));
 
   console.log(`[AUCTION] Auction ${auction.id} settled! Winner: ${winnerWallet}, Amount: ${winAmount}`);
 
@@ -1037,6 +1036,20 @@ export async function getAuction(epochNumber?: number) {
   const { data, error } = await query.maybeSingle();
   if (error) throw new Error(`getAuction: ${error.message}`);
   return data;
+}
+
+/**
+ * Get all active (unsettled) auctions, ordered by end time.
+ */
+export async function getActiveAuctions() {
+  const { data, error } = await supabase
+    .from('art_auctions')
+    .select('*')
+    .eq('settled', false)
+    .order('end_time', { ascending: true });
+
+  if (error) throw new Error(`getActiveAuctions: ${error.message}`);
+  return data || [];
 }
 
 /**

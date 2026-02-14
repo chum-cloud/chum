@@ -47,10 +47,10 @@ export const api = {
   confirmVote: (wallet: string, signature: string) =>
     postJSON('/api/auction/confirm-vote', { wallet, signature }),
 
-  bid: (wallet: string, amount: number) =>
-    postJSON('/api/auction/bid', { wallet, amount }),
-  confirmBid: (wallet: string, signature: string) =>
-    postJSON('/api/auction/confirm-bid', { wallet, signature }),
+  bid: (wallet: string, epochNumber: number, bidAmount: number) =>
+    postJSON('/api/auction/bid', { bidderWallet: wallet, epochNumber, bidAmount }),
+  confirmBid: (wallet: string, epochNumber: number, bidAmount: number, signature: string) =>
+    postJSON('/api/auction/bid/confirm', { bidderWallet: wallet, epochNumber, bidAmount, signature }),
 
   // Swipe / Judge
   getNextSwipe: (wallet: string) => USE_MOCK ? mockApi.getNextSwipe(wallet) : fetchJSON(`/api/auction/swipe/next?wallet=${wallet}`),
