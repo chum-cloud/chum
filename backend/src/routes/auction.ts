@@ -6,6 +6,7 @@ import {
   confirmMint,
   joinVoting,
   confirmJoin,
+  withdrawFromVoting,
   voteFree,
   votePaid,
   confirmVotePaid,
@@ -364,6 +365,25 @@ router.post('/auction/join/confirm', async (req, res) => {
   } catch (error: any) {
     console.error('[AUCTION] Join confirm failed:', error.message);
     res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/auction/withdraw
+ * Withdraw NFT from leaderboard back to user wallet.
+ * Body: { creatorWallet, mintAddress }
+ */
+router.post('/auction/withdraw', async (req, res) => {
+  try {
+    const { creatorWallet, mintAddress } = req.body;
+    if (!creatorWallet || !mintAddress) {
+      return res.status(400).json({ error: 'creatorWallet and mintAddress are required' });
+    }
+    const result = await withdrawFromVoting(creatorWallet, mintAddress);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('[AUCTION] Withdraw failed:', error.message);
+    res.status(400).json({ error: error.message });
   }
 });
 

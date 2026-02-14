@@ -350,6 +350,71 @@ export async function confirmJoin(
 }
 
 /**
+ * Withdraw NFT from leaderboard: transfer from vault back to user.
+ * Only allowed if NFT is not in an active auction.
+ * No refund on join fee.
+ */
+export async function withdrawFromVoting(
+  creatorWallet: string,
+  mintAddress: string,
+): Promise<{ confirmed: boolean; transferSignature: string }> {
+  const cfg = await getConfig();
+  if (cfg.paused) throw new Error('Auction system is paused');
+
+  // Verify candidate exists and is not withdrawn
+  const { data: candidate, error: candErr } = await supabase
+    .from('art_candidates')
+    .select('*')
+    .eq('mint_address', mintAddress)
+    .eq('withdrawn', false)
+    .single();
+  if (candErr || !candidate) throw new Error('Candidate not found or already withdrawn');
+
+  // Verify caller is the creator
+  if (candidate.creator_wallet !== creatorWallet) {
+    throw new Error('Only the creator can withdraw this NFT');
+  }
+
+  // Check NFT is not in an active auction
+  const { data: activeAuction } = await supabase
+    .from('art_auctions')
+    .select('id')
+    .eq('art_mint', mintAddress)
+    .eq('settled', false)
+    .maybeSingle();
+  if (activeAuction) throw new Error('Cannot withdraw — NFT is in an active auction');
+
+  // Check NFT won status
+  if (candidate.won) throw new Error('Cannot withdraw — NFT has already won an auction');
+
+  const u = getUmi();
+
+  // Verify vault owns the NFT
+  const asset = await fetchAssetV1(u, publicKey(mintAddress));
+  if (asset.owner.toString() !== u.identity.publicKey.toString()) {
+    throw new Error('NFT is not in the vault');
+  }
+
+  // Transfer NFT back to user using PermanentTransferDelegate
+  const transferResult = await transferV1(u, {
+    asset: publicKey(mintAddress),
+    collection: publicKey(cfg.collection_address),
+    newOwner: publicKey(creatorWallet),
+    authority: u.identity,
+  }).sendAndConfirm(u);
+  const transferSig = Buffer.from(transferResult.signature).toString('base64');
+  console.log(`[AUCTION] NFT ${mintAddress} withdrawn to ${creatorWallet}: ${transferSig}`);
+
+  // Mark as withdrawn
+  await supabase
+    .from('art_candidates')
+    .update({ withdrawn: true })
+    .eq('mint_address', mintAddress);
+
+  return { confirmed: true, transferSignature: transferSig };
+}
+
+/**
  * Free vote: 1 free vote per wallet per epoch per candidate.
  * Requires voter to hold a Fellow Villains NFT (verified via Helius DAS).
  */
